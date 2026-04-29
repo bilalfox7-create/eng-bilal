@@ -648,17 +648,215 @@ function App(){
   };
 
   const exportPDF=()=>{
-    const logoHtml=logo?`<img src="${logo}" style="width:70px;height:70px;object-fit:contain;border-radius:8px;" />`:'';
+    const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
+    const PL=["#eff6ff","#f0fdf4","#fffbeb","#f5f3ff"];
+    const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
+    const logoHtml=logo?`<img src="${logo}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:2px solid rgba(255,255,255,.2);" />`:'<div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;">🏗️</div>';
+    const provColors=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     const provRows=PROVS.map((prov,pi)=>{
-      const engs=data[prov]||[];const T=totals[pi];const color=PCOLS[pi];const light=PLTS[pi];
-      const rows=engs.map((e,i)=>{const c=calc(e,cfg.rate,cfg.egp);return `<tr style="background:${i%2===0?'#fff':light}"><td style="text-align:center;color:#9ca3af;">${i+1}</td><td style="font-weight:600;">${e.name}</td><td style="color:#6b7280;">${e.spec}</td><td style="text-align:center;">${e.d1}</td><td style="text-align:center;color:#2563EB;font-weight:600;">${c.a1.toFixed(2)}</td><td style="text-align:center;">${e.d2}</td><td style="text-align:center;color:#16A34A;font-weight:600;">${c.a2.toFixed(2)}</td><td style="text-align:center;font-weight:700;">${c.tot.toFixed(2)}</td><td style="text-align:center;font-weight:700;color:#D97706;">${c.egp.toFixed(2)}</td></tr>`;}).join('');
-      return `<div style="margin-bottom:18px;break-inside:avoid;"><div style="background:${color};color:#fff;padding:8px 14px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;font-size:13px;">◆ ${prov}</span><span style="font-size:10px;opacity:.85;">${engs.length} مهندس · ${T.tot.toFixed(2)}$ · ${T.egp.toFixed(2)} ج.م</span></div><table style="width:100%;border-collapse:collapse;font-size:10.5px;border:1px solid #e5e7eb;border-top:none;"><thead><tr style="background:${light};"><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:28px;">م</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:right;">الاسم</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:right;">التخصص</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:50px;">أيام 1-15</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:65px;">إعاشة 1 ($)</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:50px;">أيام 16-30</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:65px;">إعاشة 2 ($)</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:72px;">إجمالى ($)</th><th style="padding:6px 8px;font-weight:700;color:${color};border-bottom:1px solid #e5e7eb;text-align:center;width:78px;">إجمالى (ج.م)</th></tr></thead><tbody>${rows}<tr style="background:${light};font-weight:700;"><td colspan="3" style="padding:6px 10px;">إجمالى ${prov}</td><td></td><td style="text-align:center;color:#2563EB;">${T.a1.toFixed(2)}</td><td></td><td style="text-align:center;color:#16A34A;">${T.a2.toFixed(2)}</td><td style="text-align:center;">${T.tot.toFixed(2)}</td><td style="text-align:center;color:#D97706;">${T.egp.toFixed(2)}</td></tr></tbody></table></div>`;
+      const engs=data[prov]||[];const T=totals[pi];
+      const color=PC[pi];const light=PL[pi];const border=PB[pi];
+      if(engs.length===0)return'';
+      const rows=engs.map((e,i)=>{
+        const c=calc(e,cfg.rate,cfg.egp);
+        const bg=i%2===0?'#ffffff':'#f8fafc';
+        return `<tr style="background:${bg};">
+          <td style="padding:7px 8px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:1px solid #f1f5f9;">${i+1}</td>
+          <td style="padding:7px 8px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${e.name}</td>
+          <td style="padding:7px 8px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.spec}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${e.d1}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:700;color:${color};border-bottom:1px solid #f1f5f9;">${c.a1.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${e.d2}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:700;color:${color};border-bottom:1px solid #f1f5f9;">${c.a2.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${c.tot.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${c.egp.toFixed(0)}</td>
+        </tr>`;
+      }).join('');
+      return `
+      <div style="margin-bottom:20px;border-radius:10px;overflow:hidden;border:1.5px solid ${border};box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
+        <div style="background:linear-gradient(135deg,${color} 0%,${color}dd 100%);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#fff;opacity:.8;"></div>
+            <span style="color:#fff;font-weight:700;font-size:13px;">${prov}</span>
+            <span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;padding:2px 8px;border-radius:100px;">${engs.length} مهندس</span>
+          </div>
+          <div style="text-align:left;color:#fff;">
+            <span style="font-weight:700;font-size:12px;">${T.tot.toFixed(2)} $</span>
+            <span style="opacity:.7;font-size:10px;margin-right:8px;">${T.egp.toFixed(0)} ج.م</span>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
+          <thead>
+            <tr style="background:${light};">
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:26px;">م</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;min-width:120px;">الاسم</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;">التخصص</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:46px;">1-15</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">إعاشة 1 ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:46px;">16-30</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">إعاشة 2 ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:70px;">إجمالى ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:74px;">إجمالى (ج.م)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr style="background:${light};border-top:2px solid ${border};">
+              <td colspan="3" style="padding:8px 10px;font-weight:700;color:${color};">◆ إجمالى ${prov}</td>
+              <td></td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:${color};">${T.a1.toFixed(2)}</td>
+              <td></td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:${color};">${T.a2.toFixed(2)}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${T.tot.toFixed(2)}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${T.egp.toFixed(0)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
     }).join('');
-    const smryRows=[{l:`النصف الأول (1–15) – ${mn} ${cfg.year}`,days:allE.reduce((a,e)=>a+e.d1,0),usd:G.a1,eg:G.a1*cfg.egp,bg:"#EFF6FF"},{l:`النصف الثاني (16–30) – ${mn} ${cfg.year}`,days:allE.reduce((a,e)=>a+e.d2,0),usd:G.a2,eg:G.a2*cfg.egp,bg:"#F0FDF4"},{l:"الشهر كامل",days:allE.reduce((a,e)=>a+e.d1+e.d2,0),usd:G.tot,eg:G.egp,bg:"#FFFBEB"}].map(r=>`<tr style="background:${r.bg}"><td style="padding:8px 12px;font-weight:600;">${r.l}</td><td style="padding:8px 12px;text-align:center;font-weight:700;">${r.days} يوم</td><td style="padding:8px 12px;text-align:center;font-weight:700;color:#1e40af;">${r.usd.toFixed(2)} $</td><td style="padding:8px 12px;text-align:center;font-weight:700;color:#92400e;">${r.eg.toFixed(2)} ج.م</td></tr>`).join('');
-    const html=`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>كشف إعاشات – ${mn} ${cfg.year}</title><style>@page{size:A4;margin:14mm 12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#111;font-size:11px;background:#fff}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}.print-btn{position:fixed;top:14px;left:14px;background:#2563EB;color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:600;box-shadow:0 4px 12px rgba(37,99,235,.3)}</style></head><body><button class="print-btn no-print" onclick="window.print()">🖨️ &nbsp;طباعة / حفظ PDF</button><div style="background:linear-gradient(135deg,#0B1E33 0%,#162D47 100%);border-radius:10px 10px 0 0;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;"><div style="display:flex;align-items:center;gap:14px;">${logoHtml}<div><div style="color:#fff;font-size:20px;font-weight:700;margin-bottom:2px;">كشف إعاشات المهندسين</div><div style="color:rgba(255,255,255,.6);font-size:11px;">${cfg.company}</div></div></div><div style="text-align:left;"><div style="color:#fff;font-size:18px;font-weight:700;">${mn} ${cfg.year}</div><div style="color:rgba(255,255,255,.5);font-size:10px;margin-top:2px;">تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}</div></div></div><div style="height:5px;background:linear-gradient(90deg,#2563EB,#7C3AED);margin-bottom:16px;"></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">${[{l:"عدد المهندسين",v:G.n+" مهندساً",c:"#0B1E33"},{l:"الإعاشة اليومية",v:(cfg.rate/30).toFixed(2)+"$",c:"#0B1E33"},{l:"الإجمالى ($)",v:G.tot.toFixed(2)+"$",c:"#2563EB"},{l:"الإجمالى (ج.م)",v:G.egp.toFixed(2)+" ج.م",c:"#D97706"}].map(s=>`<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-weight:700;font-size:15px;color:${s.c};">${s.v}</div><div style="font-size:9px;color:#9ca3af;margin-top:2px;">${s.l}</div></div>`).join('')}</div>${provRows}<div style="margin-top:16px;border:2px solid #0B1E33;border-radius:6px;overflow:hidden;break-inside:avoid;"><div style="background:#0B1E33;color:#fff;padding:8px 14px;font-weight:700;font-size:12px;">ملخص الصرف حسب فترة الاستحقاق</div><table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px 12px;text-align:right;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">الفترة</th><th style="padding:8px 12px;text-align:center;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">إجمالى الأيام</th><th style="padding:8px 12px;text-align:center;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">الإعاشة ($)</th><th style="padding:8px 12px;text-align:center;font-weight:700;color:#374151;border-bottom:1px solid #e5e7eb;">الإعاشة (ج.م)</th></tr></thead><tbody>${smryRows}</tbody></table></div><div style="margin-top:20px;padding-top:14px;border-top:1px solid #e5e7eb;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;font-size:10px;color:#9ca3af;"><div>اعتمد من:<div style="border-bottom:1px solid #d1d5db;margin-top:20px;"></div></div><div>التوقيع:<div style="border-bottom:1px solid #d1d5db;margin-top:20px;"></div></div><div>التاريخ: ${new Date().toLocaleDateString('ar-EG')}<div style="border-bottom:1px solid #d1d5db;margin-top:6px;"></div></div></div></body></html>`;
-    const win=window.open('','_blank','width=960,height=720');
+
+    const totalDays1=allE.reduce((a,e)=>a+e.d1,0);
+    const totalDays2=allE.reduce((a,e)=>a+e.d2,0);
+    const summaryCards=[
+      {l:"إجمالى المهندسين",v:G.n+" مهندس",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe"},
+      {l:"إجمالى النصف الأول",v:G.a1.toFixed(2)+" $",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0"},
+      {l:"إجمالى النصف الثاني",v:G.a2.toFixed(2)+" $",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe"},
+      {l:"الإجمالى الكلى ($)",v:G.tot.toFixed(2)+" $",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0"},
+      {l:"الإجمالى (ج.م)",v:G.egp.toFixed(0)+" ج.م",c:"#b45309",bg:"#fffbeb",br:"#fde68a"},
+      {l:"الإعاشة اليومية",v:(cfg.rate/30).toFixed(2)+" $",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd"},
+    ].map(s=>`<div style="background:${s.bg};border:1.5px solid ${s.br};border-radius:10px;padding:12px 10px;text-align:center;flex:1;min-width:0;">
+      <div style="font-size:16px;font-weight:800;color:${s.c};margin-bottom:4px;">${s.v}</div>
+      <div style="font-size:9px;color:#64748b;font-weight:600;letter-spacing:.3px;">${s.l}</div>
+    </div>`).join('');
+
+    const html=`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>كشف إعاشات – ${mn} ${cfg.year}</title>
+<style>
+  @page{size:A4;margin:12mm 10mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;line-height:1.5}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}
+  .print-bar{position:fixed;top:0;left:0;right:0;background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:9px 24px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35);display:flex;align-items:center;gap:8px}
+  .print-btn:hover{opacity:.9}
+  .page-body{padding-top:60px}
+  @media print{.page-body{padding-top:0}}
+</style>
+</head>
+<body>
+
+<div class="print-bar no-print">
+  <div style="font-size:13px;font-weight:700;color:#1e293b;">كشف إعاشات – ${mn} ${cfg.year} · ${cfg.company}</div>
+  <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+</div>
+
+<div class="page-body">
+
+  <!-- ═══ HEADER ═══ -->
+  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 60%,#312e81 100%);border-radius:12px;padding:18px 22px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      ${logoHtml}
+      <div>
+        <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:3px;letter-spacing:-.3px;">كشف إعاشات المهندسين</div>
+        <div style="color:rgba(255,255,255,.65);font-size:11px;font-weight:500;">${cfg.company}</div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الإعاشة: ${cfg.rate} $</span>
+          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الصرف: ${cfg.egp} ج.م/$</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:left;">
+      <div style="color:#fff;font-size:26px;font-weight:800;line-height:1;">${mn}</div>
+      <div style="color:#93c5fd;font-size:18px;font-weight:700;">${cfg.year}</div>
+      <div style="color:rgba(255,255,255,.45);font-size:10px;margin-top:4px;">صدر: ${new Date().toLocaleDateString('ar-EG')}</div>
+    </div>
+  </div>
+
+  <!-- gradient bar -->
+  <div style="height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);margin-bottom:14px;border-radius:0 0 4px 4px;"></div>
+
+  <!-- ═══ SUMMARY CARDS ═══ -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    ${summaryCards}
+  </div>
+
+  <!-- ═══ PROVINCE TABLES ═══ -->
+  ${provRows}
+
+  <!-- ═══ GRAND TOTAL ═══ -->
+  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:2px solid #1e3a8a;box-shadow:0 4px 12px rgba(0,0,0,.1);break-inside:avoid;">
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:#fff;font-weight:700;font-size:13px;">📊 ملخص الصرف الإجمالى</span>
+      <span style="color:#93c5fd;font-size:12px;">${mn} ${cfg.year}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;background:#fff;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:8px 12px;text-align:right;color:#475569;font-weight:700;border-bottom:2px solid #e2e8f0;">الفترة</th>
+          <th style="padding:8px 12px;text-align:center;color:#475569;font-weight:700;border-bottom:2px solid #e2e8f0;">أيام الحضور</th>
+          <th style="padding:8px 12px;text-align:center;color:#475569;font-weight:700;border-bottom:2px solid #e2e8f0;">الإعاشة ($)</th>
+          <th style="padding:8px 12px;text-align:center;color:#475569;font-weight:700;border-bottom:2px solid #e2e8f0;">الإعاشة (ج.م)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#eff6ff;">
+          <td style="padding:9px 12px;font-weight:600;color:#1e40af;">النصف الأول (1 – 15) – ${mn} ${cfg.year}</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#1e40af;">${totalDays1} يوم</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#1d4ed8;">${G.a1.toFixed(2)} $</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(G.a1*cfg.egp).toFixed(0)} ج.م</td>
+        </tr>
+        <tr style="background:#f0fdf4;">
+          <td style="padding:9px 12px;font-weight:600;color:#166534;">النصف الثاني (16 – 30) – ${mn} ${cfg.year}</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#166534;">${totalDays2} يوم</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#15803d;">${G.a2.toFixed(2)} $</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(G.a2*cfg.egp).toFixed(0)} ج.م</td>
+        </tr>
+        <tr style="background:#fefce8;border-top:2px solid #fde68a;">
+          <td style="padding:10px 12px;font-weight:800;color:#92400e;font-size:12px;">✦ الشهر كامل – ${mn} ${cfg.year}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:800;color:#92400e;">${totalDays1+totalDays2} يوم</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#0f172a;font-size:14px;">${G.tot.toFixed(2)} $</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#b45309;font-size:13px;">${G.egp.toFixed(0)} ج.م</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ SIGNATURES ═══ -->
+  <div style="margin-top:24px;padding:16px 20px;border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;">
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:40px;">المحاسب / المعد</div>
+        <div style="border-bottom:1.5px solid #94a3b8;"></div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:40px;">المراجع</div>
+        <div style="border-bottom:1.5px solid #94a3b8;"></div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px;">اعتمد من</div>
+        <div style="font-size:10px;color:#374151;margin-bottom:22px;">التاريخ: ${new Date().toLocaleDateString('ar-EG')}</div>
+        <div style="border-bottom:1.5px solid #94a3b8;"></div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع والختم</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;font-size:9px;color:#94a3b8;">
+    نظام إعاشات المهندسين · ${cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+  </div>
+
+</div>
+</body></html>`;
+    const win=window.open('','_blank','width=1000,height=750');
+    if(!win){msg("يرجى السماح بالنوافذ المنبثقة","err");return;}
     win.document.write(html);win.document.close();
-    setTimeout(()=>win.focus(),300);
+    setTimeout(()=>win.focus(),400);
     msg("تم فتح نافذة الطباعة ✓");
   };
 
