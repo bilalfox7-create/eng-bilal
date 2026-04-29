@@ -60,12 +60,17 @@ router.put('/data', (req, res) => {
       saved_at = excluded.saved_at
   `);
 
-  db.transaction(() => {
+  db.exec('BEGIN');
+  try {
     db.prepare('DELETE FROM months').run();
     for (const [key, m] of Object.entries(months)) {
       insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null);
     }
-  })();
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 
   res.json({ ok: true });
 });
