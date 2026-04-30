@@ -412,7 +412,8 @@ function App(){
   const [user,setUser]=useState(null);
   const [loginForm,setLoginForm]=useState({username:"",password:""});
   const [loginError,setLoginError]=useState("");
-  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",note:""});
+  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
+  const [custForm,setCustForm]=useState({id:null,desc:"",usd:"",lyd:"",date:"",note:""});
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -493,15 +494,25 @@ function App(){
   const allE=useMemo(()=>PROVS.flatMap(p=>(data[p]||[]).map(e=>({...e,prov:p}))),[data]);
   const filtered=useMemo(()=>search.trim()?allE.filter(e=>e.name.includes(search)||e.spec.includes(search)):[],[search,allE]);
   const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0},cfg.rate,cfg.egp),[form.d1,form.d2,cfg.rate,cfg.egp]);
-  const expenses=useMemo(()=>am?.expenses||[],[am]);
+  const expData=useMemo(()=>{
+    const raw=am?.expenses;
+    if(!raw) return {custody:[],items:[]};
+    // backward compat: old format was flat array
+    if(Array.isArray(raw)) return {custody:[],items:raw.map(e=>({...e,date:"",custodyId:""}))};
+    return {custody:raw.custody||[],items:raw.items||[]};
+  },[am]);
+  const custody=expData.custody;
+  const expItems=expData.items;
   const expTotals=useMemo(()=>({
-    usd:expenses.reduce((a,e)=>a+(+e.usd||0),0),
-    lyd:expenses.reduce((a,e)=>a+(+e.lyd||0),0),
-    rentUSD:expenses.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.usd||0),0),
-    rentLYD:expenses.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.lyd||0),0),
-    custUSD:expenses.filter(e=>e.type==="عهدة").reduce((a,e)=>a+(+e.usd||0),0),
-    custLYD:expenses.filter(e=>e.type==="عهدة").reduce((a,e)=>a+(+e.lyd||0),0),
-  }),[expenses]);
+    itemsUSD:expItems.reduce((a,e)=>a+(+e.usd||0),0),
+    itemsLYD:expItems.reduce((a,e)=>a+(+e.lyd||0),0),
+    rentUSD:expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.usd||0),0),
+    rentLYD:expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.lyd||0),0),
+    msrfUSD:expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.usd||0),0),
+    msrfLYD:expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.lyd||0),0),
+    custTotalUSD:custody.reduce((a,c)=>a+(+c.usd||0),0),
+    custTotalLYD:custody.reduce((a,c)=>a+(+c.lyd||0),0),
+  }),[expItems,custody]);
   const isSaved=!!months[ak]?.savedAt;
   const mn=MONTHS[cfg.month-1];
   const unsaved=Object.values(months).filter(m=>!m?.savedAt).length;
@@ -836,44 +847,141 @@ function App(){
     </table>
   </div>
 
-  ${expenses.length>0?`
-  <!-- ═══ EXPENSES ═══ -->
-  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #c7d2fe;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
-    <div style="background:linear-gradient(135deg,#4338ca,#7c3aed);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="color:#fff;font-weight:700;font-size:13px;">💼 العهدة والمصروفات والإيجارات</span>
-      <span style="color:rgba(255,255,255,.8);font-size:11px;">${expenses.length} بند · ${mn} ${cfg.year}</span>
+  ${custody.length>0?`
+  <!-- ═══ CUSTODY ═══ -->
+  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #ddd6fe;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
+    <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:#fff;font-weight:700;font-size:13px;">🏦 العهدة</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${custody.length} عهدة · ${mn} ${cfg.year}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
       <thead>
         <tr style="background:#f5f3ff;">
-          <th style="padding:7px 10px;text-align:center;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;width:30px;">م</th>
-          <th style="padding:7px 10px;text-align:right;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;width:70px;">النوع</th>
-          <th style="padding:7px 10px;text-align:right;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;">الوصف / البيان</th>
-          <th style="padding:7px 10px;text-align:center;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;width:80px;">المبلغ ($)</th>
-          <th style="padding:7px 10px;text-align:center;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;width:90px;">المبلغ (د.ل)</th>
-          <th style="padding:7px 10px;text-align:right;color:#4338ca;font-weight:700;border-bottom:2px solid #c7d2fe;">ملاحظة</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:30px;">م</th>
+          <th style="padding:7px 10px;text-align:right;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;">الوصف</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:60px;">التاريخ</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">العهدة ($)</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">المصروف ($)</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">المتبقى ($)</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">العهدة (د.ل)</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">المصروف (د.ل)</th>
+          <th style="padding:7px 10px;text-align:center;color:#5b21b6;font-weight:700;border-bottom:2px solid #ddd6fe;width:80px;">المتبقى (د.ل)</th>
         </tr>
       </thead>
       <tbody>
-        ${expenses.map((e,i)=>{
-          const typeColors={"مصروف":"#1d4ed8","عهدة":"#6d28d9","إيجار":"#15803d"};
-          const typeBg={"مصروف":"#eff6ff","عهدة":"#f5f3ff","إيجار":"#f0fdf4"};
-          const c=typeColors[e.type]||"#374151";
-          const bg=typeBg[e.type]||"#f8fafc";
+        ${custody.map((c,i)=>{
+          const spentUSD=expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.usd||0),0);
+          const spentLYD=expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.lyd||0),0);
+          const remUSD=(+c.usd||0)-spentUSD;
+          const remLYD=(+c.lyd||0)-spentLYD;
+          const rowBg=i%2===0?"#ffffff":"#fafafa";
+          const remColor=remUSD<0?"#dc2626":"#15803d";
+          return `<tr style="background:${rowBg};">
+            <td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${i+1}</td>
+            <td style="padding:7px 10px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${c.desc}</td>
+            <td style="padding:7px 10px;text-align:center;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${c.date||"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#5b21b6;border-bottom:1px solid #f1f5f9;">${(+c.usd||0)>0?(+c.usd).toFixed(2)+" $":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#dc2626;border-bottom:1px solid #f1f5f9;">${spentUSD>0?spentUSD.toFixed(2)+" $":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:800;color:${remColor};border-bottom:1px solid #f1f5f9;">${remUSD.toFixed(2)} $</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#5b21b6;border-bottom:1px solid #f1f5f9;">${(+c.lyd||0)>0?(+c.lyd).toFixed(2)+" د.ل":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#dc2626;border-bottom:1px solid #f1f5f9;">${spentLYD>0?spentLYD.toFixed(2)+" د.ل":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:800;color:${(+c.lyd||0)-spentLYD<0?"#dc2626":"#15803d"};border-bottom:1px solid #f1f5f9;">${((+c.lyd||0)-spentLYD).toFixed(2)} د.ل</td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:#f5f3ff;border-top:2px solid #ddd6fe;">
+          <td colspan="2" style="padding:8px 10px;font-weight:700;color:#5b21b6;">◆ إجمالى العهدة</td>
+          <td></td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${expTotals.custTotalUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${expTotals.itemsUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(expTotals.custTotalUSD-expTotals.itemsUSD).toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${expTotals.custTotalLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${expTotals.itemsLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(expTotals.custTotalLYD-expTotals.itemsLYD).toFixed(2)} د.ل</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`:''}
+
+  ${expItems.filter(e=>e.type==="مصروف").length>0?`
+  <!-- ═══ EXPENSES ITEMS ═══ -->
+  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #bfdbfe;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
+    <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:#fff;font-weight:700;font-size:13px;">💸 المصروفات</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${expItems.filter(e=>e.type==="مصروف").length} بند · ${mn} ${cfg.year}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
+      <thead>
+        <tr style="background:#eff6ff;">
+          <th style="padding:7px 10px;text-align:center;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;width:30px;">م</th>
+          <th style="padding:7px 10px;text-align:right;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;">البيان</th>
+          <th style="padding:7px 10px;text-align:center;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;width:70px;">التاريخ</th>
+          <th style="padding:7px 10px;text-align:right;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;width:100px;">العهدة</th>
+          <th style="padding:7px 10px;text-align:center;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;width:80px;">المبلغ ($)</th>
+          <th style="padding:7px 10px;text-align:center;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;width:90px;">المبلغ (د.ل)</th>
+          <th style="padding:7px 10px;text-align:right;color:#1d4ed8;font-weight:700;border-bottom:2px solid #bfdbfe;">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${expItems.filter(e=>e.type==="مصروف").map((e,i)=>{
+          const cust=custody.find(c=>c.id===e.custodyId);
           const rowBg=i%2===0?"#ffffff":"#fafafa";
           return `<tr style="background:${rowBg};">
             <td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${i+1}</td>
-            <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;"><span style="background:${bg};color:${c};font-size:9.5px;padding:2px 7px;border-radius:100px;font-weight:700;">${e.type}</span></td>
             <td style="padding:7px 10px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${e.desc}</td>
-            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#1d4ed8;border-bottom:1px solid #f1f5f9;">${e.usd>0?(+e.usd).toFixed(2)+" $":"—"}</td>
-            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.date||"—"}</td>
+            <td style="padding:7px 10px;font-size:9.5px;color:#5b21b6;border-bottom:1px solid #f1f5f9;">${cust?cust.desc:"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#1d4ed8;border-bottom:1px solid #f1f5f9;">${(+e.usd||0)>0?(+e.usd).toFixed(2)+" $":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${(+e.lyd||0)>0?(+e.lyd).toFixed(2)+" د.ل":"—"}</td>
             <td style="padding:7px 10px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.note||"—"}</td>
           </tr>`;
         }).join('')}
-        <tr style="background:#f5f3ff;border-top:2px solid #c7d2fe;">
-          <td colspan="3" style="padding:8px 10px;font-weight:700;color:#4338ca;">◆ الإجمالى</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#1d4ed8;">${expTotals.usd.toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${expTotals.lyd.toFixed(2)} د.ل</td>
+        <tr style="background:#eff6ff;border-top:2px solid #bfdbfe;">
+          <td colspan="4" style="padding:8px 10px;font-weight:700;color:#1d4ed8;">◆ إجمالى المصروفات</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#1d4ed8;">${expTotals.msrfUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${expTotals.msrfLYD.toFixed(2)} د.ل</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`:''}
+
+  ${expItems.filter(e=>e.type==="إيجار").length>0?`
+  <!-- ═══ RENTS ═══ -->
+  <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #bbf7d0;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
+    <div style="background:linear-gradient(135deg,#15803d,#16a34a);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:#fff;font-weight:700;font-size:13px;">🏠 الإيجارات</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${expItems.filter(e=>e.type==="إيجار").length} بند · ${mn} ${cfg.year}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
+      <thead>
+        <tr style="background:#f0fdf4;">
+          <th style="padding:7px 10px;text-align:center;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;width:30px;">م</th>
+          <th style="padding:7px 10px;text-align:right;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;">البيان</th>
+          <th style="padding:7px 10px;text-align:center;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;width:70px;">التاريخ</th>
+          <th style="padding:7px 10px;text-align:right;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;width:100px;">العهدة</th>
+          <th style="padding:7px 10px;text-align:center;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;width:80px;">المبلغ ($)</th>
+          <th style="padding:7px 10px;text-align:center;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;width:90px;">المبلغ (د.ل)</th>
+          <th style="padding:7px 10px;text-align:right;color:#15803d;font-weight:700;border-bottom:2px solid #bbf7d0;">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${expItems.filter(e=>e.type==="إيجار").map((e,i)=>{
+          const cust=custody.find(c=>c.id===e.custodyId);
+          const rowBg=i%2===0?"#ffffff":"#fafafa";
+          return `<tr style="background:${rowBg};">
+            <td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${i+1}</td>
+            <td style="padding:7px 10px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${e.desc}</td>
+            <td style="padding:7px 10px;text-align:center;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.date||"—"}</td>
+            <td style="padding:7px 10px;font-size:9.5px;color:#5b21b6;border-bottom:1px solid #f1f5f9;">${cust?cust.desc:"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#15803d;border-bottom:1px solid #f1f5f9;">${(+e.usd||0)>0?(+e.usd).toFixed(2)+" $":"—"}</td>
+            <td style="padding:7px 10px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${(+e.lyd||0)>0?(+e.lyd).toFixed(2)+" د.ل":"—"}</td>
+            <td style="padding:7px 10px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.note||"—"}</td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
+          <td colspan="4" style="padding:8px 10px;font-weight:700;color:#15803d;">◆ إجمالى الإيجارات</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${expTotals.rentUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${expTotals.rentLYD.toFixed(2)} د.ل</td>
           <td></td>
         </tr>
       </tbody>
@@ -916,21 +1024,37 @@ function App(){
     msg("تم فتح نافذة الطباعة ✓");
   };
 
+  const saveExpData=(newData)=>{
+    const updated={...(months[ak]||{cfg,data}),expenses:newData,savedAt:null};
+    setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
+  };
+  const submitCust=()=>{
+    if(!custForm.desc.trim()){msg("أدخل وصف العهدة","err");return;}
+    const nc=[...custody];
+    const item={...custForm,usd:+custForm.usd||0,lyd:+custForm.lyd||0};
+    if(custForm.id){const i=nc.findIndex(c=>c.id===custForm.id);if(i>=0)nc[i]=item;}
+    else nc.push({...item,id:"c"+Date.now()});
+    saveExpData({custody:nc,items:expItems});
+    setModal(null);msg(custForm.id?"تم الحفظ":"تمت الإضافة ✓");
+  };
+  const delCust=id=>{
+    if(!confirm("حذف هذه العهدة؟ سيتم إلغاء ربط المصروفات المرتبطة بها"))return;
+    const nc=custody.filter(c=>c.id!==id);
+    const ni=expItems.map(e=>e.custodyId===id?{...e,custodyId:""}:e);
+    saveExpData({custody:nc,items:ni});msg("تم الحذف");
+  };
   const submitExp=()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
-    const ne=[...expenses];
+    const ni=[...expItems];
     const item={...expForm,usd:+expForm.usd||0,lyd:+expForm.lyd||0};
-    if(expForm.id){const i=ne.findIndex(e=>e.id===expForm.id);if(i>=0)ne[i]=item;}
-    else{ne.push({...item,id:"x"+Date.now()});}
-    const updated={...(months[ak]||{cfg,data}),expenses:ne,savedAt:null};
-    setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
+    if(expForm.id){const i=ni.findIndex(e=>e.id===expForm.id);if(i>=0)ni[i]=item;}
+    else ni.push({...item,id:"x"+Date.now()});
+    saveExpData({custody,items:ni});
     setModal(null);msg(expForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
   const delExp=id=>{
     if(!confirm("حذف هذا البند؟"))return;
-    const ne=expenses.filter(e=>e.id!==id);
-    const updated={...(months[ak]||{cfg,data}),expenses:ne,savedAt:null};
-    setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);msg("تم الحذف");
+    saveExpData({custody,items:expItems.filter(e=>e.id!==id)});msg("تم الحذف");
   };
 
   /* ── Nav items ────────────────────────────────────── */
@@ -1011,36 +1135,45 @@ function App(){
         ),
         h("div",{className:"modal-ftr"},h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),h("button",{className:"btn blue",onClick:createMonth},"فتح الشهر"))
       ),
-      modal==="exp-form"&&h("div",{className:"modal",style:{width:440}},
+      modal==="cust-form"&&h("div",{className:"modal",style:{width:440}},
         h("div",{className:"modal-hdr"},
-          h("h3",null,expForm.id?"تعديل بند":"إضافة بند جديد"),
+          h("h3",null,custForm.id?"تعديل عهدة":"إضافة عهدة جديدة"),
           h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
         ),
         h("div",{className:"modal-body"},
-          h("div",{className:"fld"},
-            h("label",null,"نوع البند"),
-            h("select",{value:expForm.type,onChange:ev=>setExpForm(f=>({...f,type:ev.target.value}))},
-              ["مصروف","عهدة","إيجار"].map(t=>h("option",{key:t},t))
-            )
-          ),
-          h("div",{className:"fld"},
-            h("label",null,"الوصف / البيان *"),
-            h("input",{placeholder:"مثال: إيجار مكتب درنة / عهدة لابتوب / مصروف وقود",value:expForm.desc,onChange:ev=>setExpForm(f=>({...f,desc:ev.target.value}))})
-          ),
+          h("div",{className:"fld"},h("label",null,"وصف العهدة *"),h("input",{placeholder:"مثال: عهدة مكتب درنة، عهدة سيارة...",value:custForm.desc,onChange:ev=>setCustForm(f=>({...f,desc:ev.target.value}))})),
           h("div",{className:"g2"},
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"المبلغ بالدولار ($)"),
-              h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.usd,onChange:ev=>setExpForm(f=>({...f,usd:ev.target.value}))})
-            ),
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"المبلغ بالدينار الليبى (د.ل)"),
-              h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.lyd,onChange:ev=>setExpForm(f=>({...f,lyd:ev.target.value}))})
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.usd,onChange:ev=>setCustForm(f=>({...f,usd:ev.target.value}))})),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.lyd,onChange:ev=>setCustForm(f=>({...f,lyd:ev.target.value}))}))
+          ),
+          h("div",{className:"fld"},h("label",null,"تاريخ الاستلام"),h("input",{type:"date",value:custForm.date,onChange:ev=>setCustForm(f=>({...f,date:ev.target.value}))})),
+          h("div",{className:"fld"},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية",value:custForm.note,onChange:ev=>setCustForm(f=>({...f,note:ev.target.value}))}))
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:submitCust},custForm.id?"حفظ":"إضافة العهدة")
+        )
+      ),
+      modal==="exp-form"&&h("div",{className:"modal",style:{width:440}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,expForm.id?"تعديل":"إضافة "+expForm.type),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body"},
+          h("div",{className:"fld"},h("label",null,"الوصف / البيان *"),h("input",{placeholder:expForm.type==="إيجار"?"مثال: إيجار مكتب درنة – مارس 2026":"مثال: وقود، مستلزمات مكتب...",value:expForm.desc,onChange:ev=>setExpForm(f=>({...f,desc:ev.target.value}))})),
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.usd,onChange:ev=>setExpForm(f=>({...f,usd:ev.target.value}))})),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.lyd,onChange:ev=>setExpForm(f=>({...f,lyd:ev.target.value}))}))
+          ),
+          h("div",{className:"fld"},h("label",null,"التاريخ"),h("input",{type:"date",value:expForm.date,onChange:ev=>setExpForm(f=>({...f,date:ev.target.value}))})),
+          expForm.type==="مصروف"&&custody.length>0&&h("div",{className:"fld"},
+            h("label",null,"خصم من عهدة (اختياري)"),
+            h("select",{value:expForm.custodyId,onChange:ev=>setExpForm(f=>({...f,custodyId:ev.target.value}))},
+              h("option",{value:""},"— بدون ربط —"),
+              custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd>0?" ("+c.usd+" $)":"")+(c.lyd>0?" ("+c.lyd+" د.ل)":"")))
             )
           ),
-          h("div",{className:"fld"},
-            h("label",null,"ملاحظة"),
-            h("input",{placeholder:"تفاصيل إضافية (اختياري)",value:expForm.note,onChange:ev=>setExpForm(f=>({...f,note:ev.target.value}))})
-          ),
+          h("div",{className:"fld"},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية (اختياري)",value:expForm.note,onChange:ev=>setExpForm(f=>({...f,note:ev.target.value}))})),
           (expForm.usd||expForm.lyd)&&h("div",{className:"prev-box"},
             h("div",null,h("div",{className:"prev-lbl"},"بالدولار"),h("div",{className:"prev-val",style:{color:"var(--blue)"}},Number(expForm.usd||0).toFixed(2)+" $")),
             h("div",null,h("div",{className:"prev-lbl"},"بالدينار الليبى"),h("div",{className:"prev-val",style:{color:"var(--gold)"}},Number(expForm.lyd||0).toFixed(2)+" د.ل"))
@@ -1048,7 +1181,7 @@ function App(){
         ),
         h("div",{className:"modal-ftr"},
           h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
-          h("button",{className:"btn blue",onClick:submitExp},expForm.id?"حفظ التعديلات":"إضافة البند")
+          h("button",{className:"btn blue",onClick:submitExp},expForm.id?"حفظ التعديلات":"إضافة")
         )
       ),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
@@ -1168,112 +1301,178 @@ function App(){
         ),
 
         /* ══ EXPENSES ══ */
-        page==="expenses"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
-          /* بطاقات الملخص */
-          h("div",{className:"sg"},
-            [{l:"إجمالى المصروفات ($)",v:expTotals.usd.toFixed(2)+" $",c:"var(--blue)",ic:"coin",bg:"var(--blue2)"},
-             {l:"إجمالى المصروفات (د.ل)",v:expTotals.lyd.toFixed(2)+" د.ل",c:"var(--gold)",ic:"wallet",bg:"var(--gold2)"},
-             {l:"الإيجارات ($)",v:expTotals.rentUSD.toFixed(2)+" $",c:"var(--green)",ic:"report",bg:"var(--green2)"},
-             {l:"العهدة ($)",v:expTotals.custUSD.toFixed(2)+" $",c:"var(--purple)",ic:"backup",bg:"var(--purple2)"}]
-            .map((s,i)=>h("div",{key:i,className:"sc"},
-              h("div",{className:"sc-stripe",style:{background:s.c}}),
-              h("div",{className:"sc-icon",style:{background:s.bg}},h(Ic,{n:s.ic,sz:18,c:s.c})),
-              h("div",{className:"sc-lbl"},s.l),
-              h("div",{className:"sc-val",style:{color:s.c}},s.v)
-            ))
-          ),
-          /* الجدول الرئيسى */
+        page==="expenses"&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
+
+          /* ─── قسم العهدة ─── */
           h("div",{className:"card"},
             h("div",{className:"card-hdr"},
-              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--blue2)"}},h(Ic,{n:"wallet",sz:13,c:"var(--blue)"})),"بنود العهدة والمصروفات"),
-              h("span",{className:"card-badge"},mn+" "+cfg.year),
-              h("button",{className:"btn blue",style:{padding:"5px 12px",fontSize:11},onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",usd:"",lyd:"",note:""});setModal("exp-form");}},h(Ic,{n:"plus",sz:13}),"إضافة بند")
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"var(--purple2)"}},h(Ic,{n:"wallet",sz:13,c:"var(--purple)"})),
+                "العهدة",
+                h("span",{className:"card-badge"},custody.length+" عهدة")
+              ),
+              h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
+                custody.length>0&&h("span",{style:{fontSize:12,color:"var(--purple)",fontWeight:700}},
+                  "إجمالى: "+(expTotals.custTotalUSD>0?expTotals.custTotalUSD.toFixed(2)+" $ ":"")+
+                  (expTotals.custTotalLYD>0?expTotals.custTotalLYD.toFixed(2)+" د.ل":"")
+                ),
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--purple)",color:"var(--purple)"},
+                  onClick:()=>{setCustForm({id:null,desc:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}
+                },h(Ic,{n:"plus",sz:13}),"عهدة جديدة")
+              )
             ),
-            expenses.length===0
-              ?h("div",{style:{padding:"40px 20px",textAlign:"center",color:"var(--sub)",display:"flex",flexDirection:"column",alignItems:"center",gap:10}},
-                  h(Ic,{n:"wallet",sz:36,c:"var(--bdr2)"}),
-                  h("div",{style:{fontSize:13,fontWeight:500}},"لا توجد بنود بعد"),
-                  h("div",{style:{fontSize:11}},"اضغط «إضافة بند» لإدخال مصروف أو عهدة أو إيجار")
+            custody.length===0
+              ?h("div",{style:{padding:"28px",textAlign:"center",color:"var(--sub)"}},
+                  h(Ic,{n:"wallet",sz:32,c:"var(--bdr2)"}),
+                  h("div",{style:{fontSize:12,marginTop:8}},"لا توجد عهد بعد — أضف عهدة لتتبع الرصيد وخصم المصروفات")
                 )
+              :h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10,padding:14}},
+                  custody.map(c=>{
+                    const deducted=expItems.filter(e=>e.custodyId===c.id);
+                    const dedUSD=deducted.reduce((a,e)=>a+(+e.usd||0),0);
+                    const dedLYD=deducted.reduce((a,e)=>a+(+e.lyd||0),0);
+                    const remUSD=(+c.usd||0)-dedUSD;
+                    const remLYD=(+c.lyd||0)-dedLYD;
+                    const pctUSD=c.usd>0?Math.min(100,dedUSD/c.usd*100):0;
+                    return h("div",{key:c.id,style:{background:"var(--bg3)",border:"1px solid var(--bdr2)",borderRadius:10,padding:14,position:"relative"}},
+                      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
+                        h("div",null,
+                          h("div",{style:{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:3}},c.desc),
+                          c.date&&h("div",{style:{fontSize:10,color:"var(--sub)"}},
+                            "تاريخ الاستلام: "+new Date(c.date).toLocaleDateString("ar-EG")
+                          ),
+                          c.note&&h("div",{style:{fontSize:10,color:"var(--sub)"}},c.note)
+                        ),
+                        h("div",{style:{display:"flex",gap:4}},
+                          h("button",{className:"btn-icon edit",onClick:()=>{setCustForm({...c,usd:c.usd||"",lyd:c.lyd||""});setModal("cust-form");}},h(Ic,{n:"edit",sz:12})),
+                          h("button",{className:"btn-icon del",onClick:()=>delCust(c.id)},h(Ic,{n:"del",sz:12}))
+                        )
+                      ),
+                      /* أرقام العهدة */
+                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}},
+                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:"var(--blue2)",borderRadius:6}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المبلغ الكلى"),
+                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--blue)"}},c.usd>0?c.usd.toFixed(2)+" $":c.lyd>0?c.lyd.toFixed(2)+" د.ل":"—")
+                        ),
+                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:"var(--red2)",borderRadius:6}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المصروف"),
+                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--red)"}},dedUSD>0?dedUSD.toFixed(2)+" $":dedLYD>0?dedLYD.toFixed(2)+" د.ل":"—")
+                        ),
+                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:remUSD>=0?"var(--green2)":"var(--red2)",borderRadius:6}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المتبقى"),
+                          h("div",{style:{fontSize:12,fontWeight:800,color:remUSD>=0?"var(--green)":"var(--red)"}},
+                            c.usd>0?remUSD.toFixed(2)+" $":c.lyd>0?remLYD.toFixed(2)+" د.ل":"—"
+                          )
+                        )
+                      ),
+                      /* شريط الاستهلاك */
+                      c.usd>0&&h("div",null,
+                        h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
+                          h("div",{style:{height:"100%",width:pctUSD.toFixed(1)+"%",background:pctUSD>80?"var(--red)":"var(--blue)",borderRadius:3,transition:"width .5s"}})
+                        ),
+                        h("div",{style:{fontSize:9,color:"var(--sub)",marginTop:3,textAlign:"left"}},pctUSD.toFixed(0)+"% مستخدم")
+                      ),
+                      deducted.length>0&&h("div",{style:{marginTop:8,fontSize:10,color:"var(--sub)"}},
+                        deducted.length+" مصروف مخصوم"
+                      )
+                    );
+                  })
+                )
+          ),
+
+          /* ─── المصروفات ─── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--blue2)"}},h(Ic,{n:"coin",sz:13,c:"var(--blue)"})),"المصروفات"),
+              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+                expItems.filter(e=>e.type==="مصروف").length>0&&h("span",{style:{fontSize:11,color:"var(--blue)",fontWeight:600}},
+                  expTotals.msrfUSD>0?expTotals.msrfUSD.toFixed(2)+" $ ":"",
+                  expTotals.msrfLYD>0?expTotals.msrfLYD.toFixed(2)+" د.ل":""
+                ),
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--blue)",color:"var(--blue)"},
+                  onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
+                },h(Ic,{n:"plus",sz:13}),"إضافة مصروف")
+              )
+            ),
+            expItems.filter(e=>e.type==="مصروف").length===0
+              ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد مصروفات — اضغط «إضافة مصروف»")
               :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
                   h("thead",null,h("tr",null,
-                    h("th",null,"م"),
-                    h("th",{className:"l"},"النوع"),
-                    h("th",{className:"l"},"الوصف / البيان"),
-                    h("th",null,"المبلغ ($)"),
-                    h("th",null,"المبلغ (د.ل)"),
-                    h("th",{className:"l"},"ملاحظة"),
-                    h("th",null,"")
+                    h("th",null,"م"),h("th",{className:"l"},"الوصف"),
+                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
+                    h("th",{className:"l"},"من عهدة"),h("th",{className:"l"},"ملاحظة"),h("th",null,"")
                   )),
                   h("tbody",null,
-                    expenses.map((e,i)=>{
-                      const typeCfg={
-                        "مصروف":{c:"var(--blue)",bg:"var(--blue2)",label:"💸 مصروف"},
-                        "عهدة":{c:"var(--purple)",bg:"var(--purple2)",label:"📦 عهدة"},
-                        "إيجار":{c:"var(--green)",bg:"var(--green2)",label:"🏠 إيجار"},
-                      }[e.type]||{c:"var(--sub)",bg:"var(--bg3)",label:e.type};
+                    expItems.filter(e=>e.type==="مصروف").map((e,i)=>{
+                      const cust=custody.find(c=>c.id===e.custodyId);
                       return h("tr",{key:e.id},
                         h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
-                        h("td",{className:"l"},
-                          h("span",{style:{fontSize:11,padding:"2px 10px",borderRadius:100,background:typeCfg.bg,color:typeCfg.c,fontWeight:600,whiteSpace:"nowrap"}},typeCfg.label)
-                        ),
-                        h("td",{className:"l",style:{fontWeight:600,minWidth:160}},e.desc),
-                        h("td",{style:{color:"var(--blue)",fontWeight:700,whiteSpace:"nowrap"}},e.usd>0?(+e.usd).toFixed(2)+" $":"—"),
-                        h("td",{style:{color:"var(--gold)",fontWeight:700,whiteSpace:"nowrap"}},e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"),
+                        h("td",{className:"l",style:{fontWeight:600}},e.desc),
+                        h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
+                        h("td",{style:{color:"var(--blue)",fontWeight:700}},e.usd>0?(+e.usd).toFixed(2)+" $":"—"),
+                        h("td",{style:{color:"var(--gold)",fontWeight:700}},e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"),
+                        h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
                         h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
-                        h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
-                          h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
+                        h("td",null,h("div",{style:{display:"flex",gap:4}},
+                          h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
                         ))
                       );
                     }),
-                    /* صف الإجمالى */
-                    expenses.length>0&&h("tr",{className:"sub-row"},
+                    h("tr",{className:"sub-row"},
                       h("td",{colSpan:3,className:"l"},"الإجمالى"),
-                      h("td",{style:{color:"var(--blue)",fontWeight:800}},expTotals.usd.toFixed(2)+" $"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:800}},expTotals.lyd.toFixed(2)+" د.ل"),
-                      h("td",{colSpan:2})
+                      h("td",{style:{color:"var(--blue)",fontWeight:800}},expTotals.msrfUSD.toFixed(2)+" $"),
+                      h("td",{style:{color:"var(--gold)",fontWeight:800}},expTotals.msrfLYD.toFixed(2)+" د.ل"),
+                      h("td",{colSpan:3})
                     )
                   )
                 ))
           ),
-          /* تفصيل حسب النوع */
-          expenses.length>0&&h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}},
-            [
-              {type:"مصروف",label:"💸 المصروفات",c:"var(--blue)",bg:"var(--blue2)"},
-              {type:"إيجار",label:"🏠 الإيجارات الشهرية",c:"var(--green)",bg:"var(--green2)"},
-              {type:"عهدة",label:"📦 العهدة",c:"var(--purple)",bg:"var(--purple2)"},
-            ].map(({type,label,c,bg})=>{
-              const items=expenses.filter(e=>e.type===type);
-              if(items.length===0)return null;
-              const tUSD=items.reduce((a,e)=>a+(+e.usd||0),0);
-              const tLYD=items.reduce((a,e)=>a+(+e.lyd||0),0);
-              return h("div",{key:type,className:"card"},
-                h("div",{className:"card-hdr"},
-                  h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:bg}},h(Ic,{n:"wallet",sz:13,c})),label),
-                  h("span",{className:"card-badge"},items.length+" بند")
+
+          /* ─── الإيجارات ─── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--green2)"}},h(Ic,{n:"report",sz:13,c:"var(--green)"})),"الإيجارات الشهرية"),
+              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+                expItems.filter(e=>e.type==="إيجار").length>0&&h("span",{style:{fontSize:11,color:"var(--green)",fontWeight:600}},
+                  expTotals.rentUSD>0?expTotals.rentUSD.toFixed(2)+" $ ":"",
+                  expTotals.rentLYD>0?expTotals.rentLYD.toFixed(2)+" د.ل":""
                 ),
-                h("div",{style:{padding:"8px 16px 12px"}},
-                  items.map(e=>h("div",{key:e.id,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--bdr)"}},
-                    h("div",null,
-                      h("div",{style:{fontSize:12,fontWeight:600,color:"var(--text)"}},e.desc),
-                      e.note&&h("div",{style:{fontSize:10,color:"var(--sub)"}},e.note)
-                    ),
-                    h("div",{style:{textAlign:"left",flexShrink:0}},
-                      e.usd>0&&h("div",{style:{fontSize:12,fontWeight:700,color:c}},(+e.usd).toFixed(2)+" $"),
-                      e.lyd>0&&h("div",{style:{fontSize:11,color:"var(--gold)"}},( +e.lyd).toFixed(2)+" د.ل")
-                    )
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--green)",color:"var(--green)"},
+                  onClick:()=>{setExpForm({id:null,desc:"",type:"إيجار",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
+                },h(Ic,{n:"plus",sz:13}),"إضافة إيجار")
+              )
+            ),
+            expItems.filter(e=>e.type==="إيجار").length===0
+              ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد إيجارات — اضغط «إضافة إيجار»")
+              :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
+                  h("thead",null,h("tr",null,
+                    h("th",null,"م"),h("th",{className:"l"},"الوصف"),
+                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
+                    h("th",{className:"l"},"ملاحظة"),h("th",null,"")
                   )),
-                  h("div",{style:{marginTop:8,paddingTop:8,borderTop:"2px solid var(--bdr)",display:"flex",justifyContent:"space-between"}},
-                    h("span",{style:{fontSize:11,color:"var(--sub)",fontWeight:600}},"الإجمالى"),
-                    h("div",{style:{textAlign:"left"}},
-                      tUSD>0&&h("div",{style:{fontSize:13,fontWeight:800,color:c}},tUSD.toFixed(2)+" $"),
-                      tLYD>0&&h("div",{style:{fontSize:11,fontWeight:700,color:"var(--gold)"}},tLYD.toFixed(2)+" د.ل")
+                  h("tbody",null,
+                    expItems.filter(e=>e.type==="إيجار").map((e,i)=>h("tr",{key:e.id},
+                      h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+                      h("td",{className:"l",style:{fontWeight:600}},e.desc),
+                      h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
+                      h("td",{style:{color:"var(--green)",fontWeight:700}},e.usd>0?(+e.usd).toFixed(2)+" $":"—"),
+                      h("td",{style:{color:"var(--gold)",fontWeight:700}},e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"),
+                      h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
+                      h("td",null,h("div",{style:{display:"flex",gap:4}},
+                        h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
+                        h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
+                      ))
+                    )),
+                    h("tr",{className:"sub-row"},
+                      h("td",{colSpan:2,className:"l"},"الإجمالى"),
+                      h("td"),
+                      h("td",{style:{color:"var(--green)",fontWeight:800}},expTotals.rentUSD.toFixed(2)+" $"),
+                      h("td",{style:{color:"var(--gold)",fontWeight:800}},expTotals.rentLYD.toFixed(2)+" د.ل"),
+                      h("td",{colSpan:2})
                     )
                   )
-                )
-              );
-            })
+                ))
           )
         ),
 
