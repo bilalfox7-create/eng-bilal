@@ -99,6 +99,8 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;background:var
 .pay-strip{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr);flex-wrap:wrap}
 .pay-strip-bar{flex:1;min-width:120px;height:6px;background:var(--bdr2);border-radius:3px;overflow:hidden}
 .pay-strip-fill{height:100%;background:var(--green);border-radius:3px;transition:width .4s}
+.inline-inp{width:100%;background:transparent;border:none;border-bottom:1px dashed var(--bdr2);color:inherit;font-size:inherit;font-weight:inherit;font-family:inherit;text-align:center;padding:1px 2px;outline:none;min-width:0}
+.inline-inp:focus{border-bottom-color:var(--blue);background:var(--bg2);border-radius:3px 3px 0 0}
 .btn-icon.edit:hover{background:var(--blue2);border-color:var(--blue)}
 .btn-icon.edit:hover svg{fill:var(--blue)}
 
@@ -1095,6 +1097,16 @@ function App(){
     saveExpData({custody,items:expItems.filter(e=>e.id!==id)});msg("تم الحذف");
   };
 
+  const updCust=(id,field,val)=>{
+    const nc=custody.map(c=>c.id===id?{...c,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:c);
+    saveExpData({custody:nc,items:expItems});
+  };
+
+  const updExpItem=(id,field,val)=>{
+    const ni=expItems.map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e);
+    saveExpData({custody,items:ni});
+  };
+
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
     {id:"dash",n:"dash",lbl:"لوحة التحكم"},
@@ -1386,21 +1398,31 @@ function App(){
                           h("button",{className:"btn-icon del",onClick:()=>delCust(c.id)},h(Ic,{n:"del",sz:12}))
                         )
                       ),
-                      /* أرقام العهدة */
-                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}},
-                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:"var(--blue2)",borderRadius:6}},
-                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المبلغ الكلى"),
-                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--blue)"}},c.usd>0?c.usd.toFixed(2)+" $":c.lyd>0?c.lyd.toFixed(2)+" د.ل":"—")
+                      /* أرقام العهدة — قابلة للتعديل المباشر */
+                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}},
+                        h("div",{style:{padding:"6px 6px 4px",background:"var(--blue2)",borderRadius:6}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة ($)"),
+                          h("input",{type:"number",className:"inline-inp",style:{color:"var(--blue)",fontWeight:700,fontSize:12},
+                            min:0,value:c.usd||"",placeholder:"0",
+                            onChange:ev=>updCust(c.id,"usd",ev.target.value)})
                         ),
+                        h("div",{style:{padding:"6px 6px 4px",background:"var(--gold2)",borderRadius:6}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة (د.ل)"),
+                          h("input",{type:"number",className:"inline-inp",style:{color:"var(--gold)",fontWeight:700,fontSize:12},
+                            min:0,value:c.lyd||"",placeholder:"0",
+                            onChange:ev=>updCust(c.id,"lyd",ev.target.value)})
+                        )
+                      ),
+                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}},
                         h("div",{style:{textAlign:"center",padding:"6px 4px",background:"var(--red2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المصروف"),
-                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--red)"}},dedUSD>0?dedUSD.toFixed(2)+" $":dedLYD>0?dedLYD.toFixed(2)+" د.ل":"—")
+                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--red)"}},
+                            dedUSD>0?dedUSD.toFixed(2)+" $":dedLYD>0?dedLYD.toFixed(2)+" د.ل":"—")
                         ),
                         h("div",{style:{textAlign:"center",padding:"6px 4px",background:remUSD>=0?"var(--green2)":"var(--red2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المتبقى"),
                           h("div",{style:{fontSize:12,fontWeight:800,color:remUSD>=0?"var(--green)":"var(--red)"}},
-                            c.usd>0?remUSD.toFixed(2)+" $":c.lyd>0?remLYD.toFixed(2)+" د.ل":"—"
-                          )
+                            c.usd>0?remUSD.toFixed(2)+" $":c.lyd>0?remLYD.toFixed(2)+" د.ل":"—")
                         )
                       ),
                       /* شريط الاستهلاك */
@@ -1447,8 +1469,8 @@ function App(){
                         h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                         h("td",{className:"l",style:{fontWeight:600}},e.desc),
                         h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                        h("td",{style:{color:"var(--blue)",fontWeight:700}},e.usd>0?(+e.usd).toFixed(2)+" $":"—"),
-                        h("td",{style:{color:"var(--gold)",fontWeight:700}},e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"),
+                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
+                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
                         h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
                         h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
                         h("td",null,h("div",{style:{display:"flex",gap:4}},
@@ -1494,8 +1516,8 @@ function App(){
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600}},e.desc),
                       h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                      h("td",{style:{color:"var(--green)",fontWeight:700}},e.usd>0?(+e.usd).toFixed(2)+" $":"—"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:700}},e.lyd>0?(+e.lyd).toFixed(2)+" د.ل":"—"),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--green)",width:72},min:0,value:e.usd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
                       h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
                       h("td",null,h("div",{style:{display:"flex",gap:4}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
