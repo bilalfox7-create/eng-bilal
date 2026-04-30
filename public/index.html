@@ -198,6 +198,9 @@ body::before{
 }
 .mchip.add{border-style:dashed;border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.25)}
 .mchip.add:hover{border-color:rgba(96,165,250,.3);color:var(--blue);border-style:dashed}
+.mchip-x{display:none;align-items:center;justify-content:center;margin-right:-4px;margin-left:2px;opacity:.35;cursor:pointer;transition:opacity .15s}
+.mchip-del:hover .mchip-x{display:inline-flex}
+.mchip-x:hover{opacity:1!important;color:#f87171}
 .mdot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
 
 /* ── Buttons ── */
@@ -1816,12 +1819,13 @@ function App(){
         h("button",{className:"menu-btn",onClick:()=>setMobOpen(v=>!v)},h(Ic,{n:"menu",sz:16})),
         [...sortedKeys].reverse().map(k=>{
           const[y,mo]=k.split("-");const isCur=k===ak,isSav=!!months[k]?.savedAt;
-          return h("div",{key:k,className:`mchip ${isCur?"cur":""} ${isSav&&!isCur?"saved":""}`,onClick:()=>switchMonth(k)},
+          return h("div",{key:k,className:`mchip ${isCur?"cur":""} ${isSav&&!isCur?"saved":""} ${isAdmin?"mchip-del":""}`,onClick:()=>switchMonth(k)},
             isSav&&h("span",{className:"mdot",style:{background:isCur?"#fff":"currentColor"}}),
-            MONTHS[+mo-1]+" "+y
+            MONTHS[+mo-1]+" "+y,
+            isAdmin&&h("span",{className:"mchip-x",onClick:ev=>{ev.stopPropagation();delMonth(k);}},h(Ic,{n:"del",sz:10}))
           );
         }),
-        h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
+        isAdmin&&h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
       ),
       h("div",{className:"topbar"},
         h("div",{className:"topbar-left"},
