@@ -3017,8 +3017,30 @@ function App(){
                       )
                     ),
 
-                    /* ── add buttons (edit mode) ── */
-                    orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+ إضافة مهندس")
+                    /* ── add member (edit mode) ── */
+                    orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+ إضافة مهندس"),
+
+                    /* ── projects ── */
+                    (city.projects.length>0||orgEdit)&&h("div",{style:{borderTop:`1px solid ${col}30`,marginTop:"auto"}},
+                      h("div",{style:{
+                        padding:"7px 12px 4px",fontSize:"8px",fontWeight:800,letterSpacing:"1.2px",
+                        color:"#34D399",textTransform:"uppercase",
+                        borderBottom:"1px solid rgba(52,211,153,.1)",
+                        background:"rgba(52,211,153,.04)",
+                      }},"▸ المشروعات"),
+                      city.projects.map((p,pi)=>
+                        h("div",{key:pi,className:"oc-member-row"},
+                          h("div",{className:"oc-num",style:{background:"rgba(52,211,153,.18)",color:"#34D399",borderRadius:4}},pi+1),
+                          h("div",{style:{flex:1,minWidth:0}},
+                            orgEdit
+                              ?h("input",{className:"oc-input",value:p,onChange:e=>upd(d=>{d.cities[ci].projects[pi]=e.target.value;})})
+                              :h("div",{className:"oc-member-name",style:{color:"var(--text)"}},p)
+                          ),
+                          orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].projects.splice(pi,1);})},"✕")
+                        )
+                      ),
+                      orgEdit&&h("button",{className:"oc-add-btn",style:{color:"#34D399"},onClick:()=>upd(d=>{d.cities[ci].projects.push("اسم المشروع");})},"+ إضافة مشروع")
+                    )
                   );
                 })
               )
