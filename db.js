@@ -45,8 +45,9 @@ function initDb() {
     );
   `);
 
-  // أضف عمود expenses إن لم يكن موجوداً (للقواعد القديمة)
+  // أضف أعمدة للقواعد القديمة
   try { db.exec('ALTER TABLE months ADD COLUMN expenses TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE months ADD COLUMN attendance TEXT'); } catch(e) {}
 
   const count = db.prepare('SELECT COUNT(*) as c FROM users').get();
   if (Number(count.c) === 0) {

@@ -1203,6 +1203,115 @@ html.light .pv-inp{background:#f8fafc;border-color:#cbd5e1;color:#1e293b}
   .pv-inp{display:none!important}
 }
 
+/* ══════════════════════════════════════════════
+   ATTENDANCE PAGE
+══════════════════════════════════════════════ */
+.att-page{display:flex;flex-direction:column;gap:14px}
+
+/* Province tabs */
+.att-tab{padding:7px 16px;border-radius:10px;cursor:pointer;font-size:11.5px;font-weight:700;border:1.5px solid var(--bdr2);transition:all .18s;color:var(--sub);background:var(--bg2);white-space:nowrap}
+.att-tab:hover{border-color:var(--bdr3);color:var(--text)}
+.att-tab.on{color:#fff!important;border-color:transparent!important}
+
+/* Summary stat cards */
+.att-sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.att-sum-card{background:var(--bg2);border:1px solid var(--bdr2);border-radius:14px;padding:14px 16px;text-align:center}
+.att-sum-val{font-size:26px;font-weight:900;line-height:1}
+.att-sum-lbl{font-size:9.5px;color:var(--sub);font-weight:700;margin-top:4px;letter-spacing:.5px;text-transform:uppercase}
+html.light .att-sum-card{background:#fff;border-color:#e2e8f0}
+
+/* Table wrapper */
+.att-table-wrap{overflow-x:auto}
+.att-table-wrap::-webkit-scrollbar{height:5px}
+.att-table-wrap::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+.att-table{border-collapse:separate;border-spacing:0;min-width:700px;width:100%;font-size:11px}
+
+/* Header row */
+.att-th{
+  background:var(--bg2);padding:7px 3px;text-align:center;font-weight:800;
+  color:var(--sub);font-size:9px;white-space:nowrap;border-bottom:2px solid var(--bdr2);
+  position:sticky;top:0;z-index:2;
+}
+.att-th-name{
+  text-align:right;padding:7px 14px;min-width:145px;
+  position:sticky;right:0;z-index:3;background:var(--bg2);
+  border-left:2px solid var(--bdr2);
+}
+html.light .att-th,.att-th-name{background:#f8fafc}
+
+/* Body cells */
+.att-td{padding:2px 2px;text-align:center;border-bottom:1px solid var(--bdr);vertical-align:middle}
+.att-td-name{
+  text-align:right;padding:8px 14px;font-size:12px;
+  position:sticky;right:0;background:var(--bg);z-index:1;
+  border-left:2px solid var(--bdr2);min-width:145px;
+  border-bottom:1px solid var(--bdr);
+}
+html.light .att-td-name{background:#fff}
+.att-td-eng{font-weight:700;color:var(--text);line-height:1.3}
+.att-td-spec{font-size:9.5px;color:var(--sub);margin-top:2px}
+.att-table tr:last-child .att-td,.att-table tr:last-child .att-td-name{border-bottom:none}
+.att-table tr:hover .att-td{background:rgba(255,255,255,.015)}
+html.light .att-table tr:hover .att-td{background:#fafbfc}
+
+/* Status cells */
+.att-cell{
+  width:26px;height:26px;border-radius:5px;margin:1px auto;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;font-size:8.5px;font-weight:900;letter-spacing:.2px;
+  transition:transform .12s;user-select:none;border:1.5px solid transparent;
+}
+.att-cell:hover{transform:scale(1.18);z-index:2;position:relative}
+.att-cell-e{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);color:rgba(255,255,255,.12)}
+html.light .att-cell-e{background:#f1f5f9;border-color:#e2e8f0;color:#cbd5e1}
+.att-cell-P{background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.45);color:#10B981}
+.att-cell-A{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.4);color:#F87171}
+.att-cell-AL{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.4);color:#60A5FA}
+.att-cell-SL{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.4);color:#FCD34D}
+.att-cell-EL{background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.4);color:#FB923C}
+.att-cell-H{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.28);color:#94A3B8}
+.att-cell-wknd{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.1);color:rgba(239,68,68,.3);cursor:default}
+
+/* Summary column */
+.att-td-sum{
+  padding:6px 12px;border-bottom:1px solid var(--bdr);
+  border-right:2px solid var(--bdr2);min-width:165px;vertical-align:middle;
+  position:sticky;left:0;background:var(--bg);z-index:1;
+}
+html.light .att-td-sum{background:#fff;border-right-color:#e2e8f0}
+.att-th-sum{
+  text-align:right;padding:7px 12px;min-width:165px;font-size:9px;
+  font-weight:800;color:var(--sub);border-bottom:2px solid var(--bdr2);
+  border-right:2px solid var(--bdr2);
+  position:sticky;left:0;top:0;z-index:4;background:var(--bg2);
+}
+html.light .att-th-sum{background:#f8fafc}
+.att-stat-row{display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10.5px}
+.att-stat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.att-stat-val{font-weight:900;color:var(--text);min-width:16px;text-align:left}
+.att-stat-lbl{color:var(--sub);font-size:9.5px}
+.att-stat-div{border-top:1px solid var(--bdr);margin:4px 0;padding-top:4px}
+
+/* Time display under present cell */
+.att-time{font-size:7px;color:var(--sub);line-height:1;margin-top:1px;text-align:center;white-space:nowrap}
+
+/* Legend */
+.att-legend{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.att-leg-item{display:flex;align-items:center;gap:5px;font-size:10.5px}
+.att-leg-box{width:18px;height:18px;border-radius:4px;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;flex-shrink:0}
+
+/* Time modal */
+.att-time-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bdr)}
+.att-time-row:last-child{border-bottom:none}
+.att-time-day{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0}
+.att-time-inp{padding:5px 8px;border:1.5px solid var(--bdr2);border-radius:8px;background:var(--bg);color:var(--text);font-family:inherit;font-size:12.5px;width:96px}
+.att-time-inp:focus{outline:none;border-color:rgba(96,165,250,.5)}
+.att-hours{font-size:11px;font-weight:800;color:#FCD34D;margin-right:auto;white-space:nowrap}
+
+/* Weekly/monthly day header colors */
+.att-th-wknd{color:#F87171!important}
+.att-th-today{color:#60A5FA!important;background:rgba(96,165,250,.06)!important}
+
 /* ── Scrollbar global ── */
 *{scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -1333,6 +1442,7 @@ const IC={
   clock:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><polyline points="10,6 10,10 13,13"/></svg>',
   paid:'<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
   org:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="1" width="6" height="4" rx="1"/><rect x="1" y="13" width="5" height="4" rx="1"/><rect x="7.5" y="13" width="5" height="4" rx="1"/><rect x="14" y="13" width="5" height="4" rx="1"/><line x1="10" y1="5" x2="10" y2="9"/><line x1="10" y1="9" x2="3" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="10" y1="9" x2="16.5" y2="9"/><line x1="3" y1="9" x2="3" y2="13"/><line x1="10" y1="9" x2="10" y2="13"/><line x1="16.5" y1="9" x2="16.5" y2="13"/></svg>',
+  att:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="14" height="13" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2" x2="7" y2="6"/><line x1="13" y1="2" x2="13" y2="6"/><polyline points="7,12 9,14 13,11" stroke-linejoin="round"/></svg>',
 };
 const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{display:"inline-flex",alignItems:"center",width:sz||16,height:sz||16,color:c||"inherit",flexShrink:0}});
 
@@ -1480,6 +1590,8 @@ function App(){
   const [orgExpanded,setOrgExpanded]=useState({});
   const [orgFocus,setOrgFocus]=useState(null);
   const orgSecRefs=React.useRef({});
+  const [attProv,setAttProv]=useState(PROVS[0]);
+  const [attTimeModal,setAttTimeModal]=useState(null);
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -1568,6 +1680,7 @@ function App(){
     if(Array.isArray(raw)) return {custody:[],items:raw.map(e=>({...e,date:"",custodyId:""})),transfers:[]};
     return {custody:raw.custody||[],items:raw.items||[],transfers:raw.transfers||[]};
   },[am]);
+  const att=useMemo(()=>am?.attendance||{},[am]);
   const custody=expData.custody;
   const expItems=expData.items;
   const transfers=expData.transfers;
@@ -1690,6 +1803,46 @@ function App(){
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
     msg(paid?"تم تأشير الكل كمدفوع ✓":"تم إلغاء الكل");
+  };
+
+  /* ── Attendance helpers ─────────────────────────────── */
+  const ATT_CYCLE=[null,'P','A','AL','SL','EL','H'];
+  const ATT_LABEL={P:'حاضر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة رسمية'};
+  const ATT_SHORT={P:'ح',A:'غ',AL:'س',SL:'م',EL:'ط',H:'ع'};
+  const ATT_COL={P:'#10B981',A:'#EF4444',AL:'#60A5FA',SL:'#FCD34D',EL:'#FB923C',H:'#94A3B8'};
+  const ATT_BG={P:'rgba(16,185,129,.2)',A:'rgba(239,68,68,.15)',AL:'rgba(96,165,250,.15)',SL:'rgba(252,211,77,.15)',EL:'rgba(249,115,22,.15)',H:'rgba(148,163,184,.1)'};
+
+  const attCycleStatus=(engId,day)=>{
+    const att=months[ak]?.attendance||{};
+    const cur=att[engId]?.[day]?.s||null;
+    const next=ATT_CYCLE[(ATT_CYCLE.indexOf(cur)+1)%ATT_CYCLE.length];
+    const na=JSON.parse(JSON.stringify(att));
+    if(!na[engId])na[engId]={};
+    if(next===null)delete na[engId][day];
+    else na[engId][day]={...(na[engId]?.[day]||{}),s:next};
+    const upd={...(months[ak]||{cfg}),attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+  };
+
+  const attSetTime=(engId,day,field,val)=>{
+    const att=months[ak]?.attendance||{};
+    const na=JSON.parse(JSON.stringify(att));
+    if(!na[engId])na[engId]={};
+    if(!na[engId][day])na[engId][day]={s:'P'};
+    na[engId][day][field]=val;
+    const upd={...(months[ak]||{cfg}),attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+  };
+
+  const attGetStats=(engId,att)=>{
+    const ea=att[engId]||{};
+    let P=0,A=0,AL=0,SL=0,EL=0,H=0,mins=0;
+    Object.values(ea).forEach(d=>{
+      if(!d?.s)return;
+      if(d.s==='P'){P++;if(d.in&&d.out){const[ih,im]=d.in.split(':').map(Number);const[oh,om]=d.out.split(':').map(Number);const dm=(oh*60+om)-(ih*60+im);if(dm>0)mins+=dm;else mins+=8*60;}else mins+=8*60;}
+      else if(d.s==='A')A++;else if(d.s==='AL')AL++;else if(d.s==='SL')SL++;else if(d.s==='EL')EL++;else if(d.s==='H')H++;
+    });
+    return{P,A,AL,SL,EL,H,vac:AL+SL+EL,hrs:Math.floor(mins/60),min:mins%60};
   };
 
   const paidStats=useMemo(()=>{
@@ -2182,6 +2335,7 @@ function App(){
   const navs=[
     {id:"dash",n:"dash",lbl:"لوحة التحكم"},
     {id:"eng",n:"eng",lbl:"المهندسون"},
+    {id:"att",n:"att",lbl:"الحضور والانصراف"},
     {id:"expenses",n:"wallet",lbl:"العهدة والمصروفات"},
     {id:"stats",n:"stats",lbl:"الإحصائيات"},
     {id:"hist",n:"hist",lbl:"السجل التاريخي"},
@@ -2190,7 +2344,7 @@ function App(){
     {id:"report",n:"report",lbl:"التقارير"},
     {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
+  const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",att:"الحضور والانصراف",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
   const mobileNavs=navs.slice(0,5);
 
   /* ── Loading screen ───────────────────────────────── */
@@ -2228,6 +2382,46 @@ function App(){
     h("input",{ref:fileRef,type:"file",accept:".json",style:{display:"none"},onChange:ev=>readFile(ev.target.files[0])}),
     h("input",{ref:logoRef,type:"file",accept:"image/*",style:{display:"none"},onChange:ev=>uploadLogo(ev.target.files[0])}),
     h("div",{className:`mob-overlay ${mobOpen?"show":""}`,onClick:()=>setMobOpen(false)}),
+
+    /* ── ATTENDANCE TIME MODAL ───────────────────────── */
+    attTimeModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setAttTimeModal(null);}},
+      h("div",{className:"modal",style:{width:480,maxHeight:"80vh",display:"flex",flexDirection:"column"}},
+        h("div",{className:"modal-hdr"},
+          h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+            h("div",{className:"card-title-icon",style:{background:"rgba(16,185,129,.12)"}},h(Ic,{n:"att",sz:13,c:"#10B981"})),
+            h("div",null,
+              h("div",{style:{fontWeight:900,fontSize:13}},attTimeModal.engName),
+              h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},"أوقات الحضور والانصراف — "+mn+" "+cfg.year)
+            )
+          ),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setAttTimeModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{style:{padding:"8px 16px 16px",overflowY:"auto",flex:1}},
+          attTimeModal.days.filter(d=>attTimeModal.eAtt[d]?.s==='P').length===0
+            ?h("div",{style:{textAlign:"center",padding:30,color:"var(--sub)",fontSize:13}},"لا توجد أيام حضور مسجلة — سجّل أولاً أيام الحضور في الجدول")
+            :h("div",null,
+                h("div",{style:{display:"grid",gridTemplateColumns:"auto 1fr 1fr 1fr",gap:8,alignItems:"center",padding:"6px 0",borderBottom:"2px solid var(--bdr2)",marginBottom:4,fontSize:10,fontWeight:800,color:"var(--sub)"}},
+                  h("div",null,"اليوم"),h("div",null,"وقت الحضور"),h("div",null,"وقت الانصراف"),h("div",null,"ساعات العمل")
+                ),
+                attTimeModal.days.filter(d=>attTimeModal.eAtt[d]?.s==='P').map(d=>{
+                  const live=(months[ak]?.attendance||{})[attTimeModal.engId]?.[d]||{s:'P'};
+                  const calcHrs=(i,o)=>{if(!i||!o)return"8h (تقديري)";const[ih,im]=i.split(':').map(Number);const[oh,om]=o.split(':').map(Number);const m=(oh*60+om)-(ih*60+im);return m>0?Math.floor(m/60)+"h "+m%60+"m":"--";};
+                  return h("div",{key:d,className:"att-time-row"},
+                    h("div",{className:"att-time-day",style:{background:"rgba(16,185,129,.15)",color:"#10B981"}},d),
+                    h("input",{type:"time",className:"att-time-inp",value:live.in||"08:00",
+                      onChange:ev=>{attSetTime(attTimeModal.engId,d,"in",ev.target.value);setAttTimeModal(p=>({...p,eAtt:{...p.eAtt,[d]:{...p.eAtt[d],in:ev.target.value}}}));}}),
+                    h("input",{type:"time",className:"att-time-inp",value:live.out||"17:00",
+                      onChange:ev=>{attSetTime(attTimeModal.engId,d,"out",ev.target.value);setAttTimeModal(p=>({...p,eAtt:{...p.eAtt,[d]:{...p.eAtt[d],out:ev.target.value}}}));}}),
+                    h("div",{className:"att-hours"},calcHrs(live.in||"08:00",live.out||"17:00"))
+                  );
+                })
+              )
+        ),
+        h("div",{style:{padding:"10px 16px",borderTop:"1px solid var(--bdr2)",display:"flex",justifyContent:"flex-start"}},
+          h("button",{className:"btn green",onClick:()=>setAttTimeModal(null)},"✓ حفظ")
+        )
+      )
+    ),
 
     /* ── MODALS ───────────────────────────────────────── */
     modal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setModal(null);}},
@@ -2395,6 +2589,7 @@ function App(){
         [
           {id:"dash",n:"dash",lbl:"لوحة التحكم"},
           {id:"eng",n:"eng",lbl:"المهندسون"},
+          {id:"att",n:"att",lbl:"الحضور والانصراف"},
         ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
           h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),
           h("span",null,lbl)
@@ -2965,6 +3160,133 @@ function App(){
             )
           )
         ),
+
+        /* ══ ATTENDANCE ══ */
+        page==="att"&&(()=>{
+          const daysInMonth=new Date(cfg.year,cfg.month,0).getDate();
+          const days=Array.from({length:daysInMonth},(_,i)=>i+1);
+          const provEngs=data[attProv]||[];
+          const isWknd=d=>{const w=new Date(cfg.year,cfg.month-1,d).getDay();return w===5||w===6;};
+          const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
+          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att);return{P:a.P+s.P,A:a.A+s.A,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,vac:0,hrs:0});
+
+          return h("div",{className:"att-page"},
+
+            /* ── Header + province tabs ── */
+            h("div",{className:"card"},
+              h("div",{className:"card-hdr",style:{flexWrap:"wrap",gap:10}},
+                h("div",{className:"card-title"},
+                  h("div",{className:"card-title-icon",style:{background:"rgba(16,185,129,.12)"}},h(Ic,{n:"att",sz:14,c:"#10B981"})),
+                  "الحضور والانصراف — ",h("span",{style:{color:"var(--blue)",fontWeight:900}},mn+" "+cfg.year)
+                ),
+                h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+                  PROVS.map(p=>{
+                    const cc=CITY_CFG.find(c=>c.prov===p);
+                    const col=cc?.color||"#60A5FA";
+                    return h("div",{key:p,className:"att-tab"+(attProv===p?" on":""),
+                      style:attProv===p?{background:col}:{},
+                      onClick:()=>setAttProv(p)},p.replace("محافظة ",""));
+                  })
+                )
+              )
+            ),
+
+            /* ── Province summary stats ── */
+            h("div",{className:"att-sum-grid"},
+              [{v:allStats.P,l:"إجمالي أيام الحضور",c:"#10B981",bg:"rgba(16,185,129,.1)"},
+               {v:allStats.A,l:"إجمالي أيام الغياب",c:"#EF4444",bg:"rgba(239,68,68,.1)"},
+               {v:allStats.vac,l:"إجمالي أيام الإجازات",c:"#60A5FA",bg:"rgba(96,165,250,.1)"},
+               {v:allStats.hrs+"h",l:"ساعات العمل التقديرية",c:"#FCD34D",bg:"rgba(252,211,77,.1)"}]
+              .map(({v,l,c,bg})=>h("div",{key:l,className:"att-sum-card",style:{borderColor:bg}},
+                h("div",{className:"att-sum-val",style:{color:c}},v),
+                h("div",{className:"att-sum-lbl"},l)
+              ))
+            ),
+
+            /* ── Attendance grid ── */
+            provEngs.length===0
+              ?h("div",{className:"info"},h(Ic,{n:"info",sz:16}),"لا يوجد مهندسون في هذه المحافظة للشهر الحالي")
+              :h("div",{className:"card",style:{padding:0,overflow:"hidden"}},
+                h("div",{className:"att-table-wrap"},
+                  h("table",{className:"att-table"},
+                    /* ── THEAD ── */
+                    h("thead",null,h("tr",null,
+                      h("th",{className:"att-th att-th-name"},"المهندس"),
+                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28}},
+                        h("div",null,d),
+                        h("div",{style:{fontSize:7,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
+                      )),
+                      h("th",{className:"att-th att-th-sum"},"الملخص")
+                    )),
+                    /* ── TBODY ── */
+                    h("tbody",null,
+                      provEngs.map(eng=>{
+                        const s=attGetStats(eng.id,att);
+                        const eAtt=att[eng.id]||{};
+                        return h("tr",{key:eng.id},
+                          /* Engineer name */
+                          h("td",{className:"att-td-name"},
+                            h("div",{className:"att-td-eng"},eng.name),
+                            h("div",{className:"att-td-spec"},eng.spec),
+                            h("button",{
+                              onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),
+                              style:{marginTop:4,fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}
+                            },"⏰ الأوقات")
+                          ),
+                          /* Day cells */
+                          ...days.map(d=>{
+                            const dd=eAtt[d];
+                            const st=dd?.s||null;
+                            const wk=isWknd(d);
+                            return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(239,68,68,.03)":""}},
+                              h("div",{
+                                className:"att-cell att-cell-"+(wk&&!st?"wknd":st||"e"),
+                                onClick:()=>{if(!wk)attCycleStatus(eng.id,d);},
+                                title:st?ATT_LABEL[st]:wk?"عطلة":"",
+                                style:{cursor:wk&&!st?"default":"pointer"}
+                              },st?ATT_SHORT[st]:wk?"ع":""),
+                              st==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
+                                (dd.in||"?"),"→",(dd.out||"?")
+                              )
+                            );
+                          }),
+                          /* Summary */
+                          h("td",{className:"att-td-sum"},
+                            h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
+                            h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
+                            (s.AL||s.SL||s.EL)>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},s.vac),h("span",{className:"att-stat-lbl"},"إجازة")),
+                            h("div",{className:"att-stat-div"},
+                              h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل"))
+                            )
+                          )
+                        );
+                      })
+                    )
+                  )
+                )
+              ),
+
+            /* ── Legend ── */
+            h("div",{className:"card"},
+              h("div",{style:{padding:"12px 16px"}},
+                h("div",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",marginBottom:10,letterSpacing:".5px"}},"دليل الرموز"),
+                h("div",{className:"att-legend"},
+                  [['P','ح'],['A','غ'],['AL','س'],['SL','م'],['EL','ط'],['H','ع']].map(([s,sh])=>
+                    h("div",{key:s,className:"att-leg-item"},
+                      h("div",{className:"att-leg-box",style:{background:ATT_BG[s],borderColor:ATT_COL[s],color:ATT_COL[s]}},sh),
+                      h("span",{style:{color:ATT_COL[s],fontWeight:700,fontSize:10}},ATT_LABEL[s])
+                    )
+                  ),
+                  h("div",{className:"att-leg-item"},
+                    h("div",{className:"att-leg-box",style:{background:"rgba(239,68,68,.05)",borderColor:"rgba(239,68,68,.15)",color:"rgba(239,68,68,.4)"}},"ع"),
+                    h("span",{style:{color:"var(--sub)",fontSize:10}},"عطلة أسبوعية (جمعة/سبت)")
+                  )
+                ),
+                h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:10}},"← اضغط على خلية يوم لتغيير الحالة (ح ← غ ← إجازة سنوية ← مرضية ← طارئة ← عطلة) | اضغط ⏰ لإدخال أوقات الحضور والانصراف")
+              )
+            )
+          );
+        })(),
 
         /* ══ REPORT ══ */
         page==="report"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
