@@ -1312,6 +1312,34 @@ html.light .att-th-sum{background:#f8fafc}
 .att-th-wknd{color:#F87171!important}
 .att-th-today{color:#60A5FA!important;background:rgba(96,165,250,.06)!important}
 
+/* Attendance log view */
+.att-log-list{display:flex;flex-direction:column;gap:12px}
+.att-log-card{background:var(--bg2);border:1px solid var(--bdr2);border-radius:14px;overflow:hidden;transition:border-color .2s}
+html.light .att-log-card{background:#fff;border-color:#e2e8f0}
+.att-log-card:hover{border-color:rgba(96,165,250,.35)}
+.att-log-hdr{display:flex;align-items:center;gap:14px;padding:14px 18px 12px;border-bottom:1px solid var(--bdr2)}
+.att-log-month{font-size:18px;font-weight:900;color:var(--text);min-width:110px}
+.att-log-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.att-log-chip{padding:4px 11px;border-radius:20px;font-size:10px;font-weight:800;border:1.5px solid;white-space:nowrap}
+.att-log-actions{display:flex;gap:6px;flex-shrink:0}
+.att-log-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0}
+.att-log-prov{padding:12px 16px;border-left:1px solid var(--bdr)}
+.att-log-prov:last-child{border-left:none}
+html.light .att-log-prov{border-left-color:#f1f5f9}
+.att-log-prov-name{font-size:10px;font-weight:800;letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase}
+.att-log-stat{display:flex;align-items:center;gap:5px;font-size:11px;margin-bottom:4px}
+.att-log-stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.att-log-stat-val{font-weight:900;color:var(--text);min-width:22px}
+.att-log-stat-lbl{color:var(--sub);font-size:10px}
+.att-log-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden}
+html.light .att-log-bar{background:#f1f5f9}
+.att-log-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#10B981,#059669)}
+/* View toggle */
+.att-view-toggle{display:flex;gap:0;border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;flex-shrink:0}
+.att-view-btn{padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;transition:all .18s;color:var(--sub);background:transparent;border:none;font-family:inherit}
+.att-view-btn:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.att-view-btn.on{background:rgba(96,165,250,.15);color:#60A5FA}
+
 /* Vacation balance card */
 .att-vac-card{padding:16px 18px}
 .att-vac-period{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bdr2)}
@@ -1607,6 +1635,8 @@ function App(){
   const orgSecRefs=React.useRef({});
   const [attProv,setAttProv]=useState(PROVS[0]);
   const [attTimeModal,setAttTimeModal]=useState(null);
+  const [attView,setAttView]=useState('table'); // 'table' | 'log'
+  const [attLogMonth,setAttLogMonth]=useState(null); // key when viewing a past month from log
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -3309,14 +3339,19 @@ function App(){
 
           return h("div",{className:"att-page"},
 
-            /* ── Header + province tabs ── */
+            /* ── Header + tabs ── */
             h("div",{className:"card"},
               h("div",{className:"card-hdr",style:{flexWrap:"wrap",gap:10}},
                 h("div",{className:"card-title"},
                   h("div",{className:"card-title-icon",style:{background:"rgba(16,185,129,.12)"}},h(Ic,{n:"att",sz:14,c:"#10B981"})),
                   "الحضور والانصراف — ",h("span",{style:{color:"var(--blue)",fontWeight:900}},mn+" "+cfg.year)
                 ),
-                h("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
+                /* view toggle */
+                h("div",{className:"att-view-toggle"},
+                  h("div",{className:"att-view-btn"+(attView==="table"?" on":""),onClick:()=>{setAttView("table");setAttLogMonth(null);}},h(Ic,{n:"att",sz:12})," الجدول"),
+                  h("div",{className:"att-view-btn"+(attView==="log"?" on":""),onClick:()=>setAttView("log")},h(Ic,{n:"hist",sz:12})," السجل")
+                ),
+                attView==="table"&&h("div",{style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}},
                   PROVS.map(p=>{
                     const cc=CITY_CFG.find(c=>c.prov===p);
                     const col=cc?.color||"#60A5FA";
@@ -3324,14 +3359,144 @@ function App(){
                       style:attProv===p?{background:col}:{},
                       onClick:()=>setAttProv(p)},p.replace("محافظة ",""));
                   }),
-                  h("button",{
-                    className:"btn",
-                    style:{padding:"7px 16px",fontSize:12,gap:6,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171",marginRight:4},
-                    onClick:printAtt
-                  },h(Ic,{n:"pdf",sz:14}),"طباعة / PDF")
+                  h("button",{className:"btn",
+                    style:{padding:"7px 14px",fontSize:11,gap:5,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171"},
+                    onClick:printAtt},h(Ic,{n:"pdf",sz:13}),"PDF")
                 )
               )
             ),
+
+            /* ══ LOG VIEW ══ */
+            attView==="log"&&(()=>{
+              const logEntries=sortedKeys.map(k=>{
+                const mAtt=months[k]?.attendance||{};
+                const mData=months[k]?.data||{};
+                const mCfg=months[k]?.cfg||{};
+                const [y,m]=k.split('-');
+                const provRows=PROVS.map(p=>{
+                  const engs=mData[p]||[];
+                  let P=0,A=0,vac=0,hrs=0;
+                  engs.forEach(e=>{const s=attGetStats(e.id,mAtt);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
+                  return{prov:p,n:engs.length,P,A,vac,hrs};
+                }).filter(r=>r.P>0||r.A>0||r.vac>0);
+                const totP=provRows.reduce((a,r)=>a+r.P,0);
+                const totA=provRows.reduce((a,r)=>a+r.A,0);
+                const totVac=provRows.reduce((a,r)=>a+r.vac,0);
+                const totHrs=provRows.reduce((a,r)=>a+r.hrs,0);
+                return{key:k,y:+y,m:+m,label:MONTHS[+m-1]+" "+y,mCfg,mAtt,mData,provRows,totP,totA,totVac,totHrs};
+              }).filter(e=>e.provRows.length>0).reverse();
+
+              if(logEntries.length===0)return h("div",{className:"info",style:{marginTop:0}},
+                h(Ic,{n:"info",sz:16}),"لا توجد سجلات حضور محفوظة بعد — سجّل الحضور في الجدول الشهري وسيظهر هنا تلقائياً"
+              );
+
+              /* print a specific month from the log */
+              const printMonth=(entry)=>{
+                const {mAtt,mData,mCfg,label,m,y}=entry;
+                const dIM=new Date(y,m,0).getDate();
+                const dys=Array.from({length:dIM},(_,i)=>i+1);
+                const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
+                const S_COL={P:'#059669',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
+                const S_BG={P:'#D1FAE5',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
+                const isFri=d=>new Date(y,m-1,d).getDay()===5;
+                const thS='padding:5px 2px;font-size:9px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;text-align:center';
+                const tdS='padding:3px 1px;text-align:center;border:1px solid #F1F5F9';
+                const nmThS='padding:6px 10px;text-align:right;font-size:10px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;min-width:120px';
+                const nmTdS='padding:6px 10px;text-align:right;font-size:11px;font-weight:700;background:#fff;border:1px solid #E2E8F0;min-width:120px';
+                const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
+<title>سجل الحضور — ${label}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px}
+@page{size:A4 landscape;margin:8mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.hdr{display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border:1px solid #BFDBFE;border-radius:8px;margin-bottom:10px}
+.hdr-t{font-size:15px;font-weight:900;color:#1E3A8A}.hdr-s{font-size:10px;color:#3B82F6;font-weight:700;margin-top:2px}
+.section{margin-bottom:12px}.sec-t{font-size:11px;font-weight:900;color:#1E3A8A;padding:5px 10px;background:#EFF6FF;border-radius:6px;margin-bottom:6px;border-right:3px solid #2563EB}
+table{border-collapse:collapse;width:100%;font-size:10px;margin-bottom:8px}
+.foot{margin-top:10px;display:flex;justify-content:space-between;padding-top:8px;border-top:1.5px solid #E2E8F0;font-size:10px;color:#64748B}
+.sign{text-align:center;min-width:140px}.sign-line{border-bottom:1.5px solid #94A3B8;margin-bottom:3px;height:24px}
+</style></head><body>
+<div class="hdr">${logo?`<img src="${logo}" style="width:44px;height:44px;border-radius:8px;object-fit:contain"/>`:''}
+<div><div class="hdr-t">${mCfg.company||cfg.company} — سجل الحضور والانصراف</div>
+<div class="hdr-s">${label} · تم الإنشاء: ${new Date().toLocaleDateString('ar-EG')}</div></div></div>
+${PROVS.map(prov=>{
+  const engs=mData[prov]||[];
+  if(engs.length===0)return'';
+  const rows=engs.map(eng=>{
+    const eAtt=mAtt[eng.id]||{};
+    const s=attGetStats(eng.id,mAtt);
+    const cells=dys.map(d=>{
+      const st=eAtt[d]?.s;const fri=isFri(d);
+      if(fri)return`<td style="${tdS};background:#FFF1F2;color:#FDA4AF;font-size:8px">ج</td>`;
+      if(!st)return`<td style="${tdS}"></td>`;
+      return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
+    }).join('');
+    return`<tr><td style="${nmTdS}">${eng.name}<br><span style="font-size:8.5px;color:#64748B">${eng.spec}</span></td>${cells}
+<td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:9.5px;background:#FAFAFA;white-space:nowrap">
+<span style="color:#059669;font-weight:800">${s.P} ح</span> <span style="color:#DC2626;font-weight:800">${s.A} غ</span> ${s.vac>0?`<span style="color:#2563EB;font-weight:800">${s.vac} إج</span>`:''}
+<br><span style="color:#92400E;font-weight:700">${s.hrs}h</span></td></tr>`;
+  }).join('');
+  return`<div class="section"><div class="sec-t">${prov}</div>
+<table><thead><tr><th style="${nmThS}">المهندس</th>${dys.map(d=>`<th style="${thS};${isFri(d)?'background:#FFF1F2;color:#FDA4AF':''}">${d}<br>${DAY_AR[new Date(y,m-1,d).getDay()]}</th>`).join('')}<th style="${nmThS}">الملخص</th></tr></thead>
+<tbody>${rows}</tbody></table></div>`;}).join('')}
+<div class="foot">
+<div class="sign"><div class="sign-line"></div><div>مدير المشروع</div></div>
+<div style="color:#94A3B8;font-size:9px;text-align:center">نظام إعاشات المهندسين · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+<div class="sign"><div class="sign-line"></div><div>المدير المسؤول</div></div>
+</div></body></html>`;
+                const w=window.open('','_blank','width=1200,height=820');
+                if(!w){msg("يرجى السماح بالنوافذ المنبثقة","err");return;}
+                w.document.write(html);w.document.close();setTimeout(()=>{w.focus();w.print();},600);
+              };
+
+              return h("div",{className:"att-log-list"},
+                logEntries.map(entry=>{
+                  const cc=entry.provRows.map(r=>CITY_CFG.find(c=>c.prov===r.prov)).filter(Boolean);
+                  const isCurrent=entry.key===ak;
+                  return h("div",{key:entry.key,className:"att-log-card",style:isCurrent?{borderColor:"rgba(96,165,250,.4)"}:{}},
+                    /* card header */
+                    h("div",{className:"att-log-hdr"},
+                      h("div",{className:"att-log-month"},
+                        entry.label,
+                        isCurrent&&h("span",{style:{fontSize:9,fontWeight:800,background:"rgba(96,165,250,.18)",color:"#60A5FA",padding:"2px 8px",borderRadius:10,marginRight:6}},"الشهر الحالي")
+                      ),
+                      h("div",{className:"att-log-chips"},
+                        h("div",{className:"att-log-chip",style:{background:"rgba(16,185,129,.12)",borderColor:"rgba(16,185,129,.3)",color:"#10B981"}},entry.totP+" يوم حضور"),
+                        entry.totA>0&&h("div",{className:"att-log-chip",style:{background:"rgba(239,68,68,.1)",borderColor:"rgba(239,68,68,.25)",color:"#F87171"}},entry.totA+" غياب"),
+                        entry.totVac>0&&h("div",{className:"att-log-chip",style:{background:"rgba(96,165,250,.1)",borderColor:"rgba(96,165,250,.25)",color:"#60A5FA"}},entry.totVac+" إجازة"),
+                        h("div",{className:"att-log-chip",style:{background:"rgba(252,211,77,.1)",borderColor:"rgba(252,211,77,.25)",color:"#FCD34D"}},entry.totHrs+"h عمل")
+                      ),
+                      h("div",{className:"att-log-actions"},
+                        h("button",{className:"btn",style:{fontSize:11,padding:"6px 12px",gap:5},
+                          onClick:()=>{switchMonth(entry.key);setAttView("table");setAttLogMonth(null);}},
+                          h(Ic,{n:"att",sz:12}),"عرض"),
+                        h("button",{className:"btn",style:{fontSize:11,padding:"6px 12px",gap:5,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171"},
+                          onClick:()=>printMonth(entry)},
+                          h(Ic,{n:"pdf",sz:12}),"PDF")
+                      )
+                    ),
+                    /* province breakdown */
+                    h("div",{className:"att-log-body"},
+                      entry.provRows.map(r=>{
+                        const cityConf=CITY_CFG.find(c=>c.prov===r.prov);
+                        const col=cityConf?.color||"#60A5FA";
+                        const total=r.P+r.A+r.vac;
+                        const pct=total>0?Math.round(r.P/total*100):0;
+                        return h("div",{key:r.prov,className:"att-log-prov"},
+                          h("div",{className:"att-log-prov-name",style:{color:col}},r.prov.replace("محافظة ","")),
+                          h("div",{className:"att-log-stat"},h("div",{className:"att-log-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-log-stat-val"},r.P),h("span",{className:"att-log-stat-lbl"}," يوم حضور")),
+                          r.A>0&&h("div",{className:"att-log-stat"},h("div",{className:"att-log-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-log-stat-val"},r.A),h("span",{className:"att-log-stat-lbl"}," غياب")),
+                          r.vac>0&&h("div",{className:"att-log-stat"},h("div",{className:"att-log-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-log-stat-val"},r.vac),h("span",{className:"att-log-stat-lbl"}," إجازة")),
+                          h("div",{className:"att-log-stat"},h("div",{className:"att-log-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-log-stat-val"},r.hrs+"h"),h("span",{className:"att-log-stat-lbl"}," عمل")),
+                          h("div",{className:"att-log-bar"},h("div",{className:"att-log-bar-fill",style:{width:pct+"%",background:col}}))
+                        );
+                      })
+                    )
+                  );
+                })
+              );
+            })(),
+
+            /* ── Table view content ── */
+            attView==="table"&&h(React.Fragment,null,
 
             /* ── Vacation balance card ── */
             h("div",{className:"card"},
@@ -3474,6 +3639,8 @@ function App(){
                 h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:10}},"← اضغط على خلية يوم لتغيير الحالة (ح ← غ ← إجازة سنوية ← مرضية ← طارئة ← عطلة) | اضغط ⏰ لإدخال أوقات الحضور والانصراف")
               )
             )
+
+            ) /* end attView==="table" Fragment */
           );
         })(),
 
