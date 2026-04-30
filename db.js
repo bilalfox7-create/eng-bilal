@@ -38,6 +38,11 @@ function initDb() {
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS org_chart (
+      id   INTEGER PRIMARY KEY,
+      data TEXT NOT NULL
+    );
   `);
 
   // أضف عمود expenses إن لم يكن موجوداً (للقواعد القديمة)

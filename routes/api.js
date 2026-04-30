@@ -80,6 +80,23 @@ router.put('/data', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Org Chart ──────────────────────────────────────────── */
+
+router.get('/org-chart', (_req, res) => {
+  const row = getDb().prepare('SELECT data FROM org_chart WHERE id = 1').get();
+  res.json({ data: row ? JSON.parse(row.data) : null });
+});
+
+router.put('/org-chart', (req, res) => {
+  const { data } = req.body;
+  if (!data) return res.status(400).json({ error: 'بيانات ناقصة' });
+  getDb().prepare(`
+    INSERT INTO org_chart (id, data) VALUES (1, ?)
+    ON CONFLICT(id) DO UPDATE SET data = excluded.data
+  `).run(JSON.stringify(data));
+  res.json({ ok: true });
+});
+
 /* ── Logo ───────────────────────────────────────────────── */
 
 router.get('/logo', (_req, res) => {
