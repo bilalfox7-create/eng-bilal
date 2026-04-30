@@ -3467,7 +3467,7 @@ function App(){
           h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"exp",sz:13,c:"#D97706"})),"تصدير نسخة احتياطية")),
             h("div",{style:{padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}},
-              h("div",null,h("div",{style:{fontWeight:600,fontSize:14,marginBottom:4}},"حفظ كل البيانات في ملف JSON"),h("div",{style:{fontSize:12,color:"var(--sub)"}},`${sortedKeys.length} شهر محفوظ  ·  ${Object.values(months).reduce((a,m)=>a+PROVS.reduce((b,p)=>b+(m.data?.[p]?.length||0),0),0)} مهندس`)),
+              h("div",null,h("div",{style:{fontWeight:600,fontSize:14,marginBottom:4}},"حفظ كل البيانات في ملف JSON"),h("div",{style:{fontSize:12,color:"var(--sub)"}},`${sortedKeys.length} شهر محفوظ  ·  ${Object.values(months).reduce((ids,m)=>{PROVS.forEach(p=>(m.data?.[p]||[]).forEach(e=>ids.add(e.id)));return ids;},new Set()).size} مهندس (فريد)`)),
               h("button",{className:"btn gold",style:{fontSize:13,padding:"8px 16px"},onClick:exportJSON},h(Ic,{n:"exp",sz:14}),"تصدير نسخة احتياطية")
             )
           ),
