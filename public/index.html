@@ -426,6 +426,7 @@ function App(){
   const [loginError,setLoginError]=useState("");
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",usd:"",lyd:"",date:"",note:""});
+  const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -508,13 +509,13 @@ function App(){
   const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0},cfg.rate,cfg.egp),[form.d1,form.d2,cfg.rate,cfg.egp]);
   const expData=useMemo(()=>{
     const raw=am?.expenses;
-    if(!raw) return {custody:[],items:[]};
-    // backward compat: old format was flat array
-    if(Array.isArray(raw)) return {custody:[],items:raw.map(e=>({...e,date:"",custodyId:""}))};
-    return {custody:raw.custody||[],items:raw.items||[]};
+    if(!raw) return {custody:[],items:[],transfers:[]};
+    if(Array.isArray(raw)) return {custody:[],items:raw.map(e=>({...e,date:"",custodyId:""})),transfers:[]};
+    return {custody:raw.custody||[],items:raw.items||[],transfers:raw.transfers||[]};
   },[am]);
   const custody=expData.custody;
   const expItems=expData.items;
+  const transfers=expData.transfers;
   const expTotals=useMemo(()=>({
     itemsUSD:expItems.reduce((a,e)=>a+(+e.usd||0),0),
     itemsLYD:expItems.reduce((a,e)=>a+(+e.lyd||0),0),
@@ -1074,14 +1075,15 @@ function App(){
     const item={...custForm,usd:+custForm.usd||0,lyd:+custForm.lyd||0};
     if(custForm.id){const i=nc.findIndex(c=>c.id===custForm.id);if(i>=0)nc[i]=item;}
     else nc.push({...item,id:"c"+Date.now()});
-    saveExpData({custody:nc,items:expItems});
+    saveExpData({custody:nc,items:expItems,transfers});
     setModal(null);msg(custForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
   const delCust=id=>{
     if(!confirm("حذف هذه العهدة؟ سيتم إلغاء ربط المصروفات المرتبطة بها"))return;
     const nc=custody.filter(c=>c.id!==id);
     const ni=expItems.map(e=>e.custodyId===id?{...e,custodyId:""}:e);
-    saveExpData({custody:nc,items:ni});msg("تم الحذف");
+    const nt=transfers.filter(t=>t.fromCustodyId!==id&&t.toCustodyId!==id);
+    saveExpData({custody:nc,items:ni,transfers:nt});msg("تم الحذف");
   };
   const submitExp=()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
@@ -1089,22 +1091,36 @@ function App(){
     const item={...expForm,usd:+expForm.usd||0,lyd:+expForm.lyd||0};
     if(expForm.id){const i=ni.findIndex(e=>e.id===expForm.id);if(i>=0)ni[i]=item;}
     else ni.push({...item,id:"x"+Date.now()});
-    saveExpData({custody,items:ni});
+    saveExpData({custody,items:ni,transfers});
     setModal(null);msg(expForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
   const delExp=id=>{
     if(!confirm("حذف هذا البند؟"))return;
-    saveExpData({custody,items:expItems.filter(e=>e.id!==id)});msg("تم الحذف");
+    saveExpData({custody,items:expItems.filter(e=>e.id!==id),transfers});msg("تم الحذف");
   };
-
+  const submitTransfer=()=>{
+    if(!trfForm.fromCustodyId){msg("اختر عهدة المصدر","err");return;}
+    if(!trfForm.usd||+trfForm.usd<=0){msg("أدخل مبلغ الدولار","err");return;}
+    if(!trfForm.rate||+trfForm.rate<=0){msg("أدخل سعر الصرف","err");return;}
+    const lyd=trfForm.lyd||((+trfForm.usd||0)*(+trfForm.rate||0)).toFixed(2);
+    const nt=[...transfers];
+    const item={...trfForm,usd:+trfForm.usd,rate:+trfForm.rate,lyd:+lyd};
+    if(trfForm.id){const i=nt.findIndex(t=>t.id===trfForm.id);if(i>=0)nt[i]=item;}
+    else nt.push({...item,id:"t"+Date.now()});
+    saveExpData({custody,items:expItems,transfers:nt});
+    setModal(null);msg(trfForm.id?"تم الحفظ":"تم تسجيل التحويل ✓");
+  };
+  const delTransfer=id=>{
+    if(!confirm("حذف هذا التحويل؟"))return;
+    saveExpData({custody,items:expItems,transfers:transfers.filter(t=>t.id!==id)});msg("تم الحذف");
+  };
   const updCust=(id,field,val)=>{
     const nc=custody.map(c=>c.id===id?{...c,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:c);
-    saveExpData({custody:nc,items:expItems});
+    saveExpData({custody:nc,items:expItems,transfers});
   };
-
   const updExpItem=(id,field,val)=>{
     const ni=expItems.map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e);
-    saveExpData({custody,items:ni});
+    saveExpData({custody,items:ni,transfers});
   };
 
   /* ── Nav items ────────────────────────────────────── */
@@ -1184,6 +1200,64 @@ function App(){
           h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"سيتم نسخ أسماء المهندسين تلقائياً مع إعادة أيام الحضور صفراً.")
         ),
         h("div",{className:"modal-ftr"},h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),h("button",{className:"btn blue",onClick:createMonth},"فتح الشهر"))
+      ),
+      modal==="trf-form"&&h("div",{className:"modal",style:{width:460}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,trfForm.id?"تعديل تحويل":"تحويل عملة — دولار ← دينار"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body"},
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"من عهدة (دولار) *"),
+              h("select",{value:trfForm.fromCustodyId,onChange:ev=>setTrfForm(f=>({...f,fromCustodyId:ev.target.value}))},
+                h("option",{value:""},"— اختر عهدة —"),
+                custody.filter(c=>c.usd>0).map(c=>h("option",{key:c.id,value:c.id},c.desc+" ("+c.usd+" $)"))
+              )
+            ),
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"إلى عهدة (دينار) — اختياري"),
+              h("select",{value:trfForm.toCustodyId,onChange:ev=>setTrfForm(f=>({...f,toCustodyId:ev.target.value}))},
+                h("option",{value:""},"— رصيد حر (بدون ربط) —"),
+                custody.filter(c=>c.id!==trfForm.fromCustodyId).map(c=>h("option",{key:c.id,value:c.id},c.desc))
+              )
+            )
+          ),
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"المبلغ بالدولار ($) *"),
+              h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:trfForm.usd,
+                onChange:ev=>{
+                  const usd=ev.target.value;
+                  const lyd=trfForm.rate?(+usd*(+trfForm.rate)).toFixed(2):"";
+                  setTrfForm(f=>({...f,usd,lyd}));
+                }})
+            ),
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"سعر الصرف (د.ل لكل $) *"),
+              h("input",{type:"number",min:0,step:"0.01",placeholder:"مثال: 5.50",value:trfForm.rate,
+                onChange:ev=>{
+                  const rate=ev.target.value;
+                  const lyd=trfForm.usd?(+trfForm.usd*(+rate)).toFixed(2):"";
+                  setTrfForm(f=>({...f,rate,lyd}));
+                }})
+            )
+          ),
+          h("div",{className:"fld",style:{background:"var(--gold2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--gold2)"}},
+            h("label",{style:{color:"var(--gold)"}},"المبلغ بالدينار الليبى (محسوب تلقائياً)"),
+            h("input",{type:"number",min:0,step:"0.01",placeholder:"يُحسب تلقائياً أو أدخله يدوياً",
+              value:trfForm.lyd,style:{color:"var(--gold)",fontWeight:700},
+              onChange:ev=>setTrfForm(f=>({...f,lyd:ev.target.value}))})
+          ),
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"التاريخ"),h("input",{type:"date",value:trfForm.date,onChange:ev=>setTrfForm(f=>({...f,date:ev.target.value}))})),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية",value:trfForm.note,onChange:ev=>setTrfForm(f=>({...f,note:ev.target.value}))}))
+          )
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:submitTransfer},trfForm.id?"حفظ التعديلات":"تسجيل التحويل")
+        )
       ),
       modal==="cust-form"&&h("div",{className:"modal",style:{width:440}},
         h("div",{className:"modal-hdr"},
@@ -1381,9 +1455,12 @@ function App(){
                     const deducted=expItems.filter(e=>e.custodyId===c.id);
                     const dedUSD=deducted.reduce((a,e)=>a+(+e.usd||0),0);
                     const dedLYD=deducted.reduce((a,e)=>a+(+e.lyd||0),0);
-                    const remUSD=(+c.usd||0)-dedUSD;
-                    const remLYD=(+c.lyd||0)-dedLYD;
-                    const pctUSD=c.usd>0?Math.min(100,dedUSD/c.usd*100):0;
+                    // تحويلات خارجة (مصدر) وداخلة (وجهة)
+                    const trfOut=transfers.filter(t=>t.fromCustodyId===c.id).reduce((a,t)=>a+(+t.usd||0),0);
+                    const trfIn=transfers.filter(t=>t.toCustodyId===c.id).reduce((a,t)=>a+(+t.lyd||0),0);
+                    const remUSD=(+c.usd||0)-dedUSD-trfOut;
+                    const remLYD=(+c.lyd||0)-dedLYD+trfIn;
+                    const pctUSD=c.usd>0?Math.min(100,(dedUSD+trfOut)/c.usd*100):0;
                     return h("div",{key:c.id,style:{background:"var(--bg3)",border:"1px solid var(--bdr2)",borderRadius:10,padding:14,position:"relative"}},
                       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
                         h("div",null,
@@ -1438,6 +1515,55 @@ function App(){
                     );
                   })
                 )
+          ),
+
+          /* ─── تحويلات العملة ─── */
+          custody.length>=1&&h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"var(--gold2)"}},h(Ic,{n:"coin",sz:13,c:"var(--gold)"})),
+                "تحويل العملة",
+                transfers.length>0&&h("span",{className:"card-badge"},transfers.length+" تحويل")
+              ),
+              h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--gold)",color:"var(--gold)"},
+                onClick:()=>{setTrfForm({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}
+              },h(Ic,{n:"plus",sz:13}),"تحويل جديد")
+            ),
+            transfers.length===0
+              ?h("div",{style:{padding:"20px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد تحويلات — اضغط «تحويل جديد» لتحويل مبلغ من عهدة دولار إلى دينار")
+              :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
+                  h("thead",null,h("tr",null,
+                    h("th",null,"م"),h("th",{className:"l"},"من عهدة"),h("th",{className:"l"},"إلى عهدة"),
+                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"سعر الصرف"),h("th",null,"المبلغ (د.ل)"),h("th",{className:"l"},"ملاحظة"),h("th",null,"")
+                  )),
+                  h("tbody",null,
+                    transfers.map((t,i)=>{
+                      const fromC=custody.find(c=>c.id===t.fromCustodyId);
+                      const toC=custody.find(c=>c.id===t.toCustodyId);
+                      return h("tr",{key:t.id},
+                        h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+                        h("td",{className:"l"},fromC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--blue2)",color:"var(--blue)",fontWeight:600}},fromC.desc):"—"),
+                        h("td",{className:"l"},toC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--green2)",color:"var(--green)",fontWeight:600}},toC.desc):h("span",{style:{fontSize:10,color:"var(--sub)"}},"رصيد حر")),
+                        h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},t.date?new Date(t.date).toLocaleDateString("ar-EG"):"—"),
+                        h("td",{style:{color:"var(--blue)",fontWeight:700}},(+t.usd).toFixed(2)+" $"),
+                        h("td",{style:{color:"var(--sub)",fontSize:11}},t.rate+" د.ل/$"),
+                        h("td",{style:{color:"var(--gold)",fontWeight:700}},(+t.lyd).toFixed(2)+" د.ل"),
+                        h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},t.note||"—"),
+                        h("td",null,h("div",{style:{display:"flex",gap:4}},
+                          h("button",{className:"btn-icon edit",onClick:()=>{setTrfForm({...t});setModal("trf-form");}},h(Ic,{n:"edit",sz:12})),
+                          h("button",{className:"btn-icon del",onClick:()=>delTransfer(t.id)},h(Ic,{n:"del",sz:12}))
+                        ))
+                      );
+                    }),
+                    h("tr",{className:"sub-row"},
+                      h("td",{colSpan:4,className:"l"},"الإجمالى"),
+                      h("td",{style:{color:"var(--blue)",fontWeight:800}},transfers.reduce((a,t)=>a+(+t.usd||0),0).toFixed(2)+" $"),
+                      h("td"),
+                      h("td",{style:{color:"var(--gold)",fontWeight:800}},transfers.reduce((a,t)=>a+(+t.lyd||0),0).toFixed(2)+" د.ل"),
+                      h("td",{colSpan:2})
+                    )
+                  )
+                ))
           ),
 
           /* ─── المصروفات ─── */
