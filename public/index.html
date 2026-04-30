@@ -1212,7 +1212,7 @@ function App(){
               h("label",null,"من عهدة (دولار) *"),
               h("select",{value:trfForm.fromCustodyId,onChange:ev=>setTrfForm(f=>({...f,fromCustodyId:ev.target.value}))},
                 h("option",{value:""},"— اختر عهدة —"),
-                custody.filter(c=>c.usd>0).map(c=>h("option",{key:c.id,value:c.id},c.desc+" ("+c.usd+" $)"))
+                custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd?" ("+c.usd+" $)":"")+(c.lyd?" ("+c.lyd+" د.ل)":"")))
               )
             ),
             h("div",{className:"fld",style:{margin:0}},
