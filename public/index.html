@@ -927,157 +927,156 @@ html.light .org-hc-stat-val{color:#2563eb}
 .org-edit-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(252,211,77,.05);border:1px solid rgba(252,211,77,.15);border-radius:12px}
 html.light .org-edit-bar{background:#FFFBEB;border-color:rgba(217,119,6,.2)}
 
-/* ── Director box (top of column chart) ── */
-.oc-director{
-  display:flex;align-items:center;gap:14px;
-  background:linear-gradient(135deg,#1e3a8a,#1d4ed8);
-  border-radius:14px 14px 0 0;padding:14px 20px;
-  border:1px solid rgba(96,165,250,.4);border-bottom:none;
-}
-html.light .oc-director{background:linear-gradient(135deg,#1e3a8a,#2563eb)}
-.oc-dir-avatar{
-  width:44px;height:44px;border-radius:11px;
-  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
-  display:flex;align-items:center;justify-content:center;
-  font-size:18px;font-weight:900;color:#fff;flex-shrink:0;
-}
-.oc-dir-name{font-size:15px;font-weight:900;color:#fff}
-.oc-dir-title{font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;font-weight:600}
-.oc-dir-badge{margin-right:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);font-size:9px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap}
+/* ══════════════════════════════════════════════
+   ORGANIZATIONAL CHART — NEW DESIGN
+══════════════════════════════════════════════ */
 
-/* ── stem connector ── */
-.oc-stem{
-  display:grid;width:100%;
-  border-left:1px solid rgba(96,165,250,.2);
-  border-right:1px solid rgba(96,165,250,.2);
-  background:var(--bg2);
+/* Director strip */
+.oc-director{
+  display:flex;align-items:center;gap:16px;
+  background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#2563eb 100%);
+  border-radius:12px;padding:16px 22px;
+  border:1px solid rgba(96,165,250,.45);
+  box-shadow:0 4px 20px rgba(37,99,235,.25);
 }
-html.light .oc-stem{background:#fff}
-.oc-stem-inner{
-  display:flex;justify-content:center;align-items:flex-end;
-  position:relative;height:36px;
+html.light .oc-director{box-shadow:0 4px 20px rgba(37,99,235,.18)}
+.oc-dir-avatar{
+  width:52px;height:52px;border-radius:13px;
+  background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.35);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:900;color:#fff;flex-shrink:0;
 }
-/* vertical line from director */
-.oc-stem-inner::before{
-  content:'';position:absolute;top:0;left:50%;width:2px;height:100%;
-  background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.25));
+.oc-dir-name{font-size:17px;font-weight:900;color:#fff;margin-bottom:4px}
+.oc-dir-title{font-size:11.5px;color:rgba(255,255,255,.72);font-weight:600}
+.oc-dir-badge{
+  margin-right:auto;background:rgba(255,255,255,.13);
+  border:1px solid rgba(255,255,255,.28);color:rgba(255,255,255,.88);
+  font-size:10px;font-weight:800;padding:5px 14px;border-radius:20px;
+  white-space:nowrap;text-align:center;line-height:1.4;
+}
+
+/* Connector stem */
+.oc-stem{display:flex;justify-content:center;height:38px;position:relative}
+.oc-stem::before{
+  content:'';position:absolute;top:0;left:50%;width:2px;height:55%;
+  background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.2));
   transform:translateX(-50%);
 }
-/* horizontal bar connecting cities */
-.oc-stem-inner::after{
-  content:'';position:absolute;bottom:0;
-  height:2px;background:rgba(96,165,250,.25);
-  width:var(--oc-bar-w,75%);
+.oc-stem::after{
+  content:'';position:absolute;bottom:0;height:2px;
+  background:rgba(96,165,250,.25);
+  width:var(--bar-w,80%);
 }
 
-/* ── city columns layout ── */
-.oc-columns-wrap{overflow-x:auto;padding-bottom:4px}
-.oc-columns-wrap::-webkit-scrollbar{height:4px}
-.oc-columns-wrap::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
-.oc-columns{
-  display:grid;gap:14px;min-width:520px;
-  padding:4px 2px 2px;
-}
+/* City grid */
+.oc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
 
-/* each city — standalone card */
-.oc-col{
-  display:flex;flex-direction:column;
-  border-radius:12px;overflow:hidden;
+/* City card */
+.oc-card{
+  border-radius:12px;overflow:hidden;display:flex;flex-direction:column;
   background:var(--bg2);
-  box-shadow:0 2px 12px rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:0 3px 14px rgba(0,0,0,.2);
 }
-html.light .oc-col{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+html.light .oc-card{background:#fff;border-color:#e2e8f0;box-shadow:0 2px 10px rgba(0,0,0,.08)}
 
-/* colored top bar + city name */
-.oc-col-hdr{
-  padding:12px 14px 10px;text-align:center;
-  font-size:14px;font-weight:900;letter-spacing:.3px;
-  border-bottom:1px solid rgba(255,255,255,.07);
+/* Colored city header */
+.oc-card-hdr{
+  padding:13px 14px 10px;text-align:center;
+  font-size:16px;font-weight:900;letter-spacing:.3px;
 }
-html.light .oc-col-hdr{border-bottom-color:rgba(0,0,0,.06)}
-.oc-col-hdr-sub{font-size:8.5px;font-weight:700;opacity:.55;margin-top:3px;letter-spacing:.4px}
+.oc-card-hdr-sub{font-size:9px;font-weight:700;opacity:.6;margin-top:3px;letter-spacing:.5px}
 
-/* count pills row */
-.oc-col-pills{display:flex;justify-content:center;gap:6px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05)}
-html.light .oc-col-pills{border-bottom-color:rgba(0,0,0,.05)}
-.oc-pill{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.2px}
-
-/* manager section */
-.oc-mgr-section{background:rgba(255,255,255,.03)}
-html.light .oc-mgr-section{background:rgba(0,0,0,.02)}
-.oc-mgr-label{
-  padding:7px 12px 4px;font-size:8px;font-weight:800;letter-spacing:1.2px;
-  color:var(--sub);text-transform:uppercase;
-  border-bottom:1px solid rgba(255,255,255,.04);
+/* Total count badge */
+.oc-card-stat{
+  display:flex;justify-content:center;align-items:center;gap:5px;
+  padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.05);
+  font-size:11px;font-weight:800;
 }
-html.light .oc-mgr-label{border-bottom-color:rgba(0,0,0,.04)}
-.oc-mgr-row{
+html.light .oc-card-stat{border-bottom-color:#f1f5f9}
+
+/* Section label */
+.oc-sec-lbl{
+  padding:7px 12px 5px;font-size:8.5px;font-weight:800;letter-spacing:1.1px;
+  text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.05);
+}
+html.light .oc-sec-lbl{border-bottom-color:#f1f5f9}
+
+/* Person row (manager / engineer) */
+.oc-row{
   display:flex;align-items:flex-start;gap:8px;
   padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s;
 }
-html.light .oc-mgr-row{border-bottom-color:rgba(0,0,0,.05)}
-.oc-mgr-star{font-size:11px;flex-shrink:0;margin-top:1px}
-.oc-mgr-name{font-size:11px;font-weight:800;color:var(--text);line-height:1.35}
-.oc-mgr-role{font-size:9.5px;color:var(--sub);font-weight:500;margin-top:2px}
+.oc-row:hover{background:rgba(255,255,255,.035)}
+html.light .oc-row{border-bottom-color:#f8fafc}
+html.light .oc-row:hover{background:#f8fafc}
+.oc-num{
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;
+  font-size:9px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;margin-top:2px;
+}
+.oc-star{font-size:12px;flex-shrink:0;margin-top:2px}
+.oc-name{font-size:12px;font-weight:700;color:var(--text);line-height:1.35;flex:1}
+.oc-role-txt{font-size:9.5px;color:var(--sub);margin-top:2px}
+.oc-del{
+  opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;
+  color:var(--red);font-size:14px;padding:0 2px;flex-shrink:0;
+}
+.oc-row:hover .oc-del{opacity:.75}
 
-/* divider between managers and team */
-.oc-divider{height:1px;border:none;margin:0;opacity:.4}
-
-/* team member rows */
-.oc-member-row{
-  display:flex;align-items:flex-start;gap:8px;
+/* Project row */
+.oc-proj{
+  display:flex;align-items:center;gap:9px;
   padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04);
   transition:background .15s;
 }
-.oc-member-row:last-child{border-bottom:none}
-.oc-member-row:hover{background:rgba(255,255,255,.03)}
-html.light .oc-member-row{border-bottom-color:rgba(0,0,0,.04)}
-html.light .oc-member-row:hover{background:rgba(0,0,0,.02)}
-.oc-num{
-  width:20px;height:20px;border-radius:50%;flex-shrink:0;
-  font-size:8.5px;font-weight:900;
-  display:flex;align-items:center;justify-content:center;
-  margin-top:1px;
+.oc-proj:hover{background:rgba(52,211,153,.04)}
+html.light .oc-proj{border-bottom-color:#f8fafc}
+.oc-proj-dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+  background:#34D399;box-shadow:0 0 4px rgba(52,211,153,.4);
 }
-.oc-member-name{font-size:11px;font-weight:700;color:var(--text);line-height:1.35;flex:1}
-.oc-member-role{font-size:9.5px;color:var(--sub);font-weight:500;margin-top:2px}
-.oc-member-del{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;color:var(--red);font-size:13px;padding:0;flex-shrink:0;margin-top:1px}
-.oc-member-row:hover .oc-member-del,.oc-mgr-row:hover .oc-member-del{opacity:.7}
+.oc-proj-name{font-size:11.5px;font-weight:600;color:var(--text);flex:1;line-height:1.4}
+.oc-proj:hover .oc-del{opacity:.75}
 
-/* add row */
-.oc-add-btn{
-  width:100%;display:flex;align-items:center;justify-content:center;gap:5px;
-  padding:8px 10px;background:none;border:none;cursor:pointer;margin-top:auto;
-  font-family:inherit;font-size:10px;font-weight:700;
-  color:var(--sub);transition:all .15s;border-top:1px dashed rgba(255,255,255,.08);
+/* Add button */
+.oc-add{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  width:100%;padding:8px 10px;background:none;border:none;cursor:pointer;
+  font-family:inherit;font-size:10.5px;font-weight:700;
+  color:var(--sub);transition:all .15s;border-top:1px dashed rgba(255,255,255,.09);
 }
-.oc-add-btn:hover{color:var(--green);background:rgba(52,211,153,.05)}
-html.light .oc-add-btn{border-top-color:rgba(0,0,0,.08)}
+.oc-add:hover{color:var(--green);background:rgba(52,211,153,.06)}
+html.light .oc-add{border-top-color:rgba(0,0,0,.09)}
 
-/* edit inputs inside columns */
-.oc-input{
-  width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
-  color:var(--text);border-radius:5px;padding:4px 7px;
-  font-family:inherit;font-size:10.5px;font-weight:700;box-sizing:border-box;
+/* Edit inputs */
+.oc-inp{
+  width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
+  color:var(--text);border-radius:5px;padding:4px 7px;margin-bottom:3px;
+  font-family:inherit;font-size:11px;font-weight:700;box-sizing:border-box;display:block;
 }
-html.light .oc-input{background:#F8FAFC;border-color:#CBD5E1;color:#1e293b}
-.oc-input:focus{outline:none;border-color:rgba(96,165,250,.55)}
+html.light .oc-inp{background:#f8fafc;border-color:#cbd5e1;color:#1e293b}
+.oc-inp:focus{outline:none;border-color:rgba(96,165,250,.6)}
 
-@media(max-width:700px){.oc-columns{grid-template-columns:repeat(2,1fr)!important}}
-@media(max-width:420px){.oc-columns{grid-template-columns:1fr!important}}
+/* Divider line */
+.oc-div{height:1px;border:none;margin:0;opacity:.5}
+
+@media(max-width:900px){.oc-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.oc-grid{grid-template-columns:1fr}}
 
 /* ── Print / PDF ── */
-@page{size:A4 portrait;margin:12mm 10mm}
+@page{size:A4 landscape;margin:8mm 10mm}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  body{background:#fff!important;color:#111!important;font-size:11px!important}
+  body{background:#fff!important;color:#111!important}
   body::before{display:none!important}
   .sidebar,.topbar,.mstrip,.bottom-nav,.org-hc-actions,.org-edit-bar{display:none!important}
   .shell{display:block!important;height:auto!important;overflow:visible!important}
   .main{overflow:visible!important;display:block!important}
   .content{overflow:visible!important;padding:6px!important;display:block!important}
   .org-page{gap:8px!important;display:flex!important;flex-direction:column!important}
-  /* header */
+  /* header card */
   .org-header-card{
     background:linear-gradient(135deg,#EFF6FF,#F5F3FF)!important;
     border:1px solid #BFDBFE!important;padding:12px 16px!important;
@@ -1085,31 +1084,39 @@ html.light .oc-input{background:#F8FAFC;border-color:#CBD5E1;color:#1e293b}
   }
   .org-hc-stat-val{color:#1D4ED8!important}
   .org-hc-title{color:#1e3a8a!important}
-  /* tree */
+  /* tree card — no page break, fits on one landscape page */
   .org-tree-card{
     background:#fff!important;border:1px solid #E2E8F0!important;
-    padding:12px!important;break-inside:avoid;page-break-after:always;
+    padding:12px!important;break-inside:avoid;page-break-inside:avoid;
   }
-  .org-tree-scroll{overflow:visible!important}
-  .org-root-box{background:#1D4ED8!important;box-shadow:none!important}
-  .org-root-name,.org-root-badge,.org-root-sub{color:#fff!important}
-  .org-city-card{background:#F8FAFC!important;border:1px solid #CBD5E1!important;box-shadow:none!important}
-  .org-city-card-mgr,.org-city-count-lbl{color:#64748B!important}
-  /* detail cards */
-  .org-detail-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
-  .org-detail-card{
-    background:#fff!important;border:1px solid #E2E8F0!important;
-    break-inside:avoid;page-break-inside:avoid;
+  /* director */
+  .oc-director{
+    background:#1d4ed8!important;border-color:#93C5FD!important;
+    box-shadow:none!important;padding:10px 16px!important;
   }
-  .org-dc-head{border-bottom:1px solid #E2E8F0!important;background:none!important}
-  .org-dc-city-name{font-weight:900!important}
-  .org-row{border-bottom:1px solid #F1F5F9!important;padding:5px 12px!important}
-  .org-row-main{color:#1e293b!important;font-size:10px!important}
-  .org-row-sub{color:#64748B!important;font-size:9px!important}
-  .org-section-hdr{padding:6px 12px!important;font-size:9px!important}
-  .org-row-num{background:#F1F5F9!important;color:#475569!important}
-  /* hide sync pending rows in print */
-  .org-sync-pending{display:none!important}
+  .oc-dir-name{color:#fff!important}
+  .oc-dir-title{color:rgba(255,255,255,.75)!important}
+  .oc-dir-badge{background:rgba(255,255,255,.15)!important;color:#fff!important;border-color:rgba(255,255,255,.3)!important}
+  /* city grid — 4 columns in landscape */
+  .oc-grid{
+    grid-template-columns:repeat(4,1fr)!important;gap:8px!important;
+  }
+  .oc-card{
+    background:#fff!important;border:1px solid #e2e8f0!important;
+    box-shadow:none!important;break-inside:avoid;page-break-inside:avoid;
+  }
+  .oc-card-hdr{padding:8px 10px 6px!important;font-size:13px!important}
+  .oc-card-stat{padding:4px 8px!important;border-bottom:1px solid #f1f5f9!important}
+  .oc-sec-lbl{padding:5px 10px 3px!important;border-bottom:1px solid #f1f5f9!important}
+  .oc-row{padding:5px 10px!important;border-bottom:1px solid #f8fafc!important}
+  .oc-proj{padding:4px 10px!important;border-bottom:1px solid #f8fafc!important}
+  .oc-name{font-size:10.5px!important;color:#1e293b!important}
+  .oc-role-txt{font-size:9px!important;color:#64748b!important}
+  .oc-proj-name{font-size:10.5px!important;color:#1e293b!important}
+  .oc-del,.oc-add{display:none!important}
+  .oc-row:hover,.oc-proj:hover{background:transparent!important}
+  .oc-stem::after{background:rgba(30,58,138,.3)!important}
+  .oc-stem::before{background:linear-gradient(180deg,rgba(30,58,138,.5),rgba(30,58,138,.2))!important}
 }
 
 /* ── Scrollbar global ── */
@@ -2848,10 +2855,11 @@ function App(){
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&(()=>{
         const od=orgEdit?orgDraft:(orgData||DEFAULT_ORG);
-        if(!od)return h("div",{style:{padding:40,textAlign:"center",color:"var(--sub)"}},"جاري تحميل الهيكل التنظيمي...");
+        if(!od)return h("div",{style:{padding:40,textAlign:"center",color:"var(--sub)"}},"جاري التحميل...");
         const upd=fn=>setOrgDraft(d=>{const nd=JSON.parse(JSON.stringify(d));fn(nd);return nd;});
 
         const doRebuild=async()=>{
+          if(!confirm("سيتم إعادة بناء الهيكل من كشف الإعاشة الأساسي. هل تريد المتابعة؟"))return;
           const fresh=buildOrgFromBase();
           await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:fresh})}).catch(()=>{});
           setOrgData(fresh);
@@ -2859,8 +2867,13 @@ function App(){
 
         const totalEng=od.cities.reduce((a,c)=>a+c.team.length,0);
         const totalMgr=od.cities.reduce((a,c)=>a+c.managers.length,0);
+        const totalProj=od.cities.reduce((a,c)=>a+(c.projects||[]).length,0);
         const nCols=od.cities.length;
         const barW=nCols>1?`${Math.round((1-1/nCols)*100)}%`:"0%";
+
+        /* helper: editable text field */
+        const Ef=({val,onChange,style={}})=>
+          h("input",{className:"oc-inp",style,value:val,onChange:e=>onChange(e.target.value)});
 
         return h("div",{className:"org-page"},
 
@@ -2871,7 +2884,7 @@ function App(){
               h("div",{className:"org-hc-company"},od.company),
               h("div",{className:"org-hc-title"},od.director.name," — ",od.director.title),
               h("div",{className:"org-hc-stats"},
-                [{v:od.cities.length,l:"مدينة"},{v:totalMgr,l:"مدير مشروع"},{v:totalEng,l:"مهندس"}]
+                [{v:od.cities.length,l:"مدينة"},{v:totalMgr,l:"مدير"},{v:totalEng,l:"مهندس"},{v:totalProj,l:"مشروع"}]
                 .map(({v,l})=>h("div",{key:l,className:"org-hc-stat"},
                   h("div",{className:"org-hc-stat-val"},v),
                   h("div",{className:"org-hc-stat-lbl"},l)
@@ -2879,171 +2892,154 @@ function App(){
               )
             ),
             h("div",{className:"org-hc-actions"},
-              !orgEdit&&h("button",{
-                className:"btn",
+              !orgEdit&&h("button",{className:"btn",
                 style:{padding:"8px 14px",fontSize:12,gap:6,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.25)",color:"#34D399"},
-                onClick:()=>window.print(),title:"طباعة / حفظ PDF"
-              },
+                onClick:()=>window.print()},
                 h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",width:14,height:14},
                   h("path",{d:"M5 7V3h10v4"}),h("rect",{x:"2",y:"7",width:"16",height:"8",rx:"1.5"}),h("path",{d:"M5 11h10M7 15h6"})
                 ),"PDF"
               ),
-              !orgEdit&&h("button",{
-                className:"btn",
-                style:{padding:"8px 14px",fontSize:12,gap:6,background:"rgba(251,191,36,.08)",border:"1px solid rgba(251,191,36,.25)",color:"#FCD34D"},
-                onClick:doRebuild,title:"إعادة بناء الهيكل من بيانات كشف الإعاشة الأساسي"
-              },"↺ إعادة البناء"),
+              !orgEdit&&h("button",{className:"btn",
+                style:{padding:"8px 14px",fontSize:12,background:"rgba(251,191,36,.08)",border:"1px solid rgba(251,191,36,.25)",color:"#FCD34D"},
+                onClick:doRebuild},"↺ إعادة البناء"),
               orgEdit
-                ?[h("button",{key:"sv",className:"btn green",style:{padding:"8px 16px",fontSize:12},disabled:orgSaving,
-                    onClick:async()=>{setOrgSaving(true);await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:orgDraft})}).catch(()=>{});setOrgData(orgDraft);setOrgEdit(false);setOrgSaving(false);}},
-                    orgSaving?"جاري الحفظ...":"حفظ التغييرات"),
-                   h("button",{key:"cn",className:"btn",style:{padding:"8px 14px",fontSize:12},onClick:()=>{setOrgEdit(false);setOrgDraft(null);}},"إلغاء")]
+                ?[h("button",{key:"sv",className:"btn green",style:{padding:"8px 18px",fontSize:12},disabled:orgSaving,
+                    onClick:async()=>{
+                      setOrgSaving(true);
+                      await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:orgDraft})}).catch(()=>{});
+                      setOrgData(orgDraft);setOrgEdit(false);setOrgSaving(false);
+                    }},orgSaving?"جاري الحفظ...":"💾 حفظ"),
+                  h("button",{key:"cn",className:"btn",style:{padding:"8px 14px",fontSize:12},
+                    onClick:()=>{setOrgEdit(false);setOrgDraft(null);}},"إلغاء")]
                 :h("button",{className:"btn",style:{padding:"8px 16px",fontSize:12,gap:6},
                     onClick:()=>{setOrgDraft(JSON.parse(JSON.stringify(orgData||DEFAULT_ORG)));setOrgEdit(true);}},
-                    h(Ic,{n:"edit",sz:13,c:"currentColor"}),"تعديل الهيكل")
+                    h(Ic,{n:"edit",sz:13,c:"currentColor"}),"تعديل")
             )
           ),
 
-          /* ── edit mode banner ── */
+          /* ── edit banner ── */
           orgEdit&&h("div",{className:"org-edit-bar"},
             h("div",{style:{width:8,height:8,borderRadius:"50%",background:"#FCD34D",flexShrink:0}}),
             h("span",{style:{fontSize:12,fontWeight:700,color:"#FCD34D"}},"وضع التعديل"),
-            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:8}},"— عدّل الأسماء والمناصب وأضف أو احذف الأعضاء ثم اضغط حفظ")
+            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:8}},"— عدّل الأسماء وأضف أو احذف ثم اضغط حفظ")
           ),
 
-          /* ══ COLUMN-TABLE ORG CHART ══ */
+          /* ══ MAIN CHART CARD ══ */
           h("div",{className:"org-tree-card"},
-            h("div",{className:"card-hdr",style:{marginBottom:18}},
+            h("div",{className:"card-hdr",style:{marginBottom:20}},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(37,99,235,.15)"}},h(Ic,{n:"org",sz:14,c:"#60A5FA"})),
-                "الهيكل الإداري"
+                "الهيكل التنظيمي"
               ),
               h("span",{className:"card-badge"},"جميع المستويات")
             ),
 
-            /* ─ director box ─ */
+            /* Director */
             h("div",{className:"oc-director"},
               h("div",{className:"oc-dir-avatar"},od.director.name.charAt(0)||"م"),
-              h("div",{style:{flex:1}},
+              h("div",{style:{flex:1,minWidth:0}},
                 orgEdit
-                  ?h("input",{className:"oc-input",style:{fontSize:13,fontWeight:900,marginBottom:4,background:"rgba(255,255,255,.12)",borderColor:"rgba(255,255,255,.2)"},value:od.director.name,onChange:e=>upd(d=>{d.director.name=e.target.value;})})
+                  ?h(Ef,{val:od.director.name,style:{fontSize:14,marginBottom:4,background:"rgba(255,255,255,.13)",borderColor:"rgba(255,255,255,.25)"},onChange:v=>upd(d=>{d.director.name=v;})})
                   :h("div",{className:"oc-dir-name"},od.director.name),
                 orgEdit
-                  ?h("input",{className:"oc-input",style:{fontSize:10,marginTop:2,background:"rgba(255,255,255,.08)",borderColor:"rgba(255,255,255,.15)"},value:od.director.title,onChange:e=>upd(d=>{d.director.title=e.target.value;})})
+                  ?h(Ef,{val:od.director.title,style:{fontSize:11,background:"rgba(255,255,255,.09)",borderColor:"rgba(255,255,255,.18)"},onChange:v=>upd(d=>{d.director.title=v;})})
                   :h("div",{className:"oc-dir-title"},od.director.title)
               ),
               h("div",{className:"oc-dir-badge"},od.company)
             ),
 
-            /* ─ stem connector ─ */
-            h("div",{className:"oc-stem"},
-              h("div",{className:"oc-stem-inner",style:{"--oc-bar-w":barW}})
-            ),
+            /* Connector stem */
+            h("div",{className:"oc-stem",style:{"--bar-w":barW}}),
 
-            /* ─ city columns — each is its own card ─ */
-            h("div",{className:"oc-columns-wrap"},
-              h("div",{className:"oc-columns",style:{gridTemplateColumns:`repeat(${nCols},1fr)`}},
-                od.cities.map((city,ci)=>{
-                  const col=city.color;
-                  return h("div",{key:city.id,className:"oc-col",style:{
-                    border:`1px solid ${col}35`,
-                    boxShadow:`0 0 0 1px ${col}12, 0 4px 16px rgba(0,0,0,.15)`,
+            /* City cards grid */
+            h("div",{className:"oc-grid"},
+              od.cities.map((city,ci)=>{
+                const col=city.color;
+                const projects=city.projects||[];
+                return h("div",{key:city.id,className:"oc-card",style:{borderTop:`4px solid ${col}`}},
+
+                  /* City header */
+                  h("div",{className:"oc-card-hdr",style:{
+                    color:col,
+                    background:`linear-gradient(135deg,${col}1A,${col}08)`,
+                    borderBottom:`1px solid ${col}30`,
                   }},
+                    orgEdit
+                      ?h(Ef,{val:city.name,style:{color:col,textAlign:"center",fontSize:15,background:"rgba(255,255,255,.1)",borderColor:col+"50"},onChange:v=>upd(d=>{d.cities[ci].name=v;})})
+                      :city.name,
+                    h("div",{className:"oc-card-hdr-sub"},"الفريق الهندسي")
+                  ),
 
-                    /* ── city header with colored top bar ── */
-                    h("div",{className:"oc-col-hdr",style:{
-                      color:col,
-                      background:`linear-gradient(135deg,${col}22,${col}08)`,
-                      borderBottom:`2px solid ${col}50`,
-                      borderTop:`4px solid ${col}`,
-                    }},
-                      orgEdit
-                        ?h("input",{className:"oc-input",style:{color:col,textAlign:"center",fontWeight:900,fontSize:14,background:"rgba(255,255,255,.08)",borderColor:col+"40"},value:city.name,onChange:e=>upd(d=>{d.cities[ci].name=e.target.value;})})
-                        :city.name,
-                      h("div",{className:"oc-col-hdr-sub"},"الفريق الهندسي")
-                    ),
+                  /* Count stat */
+                  h("div",{className:"oc-card-stat",style:{color:col,borderBottom:`1px solid ${col}20`,background:`${col}08`}},
+                    h("span",{style:{fontSize:18,fontWeight:900}},city.managers.length+city.team.length),
+                    h("span",{style:{fontSize:10,fontWeight:700,opacity:.7}}," مهندس"),
+                    projects.length>0&&[
+                      h("span",{key:"sep",style:{opacity:.3,margin:"0 6px"}},"|"),
+                      h("span",{key:"pn",style:{fontSize:18,fontWeight:900,color:"#34D399"}},projects.length),
+                      h("span",{key:"pl",style:{fontSize:10,fontWeight:700,color:"#34D399",opacity:.7}}," مشروع"),
+                    ]
+                  ),
 
-                    /* ── count pill ── */
-                    h("div",{className:"oc-col-pills"},
-                      h("div",{className:"oc-pill",style:{background:col+"18",color:col,border:`1px solid ${col}35`}},
-                        h("span",{style:{fontSize:14,fontWeight:900,marginLeft:3}},city.managers.length+city.team.length),
-                        " مهندس"
-                      )
-                    ),
-
-                    /* ── managers ── */
-                    city.managers.length>0&&h("div",{className:"oc-mgr-section"},
-                      h("div",{className:"oc-mgr-label",style:{color:col,borderBottom:`1px solid ${col}20`}},"▸ المديرون"),
-                      city.managers.map((mgr,mi)=>
-                        h("div",{key:mi,className:"oc-mgr-row"},
-                          h("span",{className:"oc-mgr-star",style:{color:col}},"★"),
-                          h("div",{style:{flex:1,minWidth:0}},
-                            orgEdit
-                              ?h("input",{className:"oc-input",style:{marginBottom:3},value:mgr.name,onChange:e=>upd(d=>{d.cities[ci].managers[mi].name=e.target.value;})})
-                              :h("div",{className:"oc-mgr-name"},mgr.name),
-                            orgEdit
-                              ?h("input",{className:"oc-input",value:mgr.role,onChange:e=>upd(d=>{d.cities[ci].managers[mi].role=e.target.value;})})
-                              :h("div",{className:"oc-mgr-role"},mgr.role)
-                          ),
-                          orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].managers.splice(mi,1);})},"✕")
-                        )
+                  /* ── Managers ── */
+                  (city.managers.length>0||orgEdit)&&h("div",{className:"oc-sec-lbl",style:{color:col,background:`${col}0D`,borderBottom:`1px solid ${col}25`}},"★ المديرون"),
+                  city.managers.map((mgr,mi)=>
+                    h("div",{key:mi,className:"oc-row",style:{background:`${col}05`}},
+                      h("span",{className:"oc-star",style:{color:col}},"★"),
+                      h("div",{style:{flex:1,minWidth:0}},
+                        orgEdit
+                          ?h(Ef,{val:mgr.name,onChange:v=>upd(d=>{d.cities[ci].managers[mi].name=v;})})
+                          :h("div",{className:"oc-name",style:{fontWeight:800}},mgr.name),
+                        orgEdit
+                          ?h(Ef,{val:mgr.role,onChange:v=>upd(d=>{d.cities[ci].managers[mi].role=v;})})
+                          :h("div",{className:"oc-role-txt"},mgr.role)
                       ),
-                      orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].managers.push({name:"اسم المدير",role:"مدير المشروع"});})},"+ إضافة مدير")
-                    ),
-
-                    /* ── divider ── */
-                    city.managers.length>0&&city.team.length>0&&h("hr",{className:"oc-divider",style:{background:col+"40",opacity:1}}),
-
-                    /* ── team label ── */
-                    city.team.length>0&&h("div",{style:{
-                      padding:"7px 12px 4px",fontSize:"8px",fontWeight:800,letterSpacing:"1.2px",
-                      color:"var(--sub)",textTransform:"uppercase",
-                      borderBottom:"1px solid rgba(255,255,255,.04)",
-                    }},"▸ الفريق الهندسي"),
-
-                    /* ── team members ── */
-                    city.team.map((m,mi)=>
-                      h("div",{key:mi,className:"oc-member-row"},
-                        h("div",{className:"oc-num",style:{background:col+"22",color:col}},mi+1),
-                        h("div",{style:{flex:1,minWidth:0}},
-                          orgEdit
-                            ?h("input",{className:"oc-input",style:{marginBottom:3},value:m.name,onChange:e=>upd(d=>{d.cities[ci].team[mi].name=e.target.value;})})
-                            :h("div",{className:"oc-member-name"},m.name),
-                          orgEdit
-                            ?h("input",{className:"oc-input",value:m.role,onChange:e=>upd(d=>{d.cities[ci].team[mi].role=e.target.value;})})
-                            :h("div",{className:"oc-member-role"},m.role)
-                        ),
-                        orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].team.splice(mi,1);})},"✕")
-                      )
-                    ),
-
-                    /* ── add member (edit mode) ── */
-                    orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+ إضافة مهندس"),
-
-                    /* ── projects ── */
-                    (city.projects.length>0||orgEdit)&&h("div",{style:{borderTop:`1px solid ${col}30`,marginTop:"auto"}},
-                      h("div",{style:{
-                        padding:"7px 12px 4px",fontSize:"8px",fontWeight:800,letterSpacing:"1.2px",
-                        color:"#34D399",textTransform:"uppercase",
-                        borderBottom:"1px solid rgba(52,211,153,.1)",
-                        background:"rgba(52,211,153,.04)",
-                      }},"▸ المشروعات"),
-                      city.projects.map((p,pi)=>
-                        h("div",{key:pi,className:"oc-member-row"},
-                          h("div",{className:"oc-num",style:{background:"rgba(52,211,153,.18)",color:"#34D399",borderRadius:4}},pi+1),
-                          h("div",{style:{flex:1,minWidth:0}},
-                            orgEdit
-                              ?h("input",{className:"oc-input",value:p,onChange:e=>upd(d=>{d.cities[ci].projects[pi]=e.target.value;})})
-                              :h("div",{className:"oc-member-name",style:{color:"var(--text)"}},p)
-                          ),
-                          orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].projects.splice(pi,1);})},"✕")
-                        )
-                      ),
-                      orgEdit&&h("button",{className:"oc-add-btn",style:{color:"#34D399"},onClick:()=>upd(d=>{d.cities[ci].projects.push("اسم المشروع");})},"+ إضافة مشروع")
+                      orgEdit&&h("button",{className:"oc-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].managers.splice(mi,1);})},"✕")
                     )
-                  );
-                })
-              )
+                  ),
+                  orgEdit&&h("button",{className:"oc-add",onClick:()=>upd(d=>{d.cities[ci].managers.push({name:"اسم المدير",role:"مدير المشروع"});})},"+ مدير"),
+
+                  /* Divider */
+                  city.managers.length>0&&city.team.length>0&&h("hr",{className:"oc-div",style:{background:col+"40"}}),
+
+                  /* ── Engineers ── */
+                  (city.team.length>0||orgEdit)&&h("div",{className:"oc-sec-lbl",style:{color:"var(--sub)"}},"المهندسون"),
+                  city.team.map((m,mi)=>
+                    h("div",{key:mi,className:"oc-row"},
+                      h("div",{className:"oc-num",style:{background:col+"20",color:col}},mi+1),
+                      h("div",{style:{flex:1,minWidth:0}},
+                        orgEdit
+                          ?h(Ef,{val:m.name,onChange:v=>upd(d=>{d.cities[ci].team[mi].name=v;})})
+                          :h("div",{className:"oc-name"},m.name),
+                        orgEdit
+                          ?h(Ef,{val:m.role,onChange:v=>upd(d=>{d.cities[ci].team[mi].role=v;})})
+                          :h("div",{className:"oc-role-txt"},m.role)
+                      ),
+                      orgEdit&&h("button",{className:"oc-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].team.splice(mi,1);})},"✕")
+                    )
+                  ),
+                  orgEdit&&h("button",{className:"oc-add",onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+ مهندس"),
+
+                  /* ── Projects ── */
+                  (projects.length>0||orgEdit)&&h("div",{className:"oc-sec-lbl",style:{
+                    color:"#34D399",background:"rgba(52,211,153,.06)",
+                    borderTop:`1px solid rgba(52,211,153,.2)`,borderBottom:"1px solid rgba(52,211,153,.15)",
+                    marginTop:4,
+                  }},"📁 المشروعات"),
+                  projects.map((p,pi)=>
+                    h("div",{key:pi,className:"oc-proj"},
+                      h("div",{className:"oc-proj-dot"}),
+                      h("div",{style:{flex:1,minWidth:0}},
+                        orgEdit
+                          ?h(Ef,{val:p,onChange:v=>upd(d=>{d.cities[ci].projects[pi]=v;})})
+                          :h("div",{className:"oc-proj-name"},p)
+                      ),
+                      orgEdit&&h("button",{className:"oc-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].projects.splice(pi,1);})},"✕")
+                    )
+                  ),
+                  orgEdit&&h("button",{className:"oc-add",style:{color:"#34D399"},onClick:()=>upd(d=>{(d.cities[ci].projects=d.cities[ci].projects||[]).push("اسم المشروع");})},"+ مشروع")
+                );
+              })
             )
           )
         );
