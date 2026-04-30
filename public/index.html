@@ -1858,24 +1858,26 @@ function App(){
   const ATT_BG={P:'rgba(16,185,129,.2)',A:'rgba(239,68,68,.15)',AL:'rgba(96,165,250,.15)',SL:'rgba(252,211,77,.15)',EL:'rgba(249,115,22,.15)',H:'rgba(148,163,184,.1)'};
 
   const attCycleStatus=(engId,day)=>{
-    const att=months[ak]?.attendance||{};
+    const existing=months[ak]||{cfg,data};
+    const att=existing.attendance||{};
     const cur=att[engId]?.[day]?.s||null;
     const next=ATT_CYCLE[(ATT_CYCLE.indexOf(cur)+1)%ATT_CYCLE.length];
     const na=JSON.parse(JSON.stringify(att));
     if(!na[engId])na[engId]={};
     if(next===null)delete na[engId][day];
     else na[engId][day]={...(na[engId]?.[day]||{}),s:next};
-    const upd={...(months[ak]||{cfg}),attendance:na};
+    const upd={...existing,attendance:na};
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
 
   const attSetTime=(engId,day,field,val)=>{
-    const att=months[ak]?.attendance||{};
+    const existing=months[ak]||{cfg,data};
+    const att=existing.attendance||{};
     const na=JSON.parse(JSON.stringify(att));
     if(!na[engId])na[engId]={};
     if(!na[engId][day])na[engId][day]={s:'P'};
     na[engId][day][field]=val;
-    const upd={...(months[ak]||{cfg}),attendance:na};
+    const upd={...existing,attendance:na};
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
 
