@@ -25,6 +25,7 @@ app.use('/auth', require('./routes/auth'));
 app.use('/api',  require('./routes/api'));
 
 app.get('*', (_req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
