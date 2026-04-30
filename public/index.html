@@ -720,6 +720,7 @@ body::before{
 /* ── Loading ── */
 .loading-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
 .spinner{
   width:44px;height:44px;
   border:3px solid rgba(255,255,255,.06);
@@ -1624,7 +1625,8 @@ function App(){
   const [loginForm,setLoginForm]=useState({username:"",password:""});
   const [loginError,setLoginError]=useState("");
   const [provUsers,setProvUsers]=useState([]);
-  const [pwdModal,setPwdModal]=useState(null); // {id,username,val}
+  const [pwdModal,setPwdModal]=useState(null);
+  const [activeUsers,setActiveUsers]=useState([]);
   const isAdmin=useMemo(()=>user?.role!=='province',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
@@ -1679,6 +1681,15 @@ function App(){
       fetch('/api/users').then(r=>r.json()).then(d=>{if(d.users)setProvUsers(d.users);}).catch(()=>{});
     }
   },[page,isAdmin]);
+
+  /* ── Poll active users every 30s (admin only) ────────── */
+  useEffect(()=>{
+    if(!isAdmin||!user)return;
+    const fetchActive=()=>fetch('/api/active-users').then(r=>r.json()).then(d=>{if(d.users)setActiveUsers(d.users);}).catch(()=>{});
+    fetchActive();
+    const t=setInterval(fetchActive,30000);
+    return()=>clearInterval(t);
+  },[isAdmin,user]);
 
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
@@ -2759,6 +2770,16 @@ function App(){
               h("div",{className:"sb-month-text"},userProv||"مستخدم محافظة"),
               h("div",{className:"sb-month-count",style:{color:"#60A5FA"}},"محدود الصلاحيات")
             ),
+
+        /* active users strip — admin only */
+        isAdmin&&activeUsers.length>0&&h("div",{
+          onClick:()=>{setPage("report");setMobOpen(false);},
+          style:{display:"flex",alignItems:"center",gap:7,padding:"7px 10px",margin:"6px 0 2px",borderRadius:"var(--r)",background:"rgba(52,211,153,.07)",border:"1px solid rgba(52,211,153,.18)",cursor:"pointer"}},
+          h("div",{style:{width:7,height:7,borderRadius:"50%",background:"#34D399",boxShadow:"0 0 6px #34D399",flexShrink:0,animation:"pulse 2s infinite"}}),
+          h("div",{style:{fontSize:10,color:"#34D399",fontWeight:700,flex:1}},activeUsers.length," مستخدم نشط الآن"),
+          h("div",{style:{fontSize:9,color:"rgba(52,211,153,.6)"}},activeUsers.map(u=>u.username).join(" · "))
+        ),
+
         h("button",{className:"logout-btn",onClick:doLogout},
           h(Ic,{n:"logout",sz:13}),
           h("span",null,"تسجيل الخروج"),
@@ -3742,6 +3763,43 @@ ${PROVS.map(prov=>{
           ),
           h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
 
+          /* ── Active users ── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(52,211,153,.1)"}},
+                  h("div",{style:{width:8,height:8,borderRadius:"50%",background:"#34D399",boxShadow:"0 0 8px #34D399"}})
+                ),
+                "المستخدمون النشطون الآن"
+              ),
+              h("span",{className:"card-badge",style:{background:"rgba(52,211,153,.15)",color:"#34D399",border:"1px solid rgba(52,211,153,.3)"}},
+                activeUsers.length," نشط"
+              )
+            ),
+            h("div",{style:{padding:"10px 16px 14px",display:"flex",flexDirection:"column",gap:6}},
+              activeUsers.length===0
+                ?h("div",{style:{textAlign:"center",padding:"14px 0",color:"var(--sub)",fontSize:12}},"لا يوجد مستخدمون نشطون الآن")
+                :activeUsers.map((u,i)=>{
+                  const ago=Math.floor((Date.now()-u.lastSeen)/1000);
+                  const agoTxt=ago<10?"الآن":ago<60?`منذ ${ago} ث`:ago<3600?`منذ ${Math.floor(ago/60)} د`:`منذ ${Math.floor(ago/3600)} س`;
+                  const isProvince=u.role==='province';
+                  const col=isProvince?(PCOLS[PROVS.indexOf(u.province)]||"#60A5FA"):"#FCD34D";
+                  return h("div",{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:"var(--r)",background:"rgba(52,211,153,.04)",border:"1px solid rgba(52,211,153,.12)"}},
+                    h("div",{style:{width:8,height:8,borderRadius:"50%",background:"#34D399",boxShadow:"0 0 6px #34D399",flexShrink:0}}),
+                    h("div",{style:{flex:1,minWidth:0}},
+                      h("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                        h("span",{style:{fontWeight:700,fontSize:13}},u.username),
+                        h("span",{style:{fontSize:10,padding:"1px 7px",borderRadius:100,background:`${col}22`,color:col,border:`1px solid ${col}44`,fontWeight:600}},
+                          isProvince?u.province?.replace("محافظة ",""):"أدمن"
+                        )
+                      )
+                    ),
+                    h("div",{style:{fontSize:11,color:"#34D399",fontWeight:600,flexShrink:0}},agoTxt)
+                  );
+                })
+            )
+          ),
+
           /* ── User management ── */
           h("div",{className:"card"},
             h("div",{className:"card-hdr"},
@@ -3759,11 +3817,18 @@ ${PROVS.map(prov=>{
             provUsers.length===0
               ?h("div",{style:{padding:"20px 16px",textAlign:"center",color:"var(--sub)",fontSize:12}},"يتطلب إعادة تشغيل الخادم لتفعيل المستخدمين — راجع لوحة التحكم")
               :h("div",{style:{padding:"8px 16px 14px"}},
-                provUsers.map(u=>
-                  h("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}},
-                    h("div",{style:{width:36,height:36,borderRadius:"50%",background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}},"👤"),
+                provUsers.map(u=>{
+                  const isOnline=activeUsers.some(a=>a.username===u.username);
+                  return h("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}},
+                    h("div",{style:{position:"relative",flexShrink:0}},
+                      h("div",{style:{width:36,height:36,borderRadius:"50%",background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},"👤"),
+                      isOnline&&h("div",{style:{position:"absolute",bottom:1,left:1,width:10,height:10,borderRadius:"50%",background:"#34D399",border:"2px solid var(--bg2)",boxShadow:"0 0 6px #34D399"}})
+                    ),
                     h("div",{style:{flex:1,minWidth:0}},
-                      h("div",{style:{fontWeight:700,fontSize:13,marginBottom:2}},u.username),
+                      h("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:2}},
+                        h("span",{style:{fontWeight:700,fontSize:13}},u.username),
+                        isOnline&&h("span",{style:{fontSize:9,padding:"1px 6px",borderRadius:100,background:"rgba(52,211,153,.15)",color:"#34D399",border:"1px solid rgba(52,211,153,.3)",fontWeight:700}},"نشط")
+                      ),
                       h("div",{style:{fontSize:11,color:"var(--sub)"}},u.province)
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},
@@ -3771,10 +3836,10 @@ ${PROVS.map(prov=>{
                       h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",width:12,height:12},
                         h("rect",{x:3,y:9,width:14,height:9,rx:1.5}),h("path",{d:"M7 9V6a3 3 0 016 0v3"})
                       ),
-                      " تغيير كلمة المرور"
+                      " كلمة المرور"
                     )
-                  )
-                )
+                  );
+                })
               )
           )
         )

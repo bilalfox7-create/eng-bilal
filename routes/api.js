@@ -4,9 +4,19 @@ const { getDb } = require('../db');
 
 const router = express.Router();
 
+/* ── Active session tracker ─────────────────────────── */
+const activeMap = new Map(); // userId -> { username, role, province, lastSeen }
+
 /* ── Auth guard ──────────────────────────────────────── */
 router.use((req, res, next) => {
   if (!req.session.user) return res.status(401).json({ error: 'غير مصرح' });
+  const u = req.session.user;
+  activeMap.set(u.id, {
+    username: u.username,
+    role:     u.role     || 'admin',
+    province: u.province || null,
+    lastSeen: Date.now(),
+  });
   next();
 });
 
@@ -186,6 +196,20 @@ router.put('/users/:id/password', adminOnly, (req, res) => {
     .run(hash, req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
+});
+
+/* ── Active users ────────────────────────────────────── */
+
+router.get('/active-users', adminOnly, (_req, res) => {
+  const THRESHOLD = 5 * 60 * 1000; // 5 minutes
+  const now = Date.now();
+  const active = [];
+  for (const [id, s] of activeMap.entries()) {
+    if (now - s.lastSeen < THRESHOLD) {
+      active.push({ id, username: s.username, role: s.role, province: s.province, lastSeen: s.lastSeen });
+    }
+  }
+  res.json({ users: active });
 });
 
 module.exports = router;
