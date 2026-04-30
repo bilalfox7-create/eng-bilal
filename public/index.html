@@ -876,58 +876,76 @@ html.light .login-sub{color:var(--sub)}
 .org-header-card{
   background:linear-gradient(135deg,rgba(96,165,250,.08) 0%,rgba(167,139,250,.06) 100%);
   border:1px solid rgba(96,165,250,.18);border-radius:16px;
-  padding:20px 24px;display:flex;align-items:center;gap:16px;
+  padding:16px 20px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;
 }
 html.light .org-header-card{background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-color:rgba(37,99,235,.18)}
-.org-hc-logo{width:56px;height:56px;flex-shrink:0;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
-.org-hc-logo img{width:52px;height:52px;object-fit:contain}
-.org-hc-info{flex:1}
-.org-hc-company{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:1.2px;margin-bottom:3px}
-.org-hc-title{font-size:18px;font-weight:900;color:var(--text)}
+.org-hc-logo{width:52px;height:52px;flex-shrink:0;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
+.org-hc-logo img{width:48px;height:48px;object-fit:contain}
+.org-hc-info{flex:1;min-width:180px}
+.org-hc-company{font-size:10px;font-weight:800;color:var(--sub);letter-spacing:1.2px;margin-bottom:3px}
+.org-hc-title{font-size:15px;font-weight:900;color:var(--text);line-height:1.3}
 html.light .org-hc-title{color:#1e3a8a}
-.org-hc-stats{display:flex;gap:20px;margin-top:10px}
+.org-hc-stats{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
 .org-hc-stat{text-align:center}
-.org-hc-stat-val{font-size:22px;font-weight:900;color:var(--blue);line-height:1}
+.org-hc-stat-val{font-size:20px;font-weight:900;color:var(--blue);line-height:1}
 html.light .org-hc-stat-val{color:#2563eb}
 .org-hc-stat-lbl{font-size:9px;color:var(--sub);font-weight:700;letter-spacing:.5px;margin-top:2px}
-.org-hc-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.org-hc-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-top:2px}
 
-/* tree */
-.org-tree-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;padding:24px 20px;overflow-x:auto}
+/* ── tree ── */
+.org-tree-card{
+  background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;
+  padding:20px 16px;
+}
 html.light .org-tree-card{background:#fff;border-color:rgba(0,0,0,.07)}
-.org-tree-inner{min-width:600px;display:flex;flex-direction:column;align-items:center;gap:0}
+.org-tree-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:4px}
+.org-tree-scroll::-webkit-scrollbar{height:4px}
+.org-tree-scroll::-webkit-scrollbar-track{background:transparent}
+.org-tree-scroll::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.org-tree-inner{
+  width:100%;min-width:480px;
+  display:flex;flex-direction:column;align-items:stretch;gap:0;
+}
+/* root row: center the root box */
+.org-root-row{display:flex;justify-content:center;padding:0 20px}
 .org-root-box{
   background:linear-gradient(135deg,#1e3a8a,#2563eb);
   border:1px solid rgba(96,165,250,.5);
-  border-radius:16px;padding:14px 32px;text-align:center;
-  box-shadow:0 8px 32px rgba(37,99,235,.3),0 0 0 1px rgba(96,165,250,.2);
-  min-width:260px;position:relative;
+  border-radius:14px;padding:12px 28px;text-align:center;
+  box-shadow:0 6px 24px rgba(37,99,235,.3);
+  min-width:220px;max-width:340px;width:fit-content;
 }
-.org-root-badge{font-size:9px;font-weight:800;color:rgba(255,255,255,.65);letter-spacing:1.2px;margin-bottom:4px}
-.org-root-name{font-size:16px;font-weight:900;color:#fff}
-.org-root-sub{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px}
-.org-connector-v{width:2px;height:32px;background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.2));margin:0 auto}
-.org-connector-h{position:relative;width:calc(100% - 40px);height:2px;background:rgba(96,165,250,.2);margin:0 20px}
-.org-city-cols{display:grid;gap:12px;width:100%;margin-top:0}
+.org-root-badge{font-size:9px;font-weight:800;color:rgba(255,255,255,.6);letter-spacing:1px;margin-bottom:3px}
+.org-root-name{font-size:15px;font-weight:900;color:#fff}
+.org-root-sub{font-size:10px;color:rgba(255,255,255,.55);margin-top:3px}
+/* stem line below root */
+.org-stem{width:2px;height:28px;background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.25));margin:0 auto}
+/* horizontal connector spanning full width */
+.org-branch-h{
+  position:relative;height:2px;background:rgba(96,165,250,.2);
+  margin:0 calc(100% / (var(--n-cities)*2));
+}
+/* city columns */
+.org-city-cols{display:grid;gap:10px;width:100%;padding:0}
 .org-city-branch{display:flex;flex-direction:column;align-items:center;gap:0}
-.org-city-drop-v{width:2px;height:28px;margin:0 auto}
+.org-city-drop-v{width:2px;height:24px;margin:0 auto}
 .org-city-card{
-  width:100%;border-radius:14px;padding:12px 14px;text-align:center;
-  border:1px solid;cursor:pointer;transition:all .2s;position:relative;
+  width:100%;border-radius:12px;padding:10px 10px;text-align:center;
+  border:1px solid;transition:all .2s;position:relative;
   background:rgba(255,255,255,.03);
 }
 .org-city-card:hover{transform:translateY(-2px)}
 html.light .org-city-card{background:#fff}
-.org-city-card-name{font-size:14px;font-weight:900;margin-bottom:4px}
-.org-city-card-mgr{font-size:10px;color:var(--sub);line-height:1.5;margin-bottom:8px}
-.org-city-card-counts{display:flex;justify-content:center;gap:12px}
+.org-city-card-name{font-size:13px;font-weight:900;margin-bottom:3px}
+.org-city-card-mgr{font-size:9px;color:var(--sub);line-height:1.4;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.org-city-card-counts{display:flex;justify-content:center;gap:8px}
 .org-city-count{text-align:center}
-.org-city-count-val{font-size:16px;font-weight:900;line-height:1}
-.org-city-count-lbl{font-size:8px;color:var(--sub);font-weight:700;letter-spacing:.5px;margin-top:1px}
+.org-city-count-val{font-size:15px;font-weight:900;line-height:1}
+.org-city-count-lbl{font-size:8px;color:var(--sub);font-weight:700;letter-spacing:.4px;margin-top:1px}
 
 /* detail grid */
-.org-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-@media(max-width:760px){.org-detail-grid{grid-template-columns:1fr}}
+.org-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(max-width:900px){.org-detail-grid{grid-template-columns:1fr}}
 .org-detail-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
 html.light .org-detail-card{background:#fff;border-color:rgba(0,0,0,.07);box-shadow:0 2px 12px rgba(0,0,0,.06)}
 .org-dc-head{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.05)}
@@ -2802,40 +2820,51 @@ function App(){
 
           /* ── tree diagram ── */
           h("div",{className:"org-tree-card"},
-            h("div",{className:"card-hdr",style:{marginBottom:20}},
+            h("div",{className:"card-hdr",style:{marginBottom:16}},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(37,99,235,.15)"}},h(Ic,{n:"org",sz:14,c:"#60A5FA"})),"الهيكل الإداري"),
               h("span",{className:"card-badge"},"جميع المستويات")
             ),
-            h("div",{className:"org-tree-inner"},
-              h("div",{className:"org-root-box"},
-                h("div",{className:"org-root-badge"},od.company),
-                orgEdit
-                  ?h("input",{className:"org-edit-input",style:{fontSize:15,fontWeight:900,textAlign:"center",background:"rgba(255,255,255,.1)",borderColor:"rgba(255,255,255,.2)",width:"100%"},value:od.director.name,onChange:e=>upd(d=>{d.director.name=e.target.value;})})
-                  :h("div",{className:"org-root-name"},od.director.name),
-                orgEdit
-                  ?h("input",{className:"org-edit-input",style:{fontSize:10,textAlign:"center",marginTop:4,background:"rgba(255,255,255,.08)",borderColor:"rgba(255,255,255,.15)",width:"100%"},value:od.director.title,onChange:e=>upd(d=>{d.director.title=e.target.value;})})
-                  :h("div",{className:"org-root-sub"},od.director.title)
-              ),
-              h("div",{className:"org-connector-v"}),
-              h("div",{className:"org-connector-h"}),
-              h("div",{className:"org-city-cols",style:{gridTemplateColumns:`repeat(${od.cities.length},1fr)`}},
-                od.cities.map((city,ci)=>
-                  h("div",{key:city.id,className:"org-city-branch"},
-                    h("div",{className:"org-city-drop-v",style:{background:`linear-gradient(180deg,${city.color}50,${city.color}90)`}}),
-                    h("div",{className:"org-city-card",style:{borderColor:city.color+"50",boxShadow:`0 4px 16px ${city.color}20`}},
-                      orgEdit
-                        ?h("input",{className:"org-edit-input",style:{fontSize:14,fontWeight:900,color:city.color,textAlign:"center",marginBottom:4,background:"transparent",borderColor:city.color+"40",width:"100%"},value:city.name,onChange:e=>upd(d=>{d.cities[ci].name=e.target.value;})})
-                        :h("div",{className:"org-city-card-name",style:{color:city.color}},city.name),
-                      h("div",{className:"org-city-card-mgr"},city.managers.map(m=>m.name).join(" / ")),
-                      h("div",{className:"org-city-card-counts"},
-                        h("div",{className:"org-city-count"},
-                          h("div",{className:"org-city-count-val",style:{color:city.color}},city.team.length),
-                          h("div",{className:"org-city-count-lbl"},"مهندس")
-                        ),
-                        h("div",{style:{width:1,background:"rgba(255,255,255,.1)",margin:"0 6px"}}),
-                        h("div",{className:"org-city-count"},
-                          h("div",{className:"org-city-count-val",style:{color:"#34D399"}},city.projects.length),
-                          h("div",{className:"org-city-count-lbl"},"مشروع")
+            h("div",{className:"org-tree-scroll"},
+              h("div",{className:"org-tree-inner"},
+                /* root node centered */
+                h("div",{className:"org-root-row"},
+                  h("div",{className:"org-root-box"},
+                    h("div",{className:"org-root-badge"},od.company),
+                    orgEdit
+                      ?h("input",{className:"org-edit-input",style:{fontSize:14,fontWeight:900,textAlign:"center",background:"rgba(255,255,255,.1)",borderColor:"rgba(255,255,255,.2)",width:"100%"},value:od.director.name,onChange:e=>upd(d=>{d.director.name=e.target.value;})})
+                      :h("div",{className:"org-root-name"},od.director.name),
+                    orgEdit
+                      ?h("input",{className:"org-edit-input",style:{fontSize:10,textAlign:"center",marginTop:4,background:"rgba(255,255,255,.08)",borderColor:"rgba(255,255,255,.15)",width:"100%"},value:od.director.title,onChange:e=>upd(d=>{d.director.title=e.target.value;})})
+                      :h("div",{className:"org-root-sub"},od.director.title)
+                  )
+                ),
+                /* vertical stem */
+                h("div",{className:"org-stem"}),
+                /* horizontal branch spanning full width */
+                h("div",{style:{
+                  height:2,background:"rgba(96,165,250,.2)",
+                  margin:`0 calc(100% / ${od.cities.length*2})`,
+                }}),
+                /* city columns — equal fractions, no overflow */
+                h("div",{className:"org-city-cols",style:{gridTemplateColumns:`repeat(${od.cities.length},1fr)`}},
+                  od.cities.map((city,ci)=>
+                    h("div",{key:city.id,className:"org-city-branch"},
+                      h("div",{className:"org-city-drop-v",style:{background:`linear-gradient(180deg,rgba(96,165,250,.3),${city.color}90)`}}),
+                      h("div",{className:"org-city-card",style:{borderColor:city.color+"50",boxShadow:`0 4px 14px ${city.color}18`}},
+                        orgEdit
+                          ?h("input",{className:"org-edit-input",style:{fontSize:13,fontWeight:900,color:city.color,textAlign:"center",marginBottom:4,background:"transparent",borderColor:city.color+"40",width:"100%"},value:city.name,onChange:e=>upd(d=>{d.cities[ci].name=e.target.value;})})
+                          :h("div",{className:"org-city-card-name",style:{color:city.color}},city.name),
+                        h("div",{className:"org-city-card-mgr"},city.managers.map(m=>m.name).join(" / ")),
+                        h("div",{className:"org-city-card-counts"},
+                          h("div",{className:"org-city-count"},
+                            h("div",{className:"org-city-count-val",style:{color:city.color}},city.team.length),
+                            h("div",{className:"org-city-count-lbl"},"مهندس")
+                          ),
+                          h("div",{style:{width:1,background:"rgba(255,255,255,.1)",margin:"0 5px"}}),
+                          h("div",{className:"org-city-count"},
+                            h("div",{className:"org-city-count-val",style:{color:"#34D399"}},city.projects.length),
+                            h("div",{className:"org-city-count-lbl"},"مشروع")
+                          )
                         )
                       )
                     )
