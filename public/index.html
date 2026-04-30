@@ -870,6 +870,120 @@ html.light .login-box::before{background:linear-gradient(90deg,transparent,#2563
 html.light .login-title{color:var(--text)}
 html.light .login-sub{color:var(--sub)}
 
+/* ── Org Chart ── */
+.org-wrap{display:flex;flex-direction:column;align-items:center;gap:0;padding:8px 0 24px}
+.org-top{display:flex;flex-direction:column;align-items:center}
+.org-node{
+  background:linear-gradient(135deg,#1E3A5F,#0D2240);
+  border:1px solid rgba(96,165,250,.3);
+  border-radius:14px;padding:14px 24px;
+  min-width:220px;text-align:center;
+  box-shadow:0 4px 20px rgba(96,165,250,.15),0 0 0 1px rgba(96,165,250,.1);
+  position:relative;
+}
+.org-node.root{
+  background:linear-gradient(135deg,#1e3a8a,#1d4ed8);
+  border-color:rgba(96,165,250,.5);
+  box-shadow:0 8px 32px rgba(37,99,235,.35),0 0 0 1px rgba(96,165,250,.25);
+  min-width:260px;
+}
+html.light .org-node{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:rgba(37,99,235,.25);box-shadow:0 4px 16px rgba(37,99,235,.1)}
+html.light .org-node.root{background:linear-gradient(135deg,#1d4ed8,#2563eb);border-color:rgba(37,99,235,.5)}
+.org-node-title{font-size:10px;font-weight:800;color:rgba(255,255,255,.55);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.org-node.root .org-node-title{color:rgba(255,255,255,.7)}
+html.light .org-node .org-node-title{color:rgba(37,99,235,.7)}
+html.light .org-node.root .org-node-title{color:rgba(255,255,255,.75)}
+.org-node-name{font-size:14px;font-weight:800;color:#fff;margin-bottom:3px}
+html.light .org-node .org-node-name{color:#1e3a8a}
+html.light .org-node.root .org-node-name{color:#fff}
+.org-node-sub{font-size:11px;color:rgba(255,255,255,.5);font-weight:500}
+html.light .org-node .org-node-sub{color:rgba(37,99,235,.6)}
+html.light .org-node.root .org-node-sub{color:rgba(255,255,255,.7)}
+.org-vline{width:2px;height:32px;background:linear-gradient(180deg,rgba(96,165,250,.4),rgba(96,165,250,.2));margin:0 auto}
+html.light .org-vline{background:linear-gradient(180deg,rgba(37,99,235,.3),rgba(37,99,235,.15))}
+.org-hline-wrap{display:flex;align-items:flex-start;position:relative;width:100%}
+.org-hline{height:2px;background:rgba(96,165,250,.25);flex:1;margin-top:0;align-self:flex-start}
+html.light .org-hline{background:rgba(37,99,235,.2)}
+.org-cities{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;width:100%;margin-top:0}
+.org-city-col{display:flex;flex-direction:column;align-items:center;gap:0}
+.org-city-vline{width:2px;height:28px;margin:0 auto}
+.org-city-node{
+  background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(79,70,229,.08));
+  border:1px solid rgba(99,102,241,.3);
+  border-radius:12px;padding:12px 16px;
+  width:100%;text-align:center;
+  box-shadow:0 2px 12px rgba(99,102,241,.1);
+  cursor:pointer;transition:all .2s;
+}
+.org-city-node:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.2);border-color:rgba(99,102,241,.5)}
+html.light .org-city-node{background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border-color:rgba(124,58,237,.2)}
+html.light .org-city-node:hover{box-shadow:0 6px 20px rgba(124,58,237,.15);border-color:rgba(124,58,237,.4)}
+.org-city-name{font-size:13px;font-weight:800;color:#A78BFA;margin-bottom:6px}
+html.light .org-city-name{color:#6D28D9}
+.org-city-pm{font-size:10px;color:rgba(255,255,255,.55);margin-bottom:8px;line-height:1.5}
+html.light .org-city-pm{color:#64748B}
+.org-city-stats{display:flex;justify-content:center;gap:10px}
+.org-stat{text-align:center}
+.org-stat-val{font-size:18px;font-weight:800;line-height:1;color:#fff}
+.org-stat-lbl{font-size:9px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.5px;margin-top:2px}
+html.light .org-stat-val{color:#1e293b}
+html.light .org-stat-lbl{color:#94A3B8}
+.org-city-detail{
+  width:100%;margin-top:10px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;overflow:hidden;
+}
+html.light .org-city-detail{background:#fff;border-color:rgba(0,0,0,.07);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.org-detail-hdr{
+  padding:10px 14px;
+  background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(79,70,229,.05));
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:11px;font-weight:800;color:rgba(255,255,255,.6);
+  display:flex;align-items:center;gap:8px;
+}
+html.light .org-detail-hdr{background:linear-gradient(135deg,#F5F3FF,#EDE9FE);border-bottom-color:rgba(0,0,0,.06);color:#6D28D9}
+.org-member{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s;
+}
+.org-member:last-child{border-bottom:none}
+.org-member:hover{background:rgba(255,255,255,.04)}
+html.light .org-member{border-bottom-color:rgba(0,0,0,.05)}
+html.light .org-member:hover{background:rgba(99,102,241,.03)}
+.org-member-num{
+  width:20px;height:20px;border-radius:50%;
+  background:rgba(99,102,241,.15);
+  color:#A78BFA;font-size:9px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+html.light .org-member-num{background:rgba(124,58,237,.1);color:#6D28D9}
+.org-member-name{font-size:11px;font-weight:700;color:var(--text);flex:1}
+.org-member-role{font-size:10px;color:var(--sub);font-weight:500;flex-shrink:0}
+.org-projects-hdr{padding:10px 14px;background:rgba(52,211,153,.06);border-top:1px solid rgba(52,211,153,.1);font-size:10px;font-weight:800;color:rgba(52,211,153,.8)}
+html.light .org-projects-hdr{background:#ECFDF5;border-top-color:rgba(5,150,105,.15);color:#065F46}
+.org-project-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 14px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px;
+}
+.org-project-item:last-child{border-bottom:none}
+html.light .org-project-item{border-bottom-color:rgba(0,0,0,.04)}
+.org-project-num{width:16px;height:16px;border-radius:4px;background:rgba(52,211,153,.15);color:#34D399;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+html.light .org-project-num{background:rgba(5,150,105,.1);color:#059669}
+.org-project-name{color:var(--text);font-weight:500;line-height:1.4}
+.org-summary{
+  background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(99,102,241,.05));
+  border:1px solid rgba(96,165,250,.15);
+  border-radius:14px;padding:16px 20px;
+}
+html.light .org-summary{background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-color:rgba(37,99,235,.15)}
+.org-summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;text-align:center}
+.org-summary-val{font-size:22px;font-weight:900;color:var(--blue)}
+.org-summary-lbl{font-size:10px;color:var(--sub);font-weight:600;margin-top:3px}
+@media(max-width:900px){.org-cities{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.org-cities{grid-template-columns:1fr}}
+
 /* ── Scrollbar global ── */
 *{scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -991,6 +1105,7 @@ const IC={
   coin:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"/><path d="M10 7v6M8 9h3a1 1 0 010 2H9a1 1 0 000 2h3" stroke-linecap="round"/></svg>',
   clock:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><polyline points="10,6 10,10 13,13"/></svg>',
   paid:'<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
+  org:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="1" width="6" height="4" rx="1"/><rect x="1" y="13" width="5" height="4" rx="1"/><rect x="7.5" y="13" width="5" height="4" rx="1"/><rect x="14" y="13" width="5" height="4" rx="1"/><line x1="10" y1="5" x2="10" y2="9"/><line x1="10" y1="9" x2="3" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="10" y1="9" x2="16.5" y2="9"/><line x1="3" y1="9" x2="3" y2="13"/><line x1="10" y1="9" x2="10" y2="13"/><line x1="16.5" y1="9" x2="16.5" y2="13"/></svg>',
 };
 const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{display:"inline-flex",alignItems:"center",width:sz||16,height:sz||16,color:c||"inherit",flexShrink:0}});
 
@@ -1770,8 +1885,9 @@ function App(){
     {id:"compare",n:"compare",lbl:"المقارنة"},
     {id:"backup",n:"backup",lbl:"النسخ الاحتياطي"},
     {id:"report",n:"report",lbl:"التقارير"},
+    {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات"};
+  const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
   const mobileNavs=navs.slice(0,5);
 
   /* ── Loading screen ───────────────────────────────── */
@@ -2512,6 +2628,171 @@ function App(){
             )
           ),
           h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة.")
+        )
+      ),
+
+      /* ══ ORGANIZATIONAL CHART ══ */
+      page==="org"&&h("div",{style:{display:"flex",flexDirection:"column",gap:16}},
+
+        /* ── summary stats bar ── */
+        h("div",{className:"org-summary"},
+          h("div",{style:{textAlign:"center",marginBottom:14}},
+            h("div",{style:{fontSize:11,fontWeight:800,color:"var(--sub)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:4}},"شركة الرائد للاستشارات الهندسية"),
+            h("div",{style:{fontSize:20,fontWeight:900,color:"var(--text)"}},h("span",{style:{color:"var(--blue)"}},"إدارة مشروعات ليبيا")," — الهيكل التنظيمي 2026")
+          ),
+          h("div",{className:"org-summary-grid"},
+            [{v:"٤",l:"مدن"},{v:"٢٧",l:"مهندس"},{v:"٢٩",l:"مشروع"},{v:"٤",l:"مدير مشروع"},{v:"٢٠٢٦",l:"السنة"}]
+            .map(({v,l})=>h("div",{key:l},h("div",{className:"org-summary-val"},v),h("div",{className:"org-summary-lbl"},l)))
+          )
+        ),
+
+        /* ── org chart tree ── */
+        h("div",{className:"card"},
+          h("div",{className:"card-hdr"},
+            h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(37,99,235,.15)"}},h(Ic,{n:"org",sz:14,c:"#60A5FA"})),"الهيكل الإداري العام"),
+            h("span",{className:"card-badge"},"جميع المستويات")
+          ),
+          h("div",{style:{padding:"24px 16px"}},
+            h("div",{className:"org-wrap"},
+              /* root node */
+              h("div",{className:"org-top"},
+                h("div",{className:"org-node root"},
+                  h("div",{className:"org-node-title"},"مدير مشروعات ليبيا"),
+                  h("div",{className:"org-node-name"},"ضياء الدين محمود"),
+                  h("div",{className:"org-node-sub"},"شركة الرائد للاستشارات الهندسية")
+                ),
+                h("div",{className:"org-vline",style:{height:28}})
+              ),
+              /* connector line */
+              h("div",{style:{width:"calc(100% - 40px)",height:2,background:"linear-gradient(90deg,transparent,rgba(96,165,250,.3) 20%,rgba(96,165,250,.3) 80%,transparent)",margin:"0 20px"}}),
+              /* 4 cities */
+              h("div",{className:"org-cities",style:{marginTop:0}},
+                [
+                  {city:"درنة",pm:"بهاء أحمد محمود",eng:8,proj:6,color:"#60A5FA",glow:"rgba(96,165,250,.3)"},
+                  {city:"طبرق",pm:"كريم كمال عبد الغفار",eng:2,proj:3,color:"#34D399",glow:"rgba(52,211,153,.3)"},
+                  {city:"بنغازي",pm:"محمد أحمد يوسف محمد",eng:7,proj:4,color:"#FCD34D",glow:"rgba(252,211,77,.3)"},
+                  {city:"البيضاء",pm:"محمد فؤاد / حسن العيسوي",eng:11,proj:16,color:"#A78BFA",glow:"rgba(167,139,250,.3)"},
+                ].map(({city,pm,eng,proj,color,glow})=>
+                  h("div",{key:city,className:"org-city-col"},
+                    h("div",{className:"org-city-vline",style:{background:`linear-gradient(180deg,rgba(96,165,250,.3),${color}50)`}}),
+                    h("div",{className:"org-city-node",style:{borderColor:`${color}40`}},
+                      h("div",{className:"org-city-name",style:{color}},[city]),
+                      h("div",{className:"org-city-pm"},pm),
+                      h("div",{className:"org-city-stats"},
+                        h("div",{className:"org-stat"},h("div",{className:"org-stat-val",style:{color}},eng),h("div",{className:"org-stat-lbl"},"مهندس")),
+                        h("div",{style:{width:1,background:"rgba(255,255,255,.1)",margin:"0 4px"}}),
+                        h("div",{className:"org-stat"},h("div",{className:"org-stat-val",style:{color}},proj),h("div",{className:"org-stat-lbl"},"مشروع"))
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+
+        /* ── city detail cards ── */
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16}},
+          [
+            {
+              city:"درنة",color:"#60A5FA",bg:"rgba(96,165,250,.1)",
+              pm:"بهاء أحمد محمود",pmRole:"مدير المشروع",
+              team:[
+                {n:"محمد صلاح عبد الواحد",r:"مهندس مدني"},
+                {n:"محمد نابغ محجوب",r:"مهندس معماري"},
+                {n:"أحمد عبد العظيم السيد",r:"مهندس طرق"},
+                {n:"عبد العظيم أحمد",r:"مكتب فني"},
+                {n:"محمد حمدي محمد",r:"ضبط جودة"},
+                {n:"محمد شحاتة محمد",r:"مساح"},
+                {n:"محمد سلامة غريب",r:"مساح"},
+                {n:"بلال أشرف علي",r:"DC"},
+              ],
+              projects:["مشروع وادي درنة والطرق المحاذية له","الطريق الساحلي وممشى الطريق الساحلي","شبكات الصرف الصحي ومحطة المعالجة","الحوائط الساندة لوادي الناقة","برابخ الطريق الساحلي","كابلات الجهد المتوسط"]
+            },
+            {
+              city:"طبرق",color:"#34D399",bg:"rgba(52,211,153,.1)",
+              pm:"كريم كمال عبد الغفار",pmRole:"مدير المشروع",
+              team:[
+                {n:"مصطفى إبراهيم دسوقي",r:"ضبط جودة"},
+                {n:"محمد صلاح محمد",r:"مساح"},
+              ],
+              projects:["جزيرة إمساعد (كوبري + طرق + مرافق صحية)","المركز الطبي (كوبري + طرق + مرافق صحية)","صيانة محطة معالجة طبرق ومحطات الرفع"]
+            },
+            {
+              city:"بنغازي",color:"#FCD34D",bg:"rgba(252,211,77,.1)",
+              pm:"محمد أحمد يوسف محمد",pmRole:"مدير تنفيذ أعمال الكهرباء",
+              team:[
+                {n:"أحمد السيد عبد الحميد",r:"مهندس مدني"},
+                {n:"إبراهيم محمد ماضي",r:"مكتب فني"},
+                {n:"محسن ماهر محمد نصر",r:"ضبط جودة"},
+                {n:"خالد بشرى علي محمد",r:"ضبط جودة"},
+                {n:"خالد أحمد أبو المعاطي",r:"مساح"},
+                {n:"كريم محمد إبراهيم مرجان",r:"مساح"},
+                {n:"أمين قرني",r:"DC"},
+              ],
+              projects:["توسعة طريق الباكور — 4.6 كم","توسعة طريق المرج — 16 كم","أعمال الطرق بكوبري جزيرة الطيارة","أعمال الطرق بكوبري مصنع الاسمنت"]
+            },
+            {
+              city:"البيضاء",color:"#A78BFA",bg:"rgba(167,139,250,.1)",
+              pm:"محمد فؤاد محمود / حسن العيسوي",pmRole:"مديرا المشروع",
+              team:[
+                {n:"إبراهيم سعد عباس",r:"مهندس مدني"},
+                {n:"كريم إبراهيم",r:"مهندس مدني"},
+                {n:"إبراهيم زيد",r:"مهندس مدني"},
+                {n:"محمد حمدي الجندي",r:"مهندس كهرباء"},
+                {n:"أحمد عبده أحمد تمام",r:"مهندس شبكات"},
+                {n:"فاضل صلاح الفيشاوي",r:"مكتب فني"},
+                {n:"هشام أحمد أمين",r:"مكتب فني"},
+                {n:"أحمد محمد عبود",r:"ضبط جودة"},
+                {n:"عمرو حسن عبد الصادق",r:"مساح"},
+                {n:"أحمد يوسف جعفر",r:"مساح"},
+                {n:"محمد علي فرج",r:"DC"},
+              ],
+              projects:["محطة معالجة الصرف الصحي","الطرق السطحية — 8 كم","طريق البيضاء مسة — 7.2 كم","طريق عمرو المختار — 750 م","صينية الغريقة — 1.5 كم","طريق رأس هلال — 16 كم","الدائري الجنوبي — 8 كم","طريق الغريقة — 4 كم","طريق المخيلي — 1.8 كم","طريق الوردية","طريق وادي الكوف — 9 كم","استكمال الدائري الجنوبي — 2.4 كم","طريق الغريقة عمر المختار — 16 كم","طريق الدائري الشمالي","كوبري الخور","نفق تقاطع الدائري الشمالي"]
+            },
+          ].map(({city,color,bg,pm,pmRole,team,projects})=>
+            h("div",{key:city,className:"card"},
+              /* city header */
+              h("div",{style:{
+                padding:"14px 18px",
+                background:`linear-gradient(135deg,${bg},transparent)`,
+                borderBottom:"1px solid rgba(255,255,255,.06)",
+                display:"flex",alignItems:"center",justifyContent:"space-between"
+              }},
+                h("div",{style:{display:"flex",alignItems:"center",gap:10}},
+                  h("div",{style:{width:36,height:36,borderRadius:10,background:bg,border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color}},[city.charAt(0)]),
+                  h("div",null,
+                    h("div",{style:{fontSize:15,fontWeight:900,color}},[city]),
+                    h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:600}},pmRole+" · "+pm)
+                  )
+                ),
+                h("div",{style:{display:"flex",gap:10}},
+                  h("div",{style:{textAlign:"center",padding:"6px 12px",background:bg,borderRadius:8,border:`1px solid ${color}30`}},
+                    h("div",{style:{fontSize:18,fontWeight:900,color}},[team.length]),
+                    h("div",{style:{fontSize:9,color:"var(--sub)",fontWeight:700,letterSpacing:".5px"}},["مهندس"])
+                  ),
+                  h("div",{style:{textAlign:"center",padding:"6px 12px",background:"rgba(52,211,153,.08)",borderRadius:8,border:"1px solid rgba(52,211,153,.2)"}},
+                    h("div",{style:{fontSize:18,fontWeight:900,color:"#34D399"}},[projects.length]),
+                    h("div",{style:{fontSize:9,color:"var(--sub)",fontWeight:700,letterSpacing:".5px"}},["مشروع"])
+                  )
+                )
+              ),
+              /* team table */
+              h("div",{className:"org-city-detail",style:{margin:"0",border:"none",borderRadius:0}},
+                h("div",{className:"org-detail-hdr"},h(Ic,{n:"eng",sz:12}),"الفريق الهندسي"),
+                team.map((m,i)=>h("div",{key:i,className:"org-member"},
+                  h("div",{className:"org-member-num"},i+1),
+                  h("div",{className:"org-member-name"},[m.n]),
+                  h("div",{className:"org-member-role"},[m.r])
+                )),
+                h("div",{className:"org-projects-hdr"},h(Ic,{n:"dash",sz:11})," المشروعات الحالية"),
+                projects.map((p,i)=>h("div",{key:i,className:"org-project-item"},
+                  h("div",{className:"org-project-num"},i+1),
+                  h("div",{className:"org-project-name"},[p])
+                ))
+              )
+            )
+          )
         )
       ),
 
