@@ -1,11 +1,17 @@
 const express = require('express');
 const bcrypt  = require('bcryptjs');
+const fs      = require('fs');
+const path    = require('path');
 const { getDb } = require('../db');
 
 const router = express.Router();
 
 /* ── Active session tracker ─────────────────────────── */
 const activeMap = new Map(); // userId -> { username, role, province, lastSeen }
+
+/* ── Province save log ──────────────────────────────── */
+const saveLogs = []; // { id, province, username, key, time }
+let   saveLogId = 0;
 
 /* ── Auth guard ──────────────────────────────────────── */
 router.use((req, res, next) => {
@@ -79,6 +85,10 @@ router.put('/months/:key', (req, res) => {
 
     db.prepare('UPDATE months SET data = ?, attendance = ? WHERE key = ?')
       .run(JSON.stringify(existingData), JSON.stringify(existingAtt), key);
+
+    // Log province save for admin notification
+    saveLogs.push({ id: ++saveLogId, province: prov, username: user.username, key, time: Date.now() });
+    if (saveLogs.length > 100) saveLogs.shift();
 
     return res.json({ ok: true });
   }
@@ -212,4 +222,41 @@ router.get('/active-users', adminOnly, (_req, res) => {
   res.json({ users: active });
 });
 
+/* ── Province save logs ──────────────────────────────── */
+
+router.get('/save-logs', adminOnly, (req, res) => {
+  const since = parseInt(req.query.since) || 0;
+  const recent = saveLogs.filter(l => l.id > since).slice(-20);
+  res.json({ logs: recent, lastId: saveLogId });
+});
+
+/* ── Server backups ──────────────────────────────────── */
+
+const BACKUP_DIR = process.env.DB_PATH
+  ? path.join(path.dirname(process.env.DB_PATH), 'backups')
+  : path.join(__dirname, '..', 'backups');
+
+router.get('/backups', adminOnly, (_req, res) => {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) return res.json({ backups: [] });
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(f => {
+        const stat = fs.statSync(path.join(BACKUP_DIR, f));
+        return { name: f, size: stat.size, time: stat.mtimeMs };
+      })
+      .sort((a, b) => b.time - a.time)
+      .slice(0, 10);
+    res.json({ backups: files });
+  } catch { res.json({ backups: [] }); }
+});
+
+router.get('/backups/:file', adminOnly, (req, res) => {
+  const file = path.basename(req.params.file); // prevent path traversal
+  const full = path.join(BACKUP_DIR, file);
+  if (!fs.existsSync(full)) return res.status(404).json({ error: 'ملف غير موجود' });
+  res.download(full, file);
+});
+
 module.exports = router;
+module.exports.BACKUP_DIR = BACKUP_DIR;

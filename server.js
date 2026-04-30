@@ -1,7 +1,8 @@
 const express = require('express');
 const session = require('express-session');
-const path = require('path');
-const { initDb } = require('./db');
+const path    = require('path');
+const fs      = require('fs');
+const { initDb, getDb } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,4 +31,37 @@ app.get('*', (_req, res) => {
 });
 
 initDb();
+
+/* ── Auto backup every 24h ───────────────────────────── */
+const apiRouter = require('./routes/api');
+const BACKUP_DIR = apiRouter.BACKUP_DIR;
+
+function runBackup() {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    const db   = getDb();
+    const rows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
+    const months = {};
+    for (const row of rows) {
+      months[row.key] = {
+        data:       JSON.parse(row.data),
+        cfg:        JSON.parse(row.cfg),
+        savedAt:    row.saved_at || null,
+        expenses:   row.expenses   ? JSON.parse(row.expenses)   : null,
+        attendance: row.attendance ? JSON.parse(row.attendance) : null,
+      };
+    }
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const file = path.join(BACKUP_DIR, `backup-${ts}.json`);
+    fs.writeFileSync(file, JSON.stringify({ months }, null, 2));
+    // Keep only last 7 backups
+    const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+    while (all.length > 7) { fs.unlinkSync(path.join(BACKUP_DIR, all.shift())); }
+    console.log(`✅ نسخة احتياطية: ${file}`);
+  } catch (e) { console.error('❌ فشل النسخ الاحتياطي:', e.message); }
+}
+
+// Run once on startup then every 24h
+setTimeout(() => { runBackup(); setInterval(runBackup, 24 * 60 * 60 * 1000); }, 5000);
+
 app.listen(PORT, () => console.log(`🚀 Server ready → http://localhost:${PORT}`));

@@ -7,7 +7,13 @@
       "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\\\\nodejs\\\\npm.cmd\" -ErrorAction SilentlyContinue; Get-ChildItem \"$env:APPDATA\\\\npm\\\\npm.cmd\" -ErrorAction SilentlyContinue; where.exe node 2>$null; where.exe npm 2>$null)",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; Set-Location \"D:\\\\03-BILAL\\\\الإعاشة\"; npm install)",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; Set-Location \"D:\\\\03-BILAL\\\\الإعاشة\"; Start-Process \"C:\\\\Program Files\\\\nodejs\\\\node.exe\" -ArgumentList \"server.js\" -WorkingDirectory \"D:\\\\03-BILAL\\\\الإعاشة\" -NoNewWindow; Start-Sleep 3; try { $r = Invoke-WebRequest -Uri \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; Write-Host \"✅ السيرفر يعمل! Status: $\\($r.StatusCode\\)\" } catch { Write-Host \"❌ السيرفر لم يبدأ: $_\" })",
-      "Bash(exist \"D:\\\\03-BILAL\\\\الإعاشة\\\\package-lock.json\" del \"D:\\\\03-BILAL\\\\الإعاشة\\\\package-lock.json\")"
+      "Bash(exist \"D:\\\\03-BILAL\\\\الإعاشة\\\\package-lock.json\" del \"D:\\\\03-BILAL\\\\الإعاشة\\\\package-lock.json\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__computer",
+      "Bash(curl -s -X POST https://backboard.railway.app/graphql/v2 -H 'Authorization: Bearer 8db429d0-bab9-4397-b160-14ad052c0d2f' -H 'Content-Type: application/json' -d '{\"query\":\"mutation { serviceInstanceDeploy\\(serviceId: \\\\\"dc756b51-e0bf-43bb-b249-85605a9da8ff\\\\\", environmentId: \\\\\"06d9b801-ffe3-4a50-a33c-22261fa3a44d\\\\\"\\) }\"}')"
     ]
   }
 }

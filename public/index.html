@@ -1643,6 +1643,11 @@ function App(){
   const [orgFocus,setOrgFocus]=useState(null);
   const orgSecRefs=React.useRef({});
   const [attProv,setAttProv]=useState(PROVS[0]);
+  const [saveLogs,setSaveLogs]=useState([]);
+  const lastLogIdRef=useRef(0);
+  const [serverBackups,setServerBackups]=useState([]);
+  const [gOpen,setGOpen]=useState(false);
+  const [gQ,setGQ]=useState("");
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
   const [attLogMonth,setAttLogMonth]=useState(null); // key when viewing a past month from log
@@ -1693,6 +1698,41 @@ function App(){
     const t=setInterval(fetchActive,30000);
     return()=>clearInterval(t);
   },[isAdmin,user]);
+
+  /* ── Poll province save logs every 30s (admin only) ── */
+  useEffect(()=>{
+    if(!isAdmin||!user)return;
+    const poll=()=>fetch(`/api/save-logs?since=${lastLogIdRef.current}`)
+      .then(r=>r.json()).then(d=>{
+        if(!d.logs||d.logs.length===0)return;
+        d.logs.forEach(l=>{
+          if(l.id>lastLogIdRef.current){
+            const[y,mo]=l.key.split("-");
+            const mn2=MONTHS[+mo-1]+" "+y;
+            msg(`📍 ${l.province.replace("محافظة ","")} — حفظ البيانات (${mn2})`,"ok");
+          }
+        });
+        lastLogIdRef.current=d.lastId;
+        setSaveLogs(prev=>[...prev,...d.logs].slice(-50));
+      }).catch(()=>{});
+    // Start polling after 2s to let initial load settle
+    const t=setTimeout(()=>{poll();const iv=setInterval(poll,30000);return()=>clearInterval(iv);},2000);
+    return()=>clearTimeout(t);
+  },[isAdmin,user]);
+
+  /* ── Load server backups when on backup page ─────────── */
+  useEffect(()=>{
+    if(page==='backup'&&isAdmin){
+      fetch('/api/backups').then(r=>r.json()).then(d=>{if(d.backups)setServerBackups(d.backups);}).catch(()=>{});
+    }
+  },[page,isAdmin]);
+
+  /* ── Ctrl+K global search ────────────────────────────── */
+  useEffect(()=>{
+    const h=ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key==='k'){ev.preventDefault();setGOpen(o=>!o);}
+      if(ev.key==='Escape')setGOpen(false);};
+    window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);
+  },[]);
 
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
@@ -2555,6 +2595,65 @@ function App(){
       )
     ),
 
+    /* ── GLOBAL SEARCH ───────────────────────────────── */
+    gOpen&&h("div",{className:"overlay",style:{zIndex:2000},onClick:ev=>{if(ev.target===ev.currentTarget)setGOpen(false);}},
+      h("div",{className:"modal",style:{width:560,maxHeight:"80vh",display:"flex",flexDirection:"column"}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"بحث شامل"),
+          h("span",{style:{fontSize:11,color:"var(--sub)",fontWeight:400,marginRight:"auto"}},"Ctrl+K"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setGOpen(false)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--bdr)"}},
+          h("input",{
+            autoFocus:true,
+            placeholder:"اسم المهندس أو التخصص...",
+            value:gQ,
+            onChange:ev=>setGQ(ev.target.value),
+            style:{width:"100%",fontSize:14,padding:"8px 12px",borderRadius:8,border:"1px solid var(--bdr2)",background:"var(--bg2)",color:"var(--text)",outline:"none"}
+          })
+        ),
+        h("div",{style:{overflowY:"auto",flex:1,padding:"8px 0"}},(()=>{
+          const q=gQ.trim().toLowerCase();
+          if(!q)return h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"ابدأ الكتابة للبحث في كل الأشهر والمحافظات");
+          const results=[];
+          for(const[k,m]of Object.entries(months)){
+            if(!m?.data)continue;
+            const[y,mo]=k.split("-");
+            const mn2=MONTHS[+mo-1]+" "+y;
+            for(const[prov,engs]of Object.entries(m.data)){
+              for(const e of(engs||[])){
+                if((e.name||"").toLowerCase().includes(q)||(e.spec||"").toLowerCase().includes(q)){
+                  const c=calc(e.d1,e.d2,m.cfg?.rate||300);
+                  results.push({k,mn2,prov,e,c});
+                }
+              }
+            }
+          }
+          if(!results.length)return h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد نتائج");
+          const byName={};
+          for(const r of results){(byName[r.e.name]=byName[r.e.name]||[]).push(r);}
+          return Object.entries(byName).map(([name,rows])=>h("div",{key:name,style:{borderBottom:"1px solid var(--bdr)"}},
+            h("div",{style:{padding:"8px 16px 4px",display:"flex",alignItems:"center",gap:8}},
+              h("span",{style:{fontWeight:700,fontSize:13}},name),
+              h("span",{style:{fontSize:11,color:"var(--sub)"}},(rows[0].e.spec||"مهندس")),
+              h("span",{style:{fontSize:11,color:"var(--blue)",background:"rgba(96,165,250,.1)",padding:"1px 7px",borderRadius:100}},rows.length+" شهر")
+            ),
+            rows.map(r=>h("div",{key:r.k,
+              style:{display:"flex",alignItems:"center",gap:10,padding:"5px 16px 5px 24px",cursor:"pointer"},
+              onMouseEnter:ev=>ev.currentTarget.style.background="var(--bg2)",
+              onMouseLeave:ev=>ev.currentTarget.style.background="transparent",
+              onClick:()=>{setAk(r.k);setPage("eng");setGOpen(false);setGQ("");}},
+              h("span",{style:{fontSize:11,color:"var(--sub)",minWidth:85}},r.mn2),
+              h("span",{style:{fontSize:11,color:"var(--sub)",minWidth:90}},r.prov.replace("محافظة ","")),
+              h("span",{style:{fontSize:11}},`${r.e.d1+r.e.d2} يوم`),
+              h("span",{style:{fontSize:11,color:"var(--green)",fontWeight:600,marginRight:"auto"}},`${r.c.tot.toFixed(0)}$`),
+              r.e.addedAt&&h("span",{style:{fontSize:9,color:"var(--blue)",background:"rgba(96,165,250,.08)",padding:"1px 6px",borderRadius:100}},r.e.addedAt)
+            ))
+          ));
+        })())
+      )
+    ),
+
     /* ── MODALS ───────────────────────────────────────── */
     modal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setModal(null);}},
       modal==="form"&&h("div",{className:"modal"},
@@ -2856,6 +2955,7 @@ function App(){
             h("span",{className:"search-icon",dangerouslySetInnerHTML:{__html:IC.srch},style:{position:"absolute",right:9,top:"50%",transform:"translateY(-50%)",width:14,height:14,fill:"var(--sub)",pointerEvents:"none"}}),
             h("input",{placeholder:"بحث...",value:search,onChange:ev=>setSearch(ev.target.value),style:{paddingRight:"32px"}})
           ),
+          isAdmin&&h("button",{className:"btn",onClick:()=>setGOpen(true),title:"بحث شامل (Ctrl+K)"},h(Ic,{n:"srch",sz:14}),h("span",null,"بحث")),
           isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           isAdmin&&h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
@@ -2929,12 +3029,16 @@ function App(){
               PROVS.map((p,pi)=>{
                 const engs=data[p]||[];
                 const c=PCOLS[pi];
+                const lastSave=[...saveLogs].reverse().find(l=>l.province===p&&l.key===ak);
+                const lastSaveTime=lastSave?new Date(lastSave.time).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"}):null;
                 return h("div",{key:p,style:{borderRadius:8,border:"1px solid var(--bdr)",overflow:"hidden"}},
                   h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)"}},
                     h("div",{style:{display:"flex",alignItems:"center",gap:8}},
                       h("div",{style:{width:9,height:9,borderRadius:"50%",background:c,flexShrink:0}}),
                       h("span",{style:{fontSize:12,fontWeight:700}},p.replace("محافظة ","")),
-                      h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:2}},"("+engs.length+")")
+                      h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:2}},"("+engs.length+")"),
+                      lastSaveTime&&h("span",{style:{fontSize:9,color:"var(--green)",background:"rgba(52,211,153,.12)",padding:"1px 7px",borderRadius:100,fontWeight:600}},
+                        "✓ حفظ "+lastSaveTime)
                     ),
                     h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,borderColor:"rgba(96,165,250,.3)",color:"var(--blue)"},
                       onClick:()=>{setForm({prov:p,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}
@@ -3365,6 +3469,29 @@ function App(){
             h("div",{style:{padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}},
               h("div",null,h("div",{style:{fontWeight:600,fontSize:14,marginBottom:4}},"حفظ كل البيانات في ملف JSON"),h("div",{style:{fontSize:12,color:"var(--sub)"}},`${sortedKeys.length} شهر محفوظ  ·  ${Object.values(months).reduce((a,m)=>a+PROVS.reduce((b,p)=>b+(m.data?.[p]?.length||0),0),0)} مهندس`)),
               h("button",{className:"btn gold",style:{fontSize:13,padding:"8px 16px"},onClick:exportJSON},h(Ic,{n:"exp",sz:14}),"تصدير نسخة احتياطية")
+            )
+          ),
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#F5F3FF"}},h(Ic,{n:"save",sz:13,c:"#7C3AED"})),"نسخ احتياطية السيرفر"),
+              h("span",{className:"card-badge"},serverBackups.length+" نسخة")
+            ),
+            h("div",{style:{padding:"10px 14px"}},
+              serverBackups.length===0
+                ?h("div",{style:{fontSize:12,color:"var(--sub)",padding:"8px 0"}},"لا توجد نسخ بعد — يتم الإنشاء تلقائياً كل 24 ساعة")
+                :h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+                  serverBackups.map(b=>{
+                    const dt=new Date(b.time).toLocaleString("ar-EG");
+                    const kb=(b.size/1024).toFixed(1);
+                    return h("div",{key:b.name,style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--bdr)"}},
+                      h("div",null,
+                        h("div",{style:{fontSize:12,fontWeight:600}},b.name.replace("backup-","").replace(".json","")),
+                        h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},dt+" · "+kb+" KB")
+                      ),
+                      h("a",{href:`/api/backups/${b.name}`,download:b.name,className:"btn",style:{fontSize:11,padding:"4px 10px",textDecoration:"none"}},h(Ic,{n:"exp",sz:11})," تنزيل")
+                    );
+                  })
+                )
             )
           ),
           h("div",{className:"card"},
