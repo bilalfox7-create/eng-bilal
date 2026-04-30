@@ -1057,6 +1057,14 @@ const BASE={
   ],
 };
 
+/* ── Province → Org City mapping ───────────────────────── */
+const PROV_CITY={
+  "محافظة درنة":"derna",
+  "محافظة البيضاء":"bayda",
+  "محافظة بنغازى":"benghazi",
+  "محافظة طبرق":"tabrouk",
+};
+
 /* ── Helpers ────────────────────────────────────────────── */
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
@@ -2694,6 +2702,41 @@ function App(){
         const od=orgEdit?orgDraft:(orgData||DEFAULT_ORG);
         if(!od)return h("div",{style:{padding:40,textAlign:"center",color:"var(--sub)"}},"جاري تحميل الهيكل التنظيمي...");
         const upd=fn=>setOrgDraft(d=>{const nd=JSON.parse(JSON.stringify(d));fn(nd);return nd;});
+
+        /* ── compute pending engineers from ALL months ── */
+        const pendingByCity=(()=>{
+          const result={};
+          Object.values(months).forEach(month=>{
+            const data=month.data||{};
+            Object.entries(PROV_CITY).forEach(([prov,cityId])=>{
+              const city=od.cities.find(c=>c.id===cityId);
+              if(!city)return;
+              const engs=data[prov]||[];
+              engs.forEach(eng=>{
+                const already=city.team.some(m=>m.name.trim()===eng.name.trim());
+                if(!already){
+                  if(!result[cityId])result[cityId]=[];
+                  const dup=result[cityId].some(e=>e.name.trim()===eng.name.trim());
+                  if(!dup)result[cityId].push({name:eng.name,role:eng.spec||"مهندس"});
+                }
+              });
+            });
+          });
+          return result;
+        })();
+        const totalPending=Object.values(pendingByCity).reduce((a,v)=>a+v.length,0);
+
+        const doSync=async()=>{
+          const base=JSON.parse(JSON.stringify(orgData||DEFAULT_ORG));
+          Object.entries(pendingByCity).forEach(([cityId,engs])=>{
+            const ci=base.cities.findIndex(c=>c.id===cityId);
+            if(ci<0)return;
+            engs.forEach(e=>{base.cities[ci].team.push(e);});
+          });
+          await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:base})}).catch(()=>{});
+          setOrgData(base);
+        };
+
         const totalEng=od.cities.reduce((a,c)=>a+c.team.length,0);
         const totalProj=od.cities.reduce((a,c)=>a+c.projects.length,0);
         const totalMgr=od.cities.reduce((a,c)=>a+c.managers.length,0);
@@ -2723,6 +2766,31 @@ function App(){
                     onClick:()=>{setOrgDraft(JSON.parse(JSON.stringify(orgData||DEFAULT_ORG)));setOrgEdit(true);}},
                     h(Ic,{n:"edit",sz:13,c:"currentColor"}),"تعديل الهيكل")
             )
+          ),
+
+          /* ── sync notification banner ── */
+          !orgEdit&&totalPending>0&&h("div",{style:{
+            display:"flex",alignItems:"center",gap:12,padding:"12px 18px",
+            background:"rgba(52,211,153,.07)",border:"1px solid rgba(52,211,153,.25)",
+            borderRadius:12,
+          }},
+            h("div",{style:{width:36,height:36,borderRadius:10,background:"rgba(52,211,153,.15)",border:"1px solid rgba(52,211,153,.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:18}},"🔄"),
+            h("div",{style:{flex:1}},
+              h("div",{style:{fontSize:13,fontWeight:800,color:"#34D399",marginBottom:2}},
+                "تم اكتشاف ",h("span",{style:{fontSize:16,fontWeight:900}},totalPending)," مهندس جديد في كشف الإعاشة"
+              ),
+              h("div",{style:{fontSize:11,color:"var(--sub)"}},
+                Object.entries(pendingByCity).map(([cid,engs])=>{
+                  const city=od.cities.find(c=>c.id===cid);
+                  return city?`${city.name}: ${engs.map(e=>e.name).join("، ")}`:null;
+                }).filter(Boolean).join("  |  ")
+              )
+            ),
+            h("button",{
+              className:"btn green",
+              style:{padding:"8px 18px",fontSize:12,flexShrink:0},
+              onClick:doSync
+            },"إضافة للهيكل")
           ),
 
           /* ── edit mode banner ── */
@@ -2782,13 +2850,21 @@ function App(){
             od.cities.map((city,ci)=>{
               const col=city.color;
               const bg=col+"18";
-              return h("div",{key:city.id,className:"org-detail-card"},
+              const cityPending=pendingByCity[city.id]||[];
+              return h("div",{key:city.id,className:"org-detail-card",style:cityPending.length>0?{outline:`1px solid rgba(52,211,153,.3)`}:{}},
                 /* city header */
                 h("div",{className:"org-dc-head",style:{background:`linear-gradient(135deg,${col}0D,transparent)`}},
                   h("div",{className:"org-dc-head-left"},
                     h("div",{className:"org-dc-avatar",style:{background:bg,border:`1px solid ${col}40`,color:col}},city.name.charAt(0)),
                     h("div",null,
-                      h("div",{className:"org-dc-city-name",style:{color:col}},city.name),
+                      h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                        h("div",{className:"org-dc-city-name",style:{color:col}},city.name),
+                        cityPending.length>0&&h("div",{style:{
+                          fontSize:10,fontWeight:800,background:"rgba(52,211,153,.15)",
+                          color:"#34D399",border:"1px solid rgba(52,211,153,.3)",
+                          borderRadius:6,padding:"1px 7px",
+                        }},"+",cityPending.length," جديد")
+                      ),
                       h("div",{className:"org-dc-manager"},city.managers.map(m=>m.name+(m.role?" · "+m.role:"")).join(" / "))
                     )
                   ),
@@ -2831,6 +2907,30 @@ function App(){
                       ?h("input",{className:"org-edit-input",style:{width:110,flexShrink:0},value:m.role,onChange:e=>upd(d=>{d.cities[ci].team[mi].role=e.target.value;})})
                       :h("div",{className:"org-row-sub"},m.role),
                     orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(248,113,113,.12)",color:"#F87171",marginRight:4,opacity:1},onClick:()=>upd(d=>{d.cities[ci].team.splice(mi,1);})},"✕")
+                  )
+                ),
+
+                /* pending engineers from sheet */
+                !orgEdit&&cityPending.length>0&&h("div",null,
+                  h("div",{style:{
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    padding:"7px 18px",background:"rgba(52,211,153,.05)",
+                    borderTop:"1px dashed rgba(52,211,153,.2)",
+                    fontSize:10,fontWeight:800,color:"#34D399",letterSpacing:".6px",
+                  }},
+                    h("span",null,"⟳ من كشف الإعاشة — في انتظار الإضافة"),
+                    h("span",{style:{fontSize:11,fontWeight:900}},cityPending.length)
+                  ),
+                  cityPending.map((e,ei)=>
+                    h("div",{key:ei,style:{
+                      display:"flex",alignItems:"center",gap:10,
+                      padding:"7px 18px",borderBottom:"1px solid rgba(52,211,153,.07)",
+                      background:"rgba(52,211,153,.03)",opacity:.85,
+                    }},
+                      h("div",{style:{width:20,height:20,borderRadius:"50%",background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},city.team.length+ei+1),
+                      h("div",{style:{flex:1,fontSize:11,fontWeight:700,color:"var(--text)",opacity:.7}},e.name),
+                      h("div",{style:{fontSize:10,color:"#34D399",fontWeight:500,flexShrink:0}},e.role)
+                    )
                   )
                 ),
 
