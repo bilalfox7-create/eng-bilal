@@ -12,13 +12,14 @@ router.use((req, res, next) => {
 
 router.get('/months', (_req, res) => {
   const db = getDb();
-  const rows = db.prepare('SELECT key, data, cfg, saved_at FROM months').all();
+  const rows = db.prepare('SELECT key, data, cfg, saved_at, expenses FROM months').all();
   const months = {};
   for (const row of rows) {
     months[row.key] = {
-      data:    JSON.parse(row.data),
-      cfg:     JSON.parse(row.cfg),
-      savedAt: row.saved_at || null,
+      data:     JSON.parse(row.data),
+      cfg:      JSON.parse(row.cfg),
+      savedAt:  row.saved_at || null,
+      expenses: row.expenses ? JSON.parse(row.expenses) : null,
     };
   }
   res.json({ months });
@@ -26,17 +27,19 @@ router.get('/months', (_req, res) => {
 
 router.put('/months/:key', (req, res) => {
   const { key } = req.params;
-  const { data, cfg, savedAt } = req.body;
+  const { data, cfg, savedAt, expenses } = req.body;
   if (!data || !cfg) return res.status(400).json({ error: 'بيانات ناقصة' });
 
   const db = getDb();
   db.prepare(`
-    INSERT INTO months (key, data, cfg, saved_at) VALUES (?, ?, ?, ?)
+    INSERT INTO months (key, data, cfg, saved_at, expenses) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET
       data     = excluded.data,
       cfg      = excluded.cfg,
-      saved_at = excluded.saved_at
-  `).run(key, JSON.stringify(data), JSON.stringify(cfg), savedAt || null);
+      saved_at = excluded.saved_at,
+      expenses = excluded.expenses
+  `).run(key, JSON.stringify(data), JSON.stringify(cfg), savedAt || null,
+         expenses ? JSON.stringify(expenses) : null);
 
   res.json({ ok: true });
 });
@@ -53,18 +56,20 @@ router.put('/data', (req, res) => {
 
   const db = getDb();
   const insert = db.prepare(`
-    INSERT INTO months (key, data, cfg, saved_at) VALUES (?, ?, ?, ?)
+    INSERT INTO months (key, data, cfg, saved_at, expenses) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET
       data     = excluded.data,
       cfg      = excluded.cfg,
-      saved_at = excluded.saved_at
+      saved_at = excluded.saved_at,
+      expenses = excluded.expenses
   `);
 
   db.exec('BEGIN');
   try {
     db.prepare('DELETE FROM months').run();
     for (const [key, m] of Object.entries(months)) {
-      insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null);
+      insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
+                 m.expenses ? JSON.stringify(m.expenses) : null);
     }
     db.exec('COMMIT');
   } catch (e) {

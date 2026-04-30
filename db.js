@@ -24,7 +24,8 @@ function initDb() {
       key      TEXT PRIMARY KEY,
       data     TEXT NOT NULL,
       cfg      TEXT NOT NULL,
-      saved_at TEXT
+      saved_at TEXT,
+      expenses TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_config (
@@ -38,6 +39,9 @@ function initDb() {
       password TEXT NOT NULL
     );
   `);
+
+  // أضف عمود expenses إن لم يكن موجوداً (للقواعد القديمة)
+  try { db.exec('ALTER TABLE months ADD COLUMN expenses TEXT'); } catch(e) {}
 
   const count = db.prepare('SELECT COUNT(*) as c FROM users').get();
   if (Number(count.c) === 0) {
