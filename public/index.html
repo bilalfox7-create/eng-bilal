@@ -148,6 +148,19 @@ body::before{
 .nav-item svg{width:15px;height:15px;fill:currentColor}
 .nav-badge{margin-right:auto;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:100px;box-shadow:0 2px 6px rgba(239,68,68,.4)}
 
+/* Province sub-items in sidebar */
+.nav-sub-item{
+  display:flex;align-items:center;gap:9px;
+  padding:6px 14px 6px 22px;cursor:pointer;
+  border-radius:8px;margin:1px 8px 1px 18px;
+  transition:all .18s;color:rgba(255,255,255,.28);
+  font-size:11px;font-weight:600;
+}
+.nav-sub-item:hover{color:rgba(255,255,255,.75);background:rgba(255,255,255,.05)}
+.nav-sub-item.on{color:#93C5FD;background:rgba(96,165,250,.12)}
+.nav-sub-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:transform .18s}
+.nav-sub-item.on .nav-sub-dot{transform:scale(1.4);box-shadow:0 0 6px currentColor}
+
 /* footer */
 .sb-footer{
   padding:12px 12px;
@@ -975,37 +988,52 @@ html.light .org-edit-bar{background:#FFFBEB;border-color:rgba(217,119,6,.2)}
 html.light .oc-inp{background:#f8fafc;border-color:#cbd5e1;color:#1e293b}
 .oc-inp:focus{outline:none;border-color:rgba(96,165,250,.6)}
 
+/* Focused province highlight */
+.pv-section.focused{
+  box-shadow:0 0 0 2px var(--focus-col,#60A5FA),0 8px 32px rgba(0,0,0,.3)!important;
+}
+
 /* ── Province sections (full-width stacked) ── */
-.pv-sections{display:flex;flex-direction:column;gap:16px}
+.pv-sections{display:flex;flex-direction:column;gap:20px}
 
 /* Province section — full width */
 .pv-section{
-  border-radius:14px;overflow:hidden;
+  border-radius:16px;overflow:hidden;
   background:var(--bg2);border:1px solid rgba(255,255,255,.07);
-  box-shadow:0 4px 24px rgba(0,0,0,.22);
+  box-shadow:0 4px 28px rgba(0,0,0,.25);
+  transition:box-shadow .3s;
 }
-html.light .pv-section{background:#fff;border-color:#e2e8f0;box-shadow:0 2px 14px rgba(0,0,0,.08)}
+html.light .pv-section{background:#fff;border-color:#e2e8f0;box-shadow:0 2px 14px rgba(0,0,0,.07)}
 
-/* Section header (large, like a slide title) */
+/* Section header */
 .pv-sh{
-  display:flex;align-items:center;gap:18px;
-  padding:18px 24px 15px;
+  display:flex;align-items:center;gap:16px;
+  padding:20px 26px 17px;
   border-bottom:2px solid;
+  position:relative;
+}
+.pv-sh-icon{
+  width:52px;height:52px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:900;flex-shrink:0;
+  border:2px solid;
 }
 .pv-sh-left{flex:1;min-width:0}
-.pv-sh-name{font-size:22px;font-weight:900;letter-spacing:.3px;line-height:1.1}
-.pv-sh-sub{font-size:9.5px;font-weight:700;opacity:.6;margin-top:4px;letter-spacing:.5px}
-.pv-sh-chips{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.pv-sh-name{font-size:24px;font-weight:900;letter-spacing:.2px;line-height:1.1}
+.pv-sh-sub{font-size:9px;font-weight:700;opacity:.55;margin-top:5px;letter-spacing:.7px;text-transform:uppercase}
+.pv-sh-chips{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;align-items:center}
 .pv-sh-chip{
   display:flex;align-items:center;gap:5px;
-  font-size:11px;font-weight:800;
-  padding:5px 14px;border-radius:20px;white-space:nowrap;
+  font-size:11.5px;font-weight:800;
+  padding:6px 14px;border-radius:20px;white-space:nowrap;
 }
+.pv-sh-chip-val{font-size:15px;font-weight:900;line-height:1}
+.pv-sh-chip-lbl{font-size:9px;font-weight:700;opacity:.75}
 
 /* Body: 2-column (people | projects) */
 .pv-body{display:grid;grid-template-columns:1fr 1fr;align-items:start}
-.pv-col-l{border-left:1px solid rgba(255,255,255,.06)}
-html.light .pv-col-l{border-left-color:#e2e8f0}
+.pv-col-l{border-left:1px solid rgba(255,255,255,.07)}
+html.light .pv-col-l{border-left-color:#e8eef6}
 
 /* Section label */
 .pv-sec{
@@ -1450,6 +1478,8 @@ function App(){
   const [orgDraft,setOrgDraft]=useState(null);
   const [orgSaving,setOrgSaving]=useState(false);
   const [orgExpanded,setOrgExpanded]=useState({});
+  const [orgFocus,setOrgFocus]=useState(null);
+  const orgSecRefs=React.useRef({});
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -2390,14 +2420,31 @@ function App(){
         )),
 
         h("div",{className:"sb-section"},"المشروعات"),
-        [
-          {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
-          {id:"backup",n:"backup",lbl:"النسخ الاحتياطي"},
-        ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),
-          h("span",null,lbl),
-          id==="backup"&&unsaved>0&&h("div",{className:"nav-badge"},unsaved)
-        ))
+        /* Org chart nav item */
+        h("div",{key:"org",className:`nav-item ${page==="org"&&!orgFocus?"on":""}`,onClick:()=>{setPage("org");setOrgFocus(null);setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"org",sz:15})),
+          h("span",null,"الهيكل التنظيمي")
+        ),
+        /* Province sub-items */
+        ...CITY_CFG.map(({id,name,color})=>
+          h("div",{key:"city-"+id,className:`nav-sub-item ${page==="org"&&orgFocus===id?"on":""}`,
+            onClick:()=>{
+              setPage("org");setOrgFocus(id);setMobOpen(false);
+              setTimeout(()=>{
+                const el=orgSecRefs.current[id];
+                if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
+              },80);
+            }},
+            h("div",{className:"nav-sub-dot",style:{background:color}}),
+            h("span",null,name)
+          )
+        ),
+        /* Backup nav item */
+        h("div",{key:"backup",className:`nav-item ${page==="backup"?"on":""}`,onClick:()=>{setPage("backup");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"backup",sz:15})),
+          h("span",null,"النسخ الاحتياطي"),
+          unsaved>0&&h("div",{className:"nav-badge"},unsaved)
+        )
       ),
 
       /* ── footer ── */
@@ -3051,11 +3098,18 @@ function App(){
               od.cities.map((city,ci)=>{
                 const col=city.color;
                 const projects=city.projects||[];
-                const totalPeople=city.managers.length+city.team.length;
-                return h("div",{key:city.id,className:"pv-section",style:{borderTop:`4px solid ${col}`}},
+                const isFocused=orgFocus===city.id;
+                const cityInitial=city.name.charAt(0);
+                return h("div",{
+                  key:city.id,
+                  className:"pv-section"+(isFocused?" focused":""),
+                  style:{borderTop:`4px solid ${col}`,["--focus-col"]:col},
+                  ref:el=>{orgSecRefs.current[city.id]=el;}
+                },
 
                   /* ── Section header ── */
-                  h("div",{className:"pv-sh",style:{borderBottomColor:`${col}40`,background:`linear-gradient(135deg,${col}14,${col}05)`}},
+                  h("div",{className:"pv-sh",style:{borderBottomColor:`${col}35`,background:`linear-gradient(135deg,${col}18,${col}06)`}},
+                    h("div",{className:"pv-sh-icon",style:{background:`${col}20`,color:col,borderColor:`${col}40`}},cityInitial),
                     h("div",{className:"pv-sh-left"},
                       orgEdit
                         ?Ei(city.name,v=>upd(d=>{d.cities[ci].name=v;}),{color:col,fontSize:22,fontWeight:900})
@@ -3064,13 +3118,22 @@ function App(){
                     ),
                     h("div",{className:"pv-sh-chips"},
                       h("div",{className:"pv-sh-chip",style:{background:`${col}22`,color:col}},
-                        h("span",null,"👤"),city.managers.length," مدير"
+                        h("div",{style:{textAlign:"center"}},
+                          h("div",{className:"pv-sh-chip-val"},city.managers.length),
+                          h("div",{className:"pv-sh-chip-lbl"},"مدير")
+                        )
                       ),
                       h("div",{className:"pv-sh-chip",style:{background:`${col}14`,color:col}},
-                        h("span",null,"⚙"),city.team.length," مهندس"
+                        h("div",{style:{textAlign:"center"}},
+                          h("div",{className:"pv-sh-chip-val"},city.team.length),
+                          h("div",{className:"pv-sh-chip-lbl"},"مهندس")
+                        )
                       ),
                       h("div",{className:"pv-sh-chip",style:{background:"rgba(52,211,153,.15)",color:"#34D399"}},
-                        h("span",null,"📁"),projects.length," مشروع"
+                        h("div",{style:{textAlign:"center"}},
+                          h("div",{className:"pv-sh-chip-val"},projects.length),
+                          h("div",{className:"pv-sh-chip-lbl"},"مشروع")
+                        )
                       )
                     )
                   ),
