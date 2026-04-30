@@ -91,6 +91,14 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;background:var
 .btn-icon svg{width:13px;height:13px;fill:var(--sub)}
 .btn-icon.del:hover{background:var(--red2);border-color:var(--red)}
 .btn-icon.del:hover svg{fill:var(--red)}
+.paid-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid transparent;transition:all .18s;user-select:none;white-space:nowrap}
+.paid-badge.yes{background:var(--green3);color:var(--green);border-color:var(--green3)}
+.paid-badge.yes:hover{background:#0A3D21;border-color:var(--green)}
+.paid-badge.no{background:var(--gold2);color:var(--gold);border-color:var(--gold2)}
+.paid-badge.no:hover{background:#2A1C00;border-color:var(--gold)}
+.pay-strip{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bdr);flex-wrap:wrap}
+.pay-strip-bar{flex:1;min-width:120px;height:6px;background:var(--bdr2);border-radius:3px;overflow:hidden}
+.pay-strip-fill{height:100%;background:var(--green);border-radius:3px;transition:width .4s}
 .btn-icon.edit:hover{background:var(--blue2);border-color:var(--blue)}
 .btn-icon.edit:hover svg{fill:var(--blue)}
 
@@ -347,6 +355,8 @@ const IC={
   logout:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13 3h4v14h-4M9 14l4-4-4-4M13 10H4"/></svg>',
   wallet:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="12" rx="2"/><path d="M2 9h16"/><circle cx="14" cy="13" r="1.5" fill="currentColor" stroke="none"/></svg>',
   coin:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"/><path d="M10 7v6M8 9h3a1 1 0 010 2H9a1 1 0 000 2h3" stroke-linecap="round"/></svg>',
+  clock:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><polyline points="10,6 10,10 13,13"/></svg>',
+  paid:'<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
 };
 const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{display:"inline-flex",alignItems:"center",width:sz||16,height:sz||16,color:c||"inherit",flexShrink:0}});
 
@@ -607,6 +617,32 @@ function App(){
     msg("تم الحذف");
   };
 
+  const togglePaid=(p,id)=>{
+    const nd=dc(data);
+    nd[p]=nd[p].map(e=>e.id===id?{...e,paid:!e.paid}:e);
+    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+  };
+
+  const markAllPaid=(paid)=>{
+    const nd=dc(data);
+    PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>({...e,paid}));});
+    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    msg(paid?"تم تأشير الكل كمدفوع ✓":"تم إلغاء الكل");
+  };
+
+  const paidStats=useMemo(()=>{
+    const paid=allE.filter(e=>e.paid);
+    const unpaid=allE.filter(e=>!e.paid);
+    const paidUSD=paid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp).tot,0);
+    const unpaidUSD=unpaid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp).tot,0);
+    const pct=allE.length>0?Math.round(paid.length/allE.length*100):0;
+    return{paidN:paid.length,unpaidN:unpaid.length,paidUSD,unpaidUSD,pct};
+  },[allE,cfg.rate,cfg.egp]);
+
   const delMonth=async k=>{
     if(!confirm("حذف هذا الشهر نهائياً؟"))return;
     setMonths(prev=>{const n={...prev};delete n[k];return n;});
@@ -693,6 +729,7 @@ function App(){
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:${color};border-bottom:1px solid #f1f5f9;">${c.a2.toFixed(2)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${c.tot.toFixed(2)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${c.egp.toFixed(0)}</td>
+          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;"><span style="background:${e.paid?"#dcfce7":"#fefce8"};color:${e.paid?"#15803d":"#b45309"};font-size:9px;padding:2px 7px;border-radius:100px;font-weight:700;">${e.paid?"✓ مدفوع":"⏳ معلق"}</span></td>
         </tr>`;
       }).join('');
       return `
@@ -720,6 +757,7 @@ function App(){
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">إعاشة 2 ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:70px;">إجمالى ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:74px;">إجمالى (ج.م)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">الحالة</th>
             </tr>
           </thead>
           <tbody>
@@ -1478,6 +1516,17 @@ function App(){
 
         /* ══ ENGINEERS ══ */
         page==="eng"&&h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
+          h("div",{className:"pay-strip"},
+            h(Ic,{n:"paid",sz:15,c:"var(--green)"}),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paidN+" مدفوع"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paidUSD)),
+            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct+"%"}})),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaidN+" معلق"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaidUSD)),
+            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct+"%"),
+            paidStats.unpaidN>0&&h("button",{className:"btn green",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(true)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+            paidStats.paidN>0&&h("button",{className:"btn",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(false)},"إلغاء الكل")
+          ),
           search&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h(Ic,{n:"srch",sz:14,c:"var(--blue)"}),`نتائج البحث (${filtered.length})`),h("button",{className:"btn red-outline",style:{padding:"4px 10px",fontSize:11},onClick:()=>setSearch("")},"مسح")),
             h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
@@ -1494,11 +1543,11 @@ function App(){
               ),
               h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxT*100).toFixed(1)}%`,background:color}})),
               h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,""))),
+                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,"الحالة"),h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const c=calc(e,cfg.rate,cfg.egp);
-                    return h("tr",{key:e.id,style:{background:i%2===0?"":"var(--bg2)"}},
+                    return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"":"var(--bg2)"}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},e.name),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
@@ -1508,13 +1557,19 @@ function App(){
                       h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
                       h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
                       h("td",{style:{fontWeight:700,color:"#D97706"}},c.egp.toFixed(0)),
+                      h("td",null,
+                        h("span",{className:`paid-badge ${e.paid?"yes":"no"}`,onClick:()=>togglePaid(prov,e.id),title:"اضغط للتغيير"},
+                          h(Ic,{n:e.paid?"paid":"clock",sz:11}),
+                          e.paid?"مدفوع":"معلق"
+                        )
+                      ),
                       h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delEng(prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
                       ))
                     );
                   }),
-                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),h("td",null,""))
+                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),h("td",null,""),h("td",null,""))
                 )
               ))
             );
