@@ -703,6 +703,88 @@ body::before{
 /* ── Paid row highlight ── */
 .paid-row td{background:rgba(52,211,153,.03) !important}
 
+/* ── Light mode ── */
+html.light{
+  --blue:#2563EB;--blue2:#DBEAFE;--blue3:#BFDBFE;
+  --green:#059669;--green2:#D1FAE5;--green3:#A7F3D0;
+  --red:#DC2626;--red2:#FEE2E2;
+  --gold:#B45309;--gold2:#FEF3C7;
+  --purple:#7C3AED;--purple2:#EDE9FE;
+  --bdr:#E2E8F0;--bdr2:#CBD5E1;
+  --text:#0F172A;--sub:#64748B;
+  --bg:#F1F5F9;--bg2:#FFFFFF;--bg3:#F8FAFC;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow2:0 4px 16px rgba(0,0,0,.1);
+  --shadow3:0 20px 60px rgba(0,0,0,.15);
+}
+html.light body{background:var(--bg)}
+html.light body::before{
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%,rgba(37,99,235,.06) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%,rgba(124,58,237,.04) 0%,transparent 55%);
+}
+html.light .sidebar{
+  background:linear-gradient(180deg,#1E293B 0%,#0F172A 100%);
+}
+html.light .sidebar::before{
+  background:linear-gradient(180deg,transparent,rgba(37,99,235,.4),rgba(124,58,237,.2),transparent);
+}
+html.light .topbar{background:rgba(255,255,255,.9);border-bottom-color:var(--bdr)}
+html.light .mstrip{background:rgba(248,250,252,.95);border-bottom-color:var(--bdr)}
+html.light .mchip{background:#fff;border-color:var(--bdr2);color:var(--sub)}
+html.light .mchip:hover{background:var(--blue2);border-color:var(--blue);color:var(--blue)}
+html.light .mchip.cur{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 4px 12px rgba(37,99,235,.3)}
+html.light .mchip.saved{background:var(--green2);border-color:var(--green);color:var(--green)}
+html.light .mchip.cur.saved{background:var(--green);color:#fff;border-color:var(--green)}
+html.light .card{background:#fff;border-color:var(--bdr);box-shadow:var(--shadow)}
+html.light .card::before{background:linear-gradient(135deg,rgba(0,0,0,.01),transparent)}
+html.light .card:hover{border-color:rgba(37,99,235,.2);box-shadow:var(--shadow2)}
+html.light .card-hdr{background:linear-gradient(135deg,rgba(37,99,235,.02),transparent);border-bottom-color:var(--bdr)}
+html.light .card-badge{background:var(--bg3);border-color:var(--bdr);color:var(--sub)}
+html.light .sc{background:#fff;border-color:var(--bdr)}
+html.light .sc::before{background:radial-gradient(circle,var(--sc-glow,rgba(37,99,235,.08)) 0%,transparent 70%)}
+html.light .tbl th{background:var(--bg3);border-bottom-color:var(--bdr);color:var(--sub)}
+html.light .tbl td{border-bottom-color:var(--bdr);color:var(--text)}
+html.light .tbl tr:hover td{background:rgba(37,99,235,.03)}
+html.light .tbl .sub-row td{background:rgba(37,99,235,.06)}
+html.light .day-inp{background:#fff;border-color:var(--bdr2);color:var(--text)}
+html.light .btn{background:#fff;border-color:var(--bdr2);color:var(--text);box-shadow:var(--shadow)}
+html.light .btn:hover{background:var(--bg3);border-color:var(--bdr)}
+html.light .btn-icon{background:#fff;border-color:var(--bdr2)}
+html.light .btn-icon svg{fill:var(--sub)}
+html.light .modal{background:rgba(255,255,255,.98);border-color:var(--bdr2)}
+html.light .modal-hdr{background:linear-gradient(135deg,rgba(37,99,235,.03),transparent);border-bottom-color:var(--bdr)}
+html.light .modal-ftr{background:var(--bg3);border-top-color:var(--bdr)}
+html.light .fld input,.html.light .fld select{background:#fff;border-color:var(--bdr2);color:var(--text)}
+html.light .fld input,.html.light .fld select,.html.light .fld textarea{background:#fff;border-color:var(--bdr2);color:var(--text)}
+html.light .fld input:focus,.html.light .fld select:focus{background:var(--blue2);border-color:var(--blue)}
+html.light .fld input{background:#fff;border-color:var(--bdr2);color:var(--text)}
+html.light .fld select{background:#fff;border-color:var(--bdr2);color:var(--text);color-scheme:light}
+html.light .fld select option{background:#fff;color:var(--text)}
+html.light .prev-box{background:var(--bg3);border-color:var(--bdr)}
+html.light .overlay{background:rgba(15,23,42,.6)}
+html.light .pay-strip{background:rgba(5,150,105,.05);border-color:rgba(5,150,105,.15)}
+html.light .inline-inp{border-bottom-color:var(--bdr2)}
+html.light .inline-inp:focus{background:var(--blue2)}
+html.light .dz{border-color:var(--bdr2)}
+html.light .dz:hover{background:var(--blue2);border-color:var(--blue)}
+html.light .search-wrap input{background:#fff;border-color:var(--bdr2);color:var(--text)}
+html.light .search-wrap input:focus{background:var(--blue2);border-color:var(--blue)}
+html.light .bottom-nav{background:rgba(255,255,255,.95);border-top-color:var(--bdr)}
+html.light .prov-bar-bg{background:var(--bdr)}
+html.light .rank-bar-bg{background:var(--bdr)}
+html.light .sc-bar{background:var(--bdr)}
+html.light .info.blue{background:var(--blue2);border-color:var(--blue3)}
+html.light .info.green{background:var(--green2);border-color:var(--green3)}
+html.light .info.amber{background:var(--gold2);border-color:#FCD34D}
+html.light .t-ok{background:#ECFDF5;color:var(--green);border-color:var(--green3)}
+html.light .t-err{background:#FEF2F2;color:var(--red);border-color:#FECACA}
+html.light .t-info{background:var(--blue2);color:var(--blue);border-color:var(--blue3)}
+html.light .menu-btn{background:#fff;border-color:var(--bdr2)}
+html.light .paid-badge.yes{background:var(--green2);border-color:var(--green3);color:var(--green)}
+html.light .paid-badge.no{background:var(--gold2);border-color:#FCD34D;color:var(--gold)}
+html.light .pay-strip-fill{box-shadow:0 0 8px rgba(5,150,105,.3)}
+
 /* ── Scrollbar global ── */
 *{scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -872,6 +954,11 @@ function DoughnutChart({labels,data,colors,height=160}){
    MAIN APP
 ══════════════════════════════════════════════════════ */
 function App(){
+  const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
+  useEffect(()=>{
+    document.documentElement.classList.toggle("light",!dark);
+    localStorage.setItem("theme",dark?"dark":"light");
+  },[dark]);
   const [page,setPage]=useState("dash");
   const [months,setMonths]=useState({});
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
@@ -1837,7 +1924,13 @@ function App(){
           h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
           h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
-          h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس"))
+          h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
+          h("button",{
+            className:"btn",
+            onClick:()=>setDark(d=>!d),
+            title:dark?"وضع النهار":"وضع الليل",
+            style:{padding:"7px 10px",fontSize:16,lineHeight:1}
+          },dark?"☀️":"🌙")
         )
       ),
 
