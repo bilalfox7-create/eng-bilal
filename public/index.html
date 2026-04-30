@@ -900,125 +900,167 @@ html.light .login-box::before{background:linear-gradient(90deg,transparent,#2563
 html.light .login-title{color:var(--text)}
 html.light .login-sub{color:var(--sub)}
 
-/* ── Org Chart ── */
-.org-page{display:flex;flex-direction:column;gap:16px}
+/* ══ Org Chart ══════════════════════════════════════════ */
+.org-page{display:flex;flex-direction:column;gap:14px}
+
+/* header banner */
 .org-header-card{
-  background:linear-gradient(135deg,rgba(96,165,250,.08) 0%,rgba(167,139,250,.06) 100%);
+  background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(167,139,250,.06));
   border:1px solid rgba(96,165,250,.18);border-radius:16px;
-  padding:16px 20px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;
+  padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
 }
 html.light .org-header-card{background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-color:rgba(37,99,235,.18)}
 .org-hc-logo{width:52px;height:52px;flex-shrink:0;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center}
 .org-hc-logo img{width:48px;height:48px;object-fit:contain}
-.org-hc-info{flex:1;min-width:180px}
+.org-hc-info{flex:1;min-width:160px}
 .org-hc-company{font-size:10px;font-weight:800;color:var(--sub);letter-spacing:1.2px;margin-bottom:3px}
-.org-hc-title{font-size:15px;font-weight:900;color:var(--text);line-height:1.3}
+.org-hc-title{font-size:14px;font-weight:900;color:var(--text);line-height:1.3}
 html.light .org-hc-title{color:#1e3a8a}
-.org-hc-stats{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.org-hc-stats{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
 .org-hc-stat{text-align:center}
 .org-hc-stat-val{font-size:20px;font-weight:900;color:var(--blue);line-height:1}
 html.light .org-hc-stat-val{color:#2563eb}
 .org-hc-stat-lbl{font-size:9px;color:var(--sub);font-weight:700;letter-spacing:.5px;margin-top:2px}
-.org-hc-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-top:2px}
+.org-hc-actions{display:flex;gap:7px;align-items:center;flex-shrink:0;flex-wrap:wrap}
 
-/* ── tree ── */
-.org-tree-card{
-  background:var(--bg2);border:1px solid var(--bdr);border-radius:16px;
-  padding:20px 16px;
-}
-html.light .org-tree-card{background:#fff;border-color:rgba(0,0,0,.07)}
-.org-tree-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:4px}
-.org-tree-scroll::-webkit-scrollbar{height:4px}
-.org-tree-scroll::-webkit-scrollbar-track{background:transparent}
-.org-tree-scroll::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
-.org-tree-inner{
-  width:100%;min-width:480px;
-  display:flex;flex-direction:column;align-items:stretch;gap:0;
-}
-/* root row: center the root box */
-.org-root-row{display:flex;justify-content:center;padding:0 20px}
-.org-root-box{
-  background:linear-gradient(135deg,#1e3a8a,#2563eb);
-  border:1px solid rgba(96,165,250,.5);
-  border-radius:14px;padding:12px 28px;text-align:center;
-  box-shadow:0 6px 24px rgba(37,99,235,.3);
-  min-width:220px;max-width:340px;width:fit-content;
-}
-.org-root-badge{font-size:9px;font-weight:800;color:rgba(255,255,255,.6);letter-spacing:1px;margin-bottom:3px}
-.org-root-name{font-size:15px;font-weight:900;color:#fff}
-.org-root-sub{font-size:10px;color:rgba(255,255,255,.55);margin-top:3px}
-/* stem line below root */
-.org-stem{width:2px;height:28px;background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.25));margin:0 auto}
-/* horizontal connector spanning full width */
-.org-branch-h{
-  position:relative;height:2px;background:rgba(96,165,250,.2);
-  margin:0 calc(100% / (var(--n-cities)*2));
-}
-/* city columns */
-.org-city-cols{display:grid;gap:10px;width:100%;padding:0}
-.org-city-branch{display:flex;flex-direction:column;align-items:center;gap:0}
-.org-city-drop-v{width:2px;height:24px;margin:0 auto}
-.org-city-card{
-  width:100%;border-radius:12px;padding:10px 10px;text-align:center;
-  border:1px solid;transition:all .2s;position:relative;
-  background:rgba(255,255,255,.03);
-}
-.org-city-card:hover{transform:translateY(-2px)}
-html.light .org-city-card{background:#fff}
-.org-city-card-name{font-size:13px;font-weight:900;margin-bottom:3px}
-.org-city-card-mgr{font-size:9px;color:var(--sub);line-height:1.4;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.org-city-card-counts{display:flex;justify-content:center;gap:8px}
-.org-city-count{text-align:center}
-.org-city-count-val{font-size:15px;font-weight:900;line-height:1}
-.org-city-count-lbl{font-size:8px;color:var(--sub);font-weight:700;letter-spacing:.4px;margin-top:1px}
+/* edit/info bars */
+.org-edit-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(252,211,77,.05);border:1px solid rgba(252,211,77,.15);border-radius:12px}
+html.light .org-edit-bar{background:#FFFBEB;border-color:rgba(217,119,6,.2)}
 
-/* detail grid */
-.org-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-@media(max-width:900px){.org-detail-grid{grid-template-columns:1fr}}
-.org-detail-card{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
-html.light .org-detail-card{background:#fff;border-color:rgba(0,0,0,.07);box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.org-dc-head{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.05)}
-html.light .org-dc-head{border-bottom-color:rgba(0,0,0,.06)}
-.org-dc-head-left{display:flex;align-items:center;gap:10px}
-.org-dc-avatar{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;flex-shrink:0}
-.org-dc-city-name{font-size:15px;font-weight:900}
-.org-dc-manager{font-size:10px;color:var(--sub);margin-top:2px}
-.org-dc-badges{display:flex;gap:8px}
-.org-dc-badge{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;text-align:center}
-.org-dc-badge span{display:block;font-size:8px;font-weight:700;opacity:.7;margin-top:1px}
+/* ── Director box (top of column chart) ── */
+.oc-director{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#1e3a8a,#1d4ed8);
+  border-radius:14px 14px 0 0;padding:14px 20px;
+  border:1px solid rgba(96,165,250,.4);border-bottom:none;
+}
+html.light .oc-director{background:linear-gradient(135deg,#1e3a8a,#2563eb)}
+.oc-dir-avatar{
+  width:44px;height:44px;border-radius:11px;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:900;color:#fff;flex-shrink:0;
+}
+.oc-dir-name{font-size:15px;font-weight:900;color:#fff}
+.oc-dir-title{font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;font-weight:600}
+.oc-dir-badge{margin-right:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);font-size:9px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap}
 
-/* section inside detail card */
-.org-section-hdr{
-  padding:9px 18px;font-size:10px;font-weight:800;letter-spacing:.8px;
-  display:flex;align-items:center;justify-content:space-between;
+/* ── stem connector ── */
+.oc-stem{
+  display:grid;width:100%;
+  border-left:1px solid rgba(96,165,250,.2);
+  border-right:1px solid rgba(96,165,250,.2);
+  background:var(--bg2);
 }
-.org-row{display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s}
-.org-row:last-child{border-bottom:none}
-.org-row:hover{background:rgba(255,255,255,.03)}
-html.light .org-row{border-bottom-color:rgba(0,0,0,.05)}
-html.light .org-row:hover{background:rgba(99,102,241,.03)}
-.org-row-num{width:20px;height:20px;border-radius:50%;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.org-row-main{flex:1;font-size:11px;font-weight:700;color:var(--text)}
-.org-row-sub{font-size:10px;color:var(--sub);font-weight:500;flex-shrink:0}
-.org-row-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s}
-.org-row:hover .org-row-actions{opacity:1}
-.org-icon-btn{width:24px;height:24px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s}
+html.light .oc-stem{background:#fff}
+.oc-stem-inner{
+  display:flex;justify-content:center;align-items:flex-end;
+  position:relative;height:36px;
+}
+/* vertical line from director */
+.oc-stem-inner::before{
+  content:'';position:absolute;top:0;left:50%;width:2px;height:100%;
+  background:linear-gradient(180deg,rgba(96,165,250,.5),rgba(96,165,250,.25));
+  transform:translateX(-50%);
+}
+/* horizontal bar connecting cities */
+.oc-stem-inner::after{
+  content:'';position:absolute;bottom:0;
+  height:2px;background:rgba(96,165,250,.25);
+  width:var(--oc-bar-w,75%);
+}
 
-/* edit mode styles */
-.org-edit-input{
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
-  color:var(--text);border-radius:6px;padding:4px 8px;
-  font-family:inherit;font-size:11px;font-weight:700;flex:1;
+/* ── column table ── */
+.oc-columns-wrap{overflow-x:auto;overflow-y:visible}
+.oc-columns-wrap::-webkit-scrollbar{height:3px}
+.oc-columns-wrap::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.oc-columns{
+  display:grid;min-width:480px;width:100%;
+  border:1px solid rgba(96,165,250,.2);border-radius:0 0 14px 14px;
+  overflow:hidden;border-top:none;
 }
-html.light .org-edit-input{background:#F8FAFC;border-color:#CBD5E1;color:#1e293b}
-.org-edit-input:focus{outline:none;border-color:rgba(96,165,250,.5)}
-.org-add-row{display:flex;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid rgba(255,255,255,.04)}
-html.light .org-add-row{border-top-color:rgba(0,0,0,.06)}
-.org-edit-bar{
-  display:flex;align-items:center;gap:8px;padding:10px 14px;
-  background:rgba(252,211,77,.05);border-bottom:1px solid rgba(252,211,77,.15);
+html.light .oc-columns{border-color:rgba(37,99,235,.15)}
+
+/* each city column */
+.oc-col{
+  display:flex;flex-direction:column;
+  border-right:1px solid rgba(255,255,255,.06);
 }
-html.light .org-edit-bar{background:#FFFBEB;border-bottom-color:rgba(217,119,6,.2)}
+.oc-col:last-child{border-right:none}
+html.light .oc-col{border-right-color:rgba(0,0,0,.07)}
+
+/* city header */
+.oc-col-hdr{
+  padding:10px 10px 9px;text-align:center;
+  font-size:14px;font-weight:900;letter-spacing:.3px;
+  border-bottom:2px solid;
+  position:relative;
+}
+.oc-col-hdr-sub{font-size:8.5px;font-weight:700;opacity:.6;margin-top:2px;letter-spacing:.3px}
+
+/* count pills */
+.oc-col-pills{display:flex;justify-content:center;gap:6px;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+html.light .oc-col-pills{border-bottom-color:rgba(0,0,0,.06)}
+.oc-pill{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px}
+
+/* manager rows */
+.oc-mgr-section{background:rgba(255,255,255,.025)}
+html.light .oc-mgr-section{background:rgba(0,0,0,.015)}
+.oc-mgr-label{padding:6px 10px 3px;font-size:8px;font-weight:800;letter-spacing:1px;color:var(--sub);text-transform:uppercase;opacity:.8}
+.oc-mgr-row{
+  display:flex;align-items:flex-start;gap:7px;
+  padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);
+}
+html.light .oc-mgr-row{border-bottom-color:rgba(0,0,0,.05)}
+.oc-mgr-star{font-size:10px;flex-shrink:0;margin-top:1px}
+.oc-mgr-name{font-size:10.5px;font-weight:800;color:var(--text);line-height:1.3}
+.oc-mgr-role{font-size:9px;color:var(--sub);font-weight:500;margin-top:1px}
+
+/* team divider */
+.oc-divider{height:1px;border:none;margin:0}
+
+/* team member rows */
+.oc-member-row{
+  display:flex;align-items:flex-start;gap:7px;
+  padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);
+  transition:background .15s;
+}
+.oc-member-row:last-child{border-bottom:none}
+.oc-member-row:hover{background:rgba(255,255,255,.025)}
+html.light .oc-member-row{border-bottom-color:rgba(0,0,0,.04)}
+html.light .oc-member-row:hover{background:rgba(0,0,0,.02)}
+.oc-num{
+  width:18px;height:18px;border-radius:50%;flex-shrink:0;
+  font-size:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  margin-top:1px;
+}
+.oc-member-name{font-size:10.5px;font-weight:700;color:var(--text);line-height:1.3;flex:1}
+.oc-member-role{font-size:9px;color:var(--sub);font-weight:500;margin-top:2px}
+.oc-member-del{opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;color:var(--red);font-size:12px;padding:0;flex-shrink:0;margin-top:1px}
+.oc-member-row:hover .oc-member-del{opacity:.7}
+
+/* add row */
+.oc-add-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:7px 10px;background:none;border:none;cursor:pointer;
+  font-family:inherit;font-size:10px;font-weight:700;
+  color:var(--sub);transition:all .15s;border-top:1px dashed rgba(255,255,255,.07);
+}
+.oc-add-btn:hover{color:var(--green);background:rgba(52,211,153,.05)}
+html.light .oc-add-btn{border-top-color:rgba(0,0,0,.08)}
+
+/* edit inputs inside columns */
+.oc-input{
+  width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:var(--text);border-radius:5px;padding:3px 6px;
+  font-family:inherit;font-size:10px;font-weight:700;
+}
+html.light .oc-input{background:#F8FAFC;border-color:#CBD5E1;color:#1e293b}
+.oc-input:focus{outline:none;border-color:rgba(96,165,250,.5)}
+
+@media(max-width:700px){.oc-columns{grid-template-columns:repeat(2,1fr)!important;border-radius:0 0 10px 10px}}
+@media(max-width:420px){.oc-columns{grid-template-columns:1fr!important}}
 
 /* ── Print / PDF ── */
 @page{size:A4 portrait;margin:12mm 10mm}
@@ -1241,66 +1283,31 @@ function DoughnutChart({labels,data,colors,height=160}){
 }
 
 /* ══════════════════════════════════════════════════════
-   ORG CHART DEFAULT DATA
+   ORG CHART — built from BASE expense-sheet data
 ══════════════════════════════════════════════════════ */
-const DEFAULT_ORG={
-  company:"شركة الرائد للاستشارات الهندسية",
-  director:{name:"ضياء الدين محمود",title:"مدير مشروعات ليبيا"},
-  cities:[
-    {id:"derna",name:"درنة",color:"#60A5FA",
-     managers:[{name:"بهاء أحمد محمود",role:"مدير المشروع"}],
-     team:[
-       {name:"محمد صلاح عبد الواحد",role:"مهندس مدني"},
-       {name:"محمد نابغ محجوب",role:"مهندس معماري"},
-       {name:"أحمد عبد العظيم السيد",role:"مهندس طرق"},
-       {name:"عبد العظيم أحمد",role:"مكتب فني"},
-       {name:"محمد حمدي محمد",role:"ضبط جودة"},
-       {name:"محمد شحاتة محمد",role:"مساح"},
-       {name:"محمد سلامة غريب",role:"مساح"},
-       {name:"بلال أشرف علي",role:"DC"},
-     ],
-     projects:["مشروع وادي درنة والطرق المحاذية له","الطريق الساحلي وممشى الطريق الساحلي","شبكات الصرف الصحي ومحطة المعالجة","الحوائط الساندة لوادي الناقة","برابخ الطريق الساحلي","كابلات الجهد المتوسط"]
-    },
-    {id:"tabrouk",name:"طبرق",color:"#34D399",
-     managers:[{name:"كريم كمال عبد الغفار",role:"مدير المشروع"}],
-     team:[
-       {name:"مصطفى إبراهيم دسوقي",role:"ضبط جودة"},
-       {name:"محمد صلاح محمد",role:"مساح"},
-     ],
-     projects:["جزيرة إمساعد (كوبري + طرق + مرافق صحية)","المركز الطبي (كوبري + طرق + مرافق صحية)","صيانة محطة معالجة طبرق ومحطات الرفع"]
-    },
-    {id:"benghazi",name:"بنغازي",color:"#FCD34D",
-     managers:[{name:"محمد أحمد يوسف محمد",role:"مدير تنفيذ أعمال الكهرباء"}],
-     team:[
-       {name:"أحمد السيد عبد الحميد",role:"مهندس مدني"},
-       {name:"إبراهيم محمد ماضي",role:"مكتب فني"},
-       {name:"محسن ماهر محمد نصر",role:"ضبط جودة"},
-       {name:"خالد بشرى علي محمد",role:"ضبط جودة"},
-       {name:"خالد أحمد أبو المعاطي",role:"مساح"},
-       {name:"كريم محمد إبراهيم مرجان",role:"مساح"},
-       {name:"أمين قرني",role:"DC"},
-     ],
-     projects:["توسعة طريق الباكور — 4.6 كم","توسعة طريق المرج — 16 كم","أعمال الطرق بكوبري جزيرة الطيارة","أعمال الطرق بكوبري مصنع الاسمنت"]
-    },
-    {id:"bayda",name:"البيضاء",color:"#A78BFA",
-     managers:[{name:"محمد فؤاد محمود",role:"مدير المشروع"},{name:"حسن العيسوي",role:"مدير المشروع"}],
-     team:[
-       {name:"إبراهيم سعد عباس",role:"مهندس مدني"},
-       {name:"كريم إبراهيم",role:"مهندس مدني"},
-       {name:"إبراهيم زيد",role:"مهندس مدني"},
-       {name:"محمد حمدي الجندي",role:"مهندس كهرباء"},
-       {name:"أحمد عبده أحمد تمام",role:"مهندس شبكات"},
-       {name:"فاضل صلاح الفيشاوي",role:"مكتب فني"},
-       {name:"هشام أحمد أمين",role:"مكتب فني"},
-       {name:"أحمد محمد عبود",role:"ضبط جودة"},
-       {name:"عمرو حسن عبد الصادق",role:"مساح"},
-       {name:"أحمد يوسف جعفر",role:"مساح"},
-       {name:"محمد علي فرج",role:"DC"},
-     ],
-     projects:["محطة معالجة الصرف الصحي","الطرق السطحية — 8 كم","طريق البيضاء مسة — 7.2 كم","طريق عمرو المختار — 750 م","صينية الغريقة — 1.5 كم","طريق رأس هلال — 16 كم","الدائري الجنوبي — 8 كم","طريق الغريقة — 4 كم","طريق المخيلي — 1.8 كم","طريق الوردية","طريق وادي الكوف — 9 كم","استكمال الدائري الجنوبي — 2.4 كم","طريق الغريقة عمر المختار — 16 كم","طريق الدائري الشمالي","كوبري الخور","نفق تقاطع الدائري الشمالي"]
-    },
-  ]
-};
+const CITY_CFG=[
+  {id:"derna",   name:"درنة",    color:"#60A5FA", prov:"محافظة درنة"},
+  {id:"bayda",   name:"البيضاء", color:"#A78BFA", prov:"محافظة البيضاء"},
+  {id:"benghazi",name:"بنغازي",  color:"#FCD34D", prov:"محافظة بنغازى"},
+  {id:"tabrouk", name:"طبرق",    color:"#34D399", prov:"محافظة طبرق"},
+];
+function buildOrgFromBase(){
+  return {
+    company:"شركة الرائد للاستشارات الهندسية",
+    director:{name:"ضياء الدين محمود",title:"مدير مشروعات ليبيا"},
+    cities:CITY_CFG.map(({id,name,color,prov})=>{
+      const all=(BASE[prov]||[]).filter(e=>e.name!=="ضياء الدين محمود");
+      const mgrs=all.filter(e=>e.spec&&e.spec.includes("مدير"));
+      const team=all.filter(e=>!e.spec||!e.spec.includes("مدير"));
+      return {id,name,color,
+        managers:mgrs.map(e=>({name:e.name,role:e.spec})),
+        team:team.map(e=>({name:e.name,role:e.spec})),
+        projects:[]
+      };
+    })
+  };
+}
+const DEFAULT_ORG=buildOrgFromBase();
 
 /* ══════════════════════════════════════════════════════
    MAIN APP
@@ -2850,7 +2857,8 @@ function App(){
               if(!city)return;
               const engs=data[prov]||[];
               engs.forEach(eng=>{
-                const already=city.team.some(m=>m.name.trim()===eng.name.trim());
+                const already=city.team.some(m=>m.name.trim()===eng.name.trim())
+                  ||city.managers.some(m=>m.name.trim()===eng.name.trim());
                 if(!already){
                   if(!result[cityId])result[cityId]=[];
                   const dup=result[cityId].some(e=>e.name.trim()===eng.name.trim());
@@ -2874,9 +2882,19 @@ function App(){
           setOrgData(base);
         };
 
+        const doRebuild=async()=>{
+          const fresh=buildOrgFromBase();
+          await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:fresh})}).catch(()=>{});
+          setOrgData(fresh);
+        };
+
         const totalEng=od.cities.reduce((a,c)=>a+c.team.length,0);
-        const totalProj=od.cities.reduce((a,c)=>a+c.projects.length,0);
         const totalMgr=od.cities.reduce((a,c)=>a+c.managers.length,0);
+
+        /* ── columns count for CSS var ── */
+        const nCols=od.cities.length;
+        const barW=nCols>1?`${Math.round((1-1/nCols)*100)}%`:"0%";
+
         return h("div",{className:"org-page"},
 
           /* ── header card ── */
@@ -2886,7 +2904,7 @@ function App(){
               h("div",{className:"org-hc-company"},od.company),
               h("div",{className:"org-hc-title"},od.director.name," — ",od.director.title),
               h("div",{className:"org-hc-stats"},
-                [{v:od.cities.length,l:"مدينة"},{v:totalMgr,l:"مدير مشروع"},{v:totalEng,l:"مهندس"},{v:totalProj,l:"مشروع"}]
+                [{v:od.cities.length,l:"مدينة"},{v:totalMgr,l:"مدير مشروع"},{v:totalEng,l:"مهندس"}]
                 .map(({v,l})=>h("div",{key:l,className:"org-hc-stat"},
                   h("div",{className:"org-hc-stat-val"},v),
                   h("div",{className:"org-hc-stat-lbl"},l)
@@ -2897,16 +2915,17 @@ function App(){
               !orgEdit&&h("button",{
                 className:"btn",
                 style:{padding:"8px 14px",fontSize:12,gap:6,background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.25)",color:"#34D399"},
-                onClick:()=>window.print(),
-                title:"طباعة / حفظ PDF"
+                onClick:()=>window.print(),title:"طباعة / حفظ PDF"
               },
                 h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",width:14,height:14},
-                  h("path",{d:"M5 7V3h10v4"}),
-                  h("rect",{x:"2",y:"7",width:"16",height:"8",rx:"1.5"}),
-                  h("path",{d:"M5 11h10M7 15h6"})
-                ),
-                "PDF"
+                  h("path",{d:"M5 7V3h10v4"}),h("rect",{x:"2",y:"7",width:"16",height:"8",rx:"1.5"}),h("path",{d:"M5 11h10M7 15h6"})
+                ),"PDF"
               ),
+              !orgEdit&&h("button",{
+                className:"btn",
+                style:{padding:"8px 14px",fontSize:12,gap:6,background:"rgba(251,191,36,.08)",border:"1px solid rgba(251,191,36,.25)",color:"#FCD34D"},
+                onClick:doRebuild,title:"إعادة بناء الهيكل من بيانات كشف الإعاشة الأساسي"
+              },"↺ إعادة البناء"),
               orgEdit
                 ?[h("button",{key:"sv",className:"btn green",style:{padding:"8px 16px",fontSize:12},disabled:orgSaving,
                     onClick:async()=>{setOrgSaving(true);await fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:orgDraft})}).catch(()=>{});setOrgData(orgDraft);setOrgEdit(false);setOrgSaving(false);}},
@@ -2921,8 +2940,7 @@ function App(){
           /* ── sync notification banner ── */
           !orgEdit&&totalPending>0&&h("div",{style:{
             display:"flex",alignItems:"center",gap:12,padding:"12px 18px",
-            background:"rgba(52,211,153,.07)",border:"1px solid rgba(52,211,153,.25)",
-            borderRadius:12,
+            background:"rgba(52,211,153,.07)",border:"1px solid rgba(52,211,153,.25)",borderRadius:12,
           }},
             h("div",{style:{width:36,height:36,borderRadius:10,background:"rgba(52,211,153,.15)",border:"1px solid rgba(52,211,153,.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:18}},"🔄"),
             h("div",{style:{flex:1}},
@@ -2936,181 +2954,131 @@ function App(){
                 }).filter(Boolean).join("  |  ")
               )
             ),
-            h("button",{
-              className:"btn green",
-              style:{padding:"8px 18px",fontSize:12,flexShrink:0},
-              onClick:doSync
-            },"إضافة للهيكل")
+            h("button",{className:"btn green",style:{padding:"8px 18px",fontSize:12,flexShrink:0},onClick:doSync},"إضافة للهيكل")
           ),
 
           /* ── edit mode banner ── */
           orgEdit&&h("div",{className:"org-edit-bar"},
             h("div",{style:{width:8,height:8,borderRadius:"50%",background:"#FCD34D",flexShrink:0}}),
             h("span",{style:{fontSize:12,fontWeight:700,color:"#FCD34D"}},"وضع التعديل"),
-            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:8}},"— عدّل الأسماء والمناصب وأضف أو احذف الأعضاء والمشاريع ثم اضغط حفظ")
+            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:8}},"— عدّل الأسماء والمناصب وأضف أو احذف الأعضاء ثم اضغط حفظ")
           ),
 
-          /* ── tree diagram ── */
+          /* ══ NEW COLUMN-TABLE ORG CHART ══ */
           h("div",{className:"org-tree-card"},
             h("div",{className:"card-hdr",style:{marginBottom:16}},
-              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(37,99,235,.15)"}},h(Ic,{n:"org",sz:14,c:"#60A5FA"})),"الهيكل الإداري"),
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(37,99,235,.15)"}},h(Ic,{n:"org",sz:14,c:"#60A5FA"})),
+                "الهيكل الإداري"
+              ),
               h("span",{className:"card-badge"},"جميع المستويات")
             ),
-            h("div",{className:"org-tree-scroll"},
-              h("div",{className:"org-tree-inner"},
-                /* root node centered */
-                h("div",{className:"org-root-row"},
-                  h("div",{className:"org-root-box"},
-                    h("div",{className:"org-root-badge"},od.company),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",style:{fontSize:14,fontWeight:900,textAlign:"center",background:"rgba(255,255,255,.1)",borderColor:"rgba(255,255,255,.2)",width:"100%"},value:od.director.name,onChange:e=>upd(d=>{d.director.name=e.target.value;})})
-                      :h("div",{className:"org-root-name"},od.director.name),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",style:{fontSize:10,textAlign:"center",marginTop:4,background:"rgba(255,255,255,.08)",borderColor:"rgba(255,255,255,.15)",width:"100%"},value:od.director.title,onChange:e=>upd(d=>{d.director.title=e.target.value;})})
-                      :h("div",{className:"org-root-sub"},od.director.title)
-                  )
-                ),
-                /* vertical stem */
-                h("div",{className:"org-stem"}),
-                /* horizontal branch spanning full width */
-                h("div",{style:{
-                  height:2,background:"rgba(96,165,250,.2)",
-                  margin:`0 calc(100% / ${od.cities.length*2})`,
-                }}),
-                /* city columns — equal fractions, no overflow */
-                h("div",{className:"org-city-cols",style:{gridTemplateColumns:`repeat(${od.cities.length},1fr)`}},
-                  od.cities.map((city,ci)=>
-                    h("div",{key:city.id,className:"org-city-branch"},
-                      h("div",{className:"org-city-drop-v",style:{background:`linear-gradient(180deg,rgba(96,165,250,.3),${city.color}90)`}}),
-                      h("div",{className:"org-city-card",style:{borderColor:city.color+"50",boxShadow:`0 4px 14px ${city.color}18`}},
-                        orgEdit
-                          ?h("input",{className:"org-edit-input",style:{fontSize:13,fontWeight:900,color:city.color,textAlign:"center",marginBottom:4,background:"transparent",borderColor:city.color+"40",width:"100%"},value:city.name,onChange:e=>upd(d=>{d.cities[ci].name=e.target.value;})})
-                          :h("div",{className:"org-city-card-name",style:{color:city.color}},city.name),
-                        h("div",{className:"org-city-card-mgr"},city.managers.map(m=>m.name).join(" / ")),
-                        h("div",{className:"org-city-card-counts"},
-                          h("div",{className:"org-city-count"},
-                            h("div",{className:"org-city-count-val",style:{color:city.color}},city.team.length),
-                            h("div",{className:"org-city-count-lbl"},"مهندس")
+
+            /* ─ director box ─ */
+            h("div",{className:"oc-director"},
+              h("div",{className:"oc-dir-avatar"},od.director.name.charAt(0)||"م"),
+              h("div",{style:{flex:1}},
+                orgEdit
+                  ?h("input",{className:"oc-input",style:{fontSize:13,fontWeight:900,marginBottom:4},value:od.director.name,onChange:e=>upd(d=>{d.director.name=e.target.value;})})
+                  :h("div",{className:"oc-dir-name"},od.director.name),
+                orgEdit
+                  ?h("input",{className:"oc-input",style:{fontSize:10},value:od.director.title,onChange:e=>upd(d=>{d.director.title=e.target.value;})})
+                  :h("div",{className:"oc-dir-title"},od.director.title)
+              ),
+              h("div",{className:"oc-dir-badge"},od.company)
+            ),
+
+            /* ─ stem connector ─ */
+            h("div",{className:"oc-stem"},
+              h("div",{className:"oc-stem-inner",style:{"--oc-bar-w":barW}})
+            ),
+
+            /* ─ city columns ─ */
+            h("div",{className:"oc-columns-wrap"},
+              h("div",{className:"oc-columns",style:{gridTemplateColumns:`repeat(${nCols},1fr)`}},
+                od.cities.map((city,ci)=>{
+                  const col=city.color;
+                  const cityPending=pendingByCity[city.id]||[];
+                  return h("div",{key:city.id,className:"oc-col"},
+
+                    /* city header */
+                    h("div",{className:"oc-col-hdr",style:{color:col,borderBottomColor:col,background:col+"10"}},
+                      orgEdit
+                        ?h("input",{className:"oc-input",style:{color:col,textAlign:"center",fontWeight:900,fontSize:13},value:city.name,onChange:e=>upd(d=>{d.cities[ci].name=e.target.value;})})
+                        :city.name,
+                      h("div",{className:"oc-col-hdr-sub"},"فريق هندسي")
+                    ),
+
+                    /* count pills */
+                    h("div",{className:"oc-col-pills"},
+                      h("div",{className:"oc-pill",style:{background:col+"18",color:col,border:`1px solid ${col}30`}},
+                        h("span",{style:{fontSize:13,fontWeight:900}},city.managers.length+city.team.length),
+                        "مهندس"
+                      ),
+                      cityPending.length>0&&h("div",{className:"oc-pill",style:{background:"rgba(52,211,153,.12)",color:"#34D399",border:"1px solid rgba(52,211,153,.25)"}},
+                        "+",cityPending.length," جديد"
+                      )
+                    ),
+
+                    /* managers section */
+                    city.managers.length>0&&h("div",{className:"oc-mgr-section"},
+                      h("div",{className:"oc-mgr-label"},"المديرون"),
+                      city.managers.map((mgr,mi)=>
+                        h("div",{key:mi,className:"oc-mgr-row"},
+                          h("span",{className:"oc-mgr-star",style:{color:col}},"★"),
+                          h("div",{style:{flex:1,minWidth:0}},
+                            orgEdit
+                              ?h("input",{className:"oc-input",style:{fontWeight:800,marginBottom:2},value:mgr.name,onChange:e=>upd(d=>{d.cities[ci].managers[mi].name=e.target.value;})})
+                              :h("div",{className:"oc-mgr-name"},mgr.name),
+                            orgEdit
+                              ?h("input",{className:"oc-input",value:mgr.role,onChange:e=>upd(d=>{d.cities[ci].managers[mi].role=e.target.value;})})
+                              :h("div",{className:"oc-mgr-role"},mgr.role)
                           ),
-                          h("div",{style:{width:1,background:"rgba(255,255,255,.1)",margin:"0 5px"}}),
-                          h("div",{className:"org-city-count"},
-                            h("div",{className:"org-city-count-val",style:{color:"#34D399"}},city.projects.length),
-                            h("div",{className:"org-city-count-lbl"},"مشروع")
+                          orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].managers.splice(mi,1);})},"✕")
+                        )
+                      ),
+                      orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].managers.push({name:"اسم المدير",role:"مدير المشروع"});})},"+ إضافة مدير")
+                    ),
+
+                    /* divider */
+                    city.managers.length>0&&city.team.length>0&&h("hr",{className:"oc-divider",style:{background:col+"30"}}),
+
+                    /* team members */
+                    city.team.map((m,mi)=>
+                      h("div",{key:mi,className:"oc-member-row"},
+                        h("div",{className:"oc-num",style:{background:col+"20",color:col}},mi+1),
+                        h("div",{style:{flex:1,minWidth:0}},
+                          orgEdit
+                            ?h("input",{className:"oc-input",style:{marginBottom:2},value:m.name,onChange:e=>upd(d=>{d.cities[ci].team[mi].name=e.target.value;})})
+                            :h("div",{className:"oc-member-name"},m.name),
+                          orgEdit
+                            ?h("input",{className:"oc-input",value:m.role,onChange:e=>upd(d=>{d.cities[ci].team[mi].role=e.target.value;})})
+                            :h("div",{className:"oc-member-role"},m.role)
+                        ),
+                        orgEdit&&h("button",{className:"oc-member-del",style:{opacity:1},onClick:()=>upd(d=>{d.cities[ci].team.splice(mi,1);})},"✕")
+                      )
+                    ),
+
+                    /* pending (view mode) */
+                    !orgEdit&&cityPending.length>0&&h("div",null,
+                      h("div",{style:{padding:"5px 10px",borderTop:"1px dashed rgba(52,211,153,.25)",fontSize:9,fontWeight:800,color:"#34D399",letterSpacing:".5px",background:"rgba(52,211,153,.04)"}},"⟳ من كشف الإعاشة"),
+                      cityPending.map((e,ei)=>
+                        h("div",{key:ei,className:"oc-member-row",style:{opacity:.7}},
+                          h("div",{className:"oc-num",style:{background:"rgba(52,211,153,.15)",color:"#34D399"}},city.team.length+ei+1),
+                          h("div",{style:{flex:1,minWidth:0}},
+                            h("div",{className:"oc-member-name"},e.name),
+                            h("div",{className:"oc-member-role",style:{color:"#34D399"}},e.role)
                           )
                         )
                       )
-                    )
-                  )
-                )
+                    ),
+
+                    /* add member (edit mode) */
+                    orgEdit&&h("button",{className:"oc-add-btn",onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+ إضافة مهندس")
+                  );
+                })
               )
             )
-          ),
-
-          /* ── detail cards grid ── */
-          h("div",{className:"org-detail-grid"},
-            od.cities.map((city,ci)=>{
-              const col=city.color;
-              const bg=col+"18";
-              const cityPending=pendingByCity[city.id]||[];
-              return h("div",{key:city.id,className:"org-detail-card",style:cityPending.length>0?{outline:`1px solid rgba(52,211,153,.3)`}:{}},
-                /* city header */
-                h("div",{className:"org-dc-head",style:{background:`linear-gradient(135deg,${col}0D,transparent)`}},
-                  h("div",{className:"org-dc-head-left"},
-                    h("div",{className:"org-dc-avatar",style:{background:bg,border:`1px solid ${col}40`,color:col}},city.name.charAt(0)),
-                    h("div",null,
-                      h("div",{style:{display:"flex",alignItems:"center",gap:8}},
-                        h("div",{className:"org-dc-city-name",style:{color:col}},city.name),
-                        cityPending.length>0&&h("div",{style:{
-                          fontSize:10,fontWeight:800,background:"rgba(52,211,153,.15)",
-                          color:"#34D399",border:"1px solid rgba(52,211,153,.3)",
-                          borderRadius:6,padding:"1px 7px",
-                        }},"+",cityPending.length," جديد")
-                      ),
-                      h("div",{className:"org-dc-manager"},city.managers.map(m=>m.name+(m.role?" · "+m.role:"")).join(" / "))
-                    )
-                  ),
-                  h("div",{className:"org-dc-badges"},
-                    h("div",{className:"org-dc-badge",style:{background:bg,border:`1px solid ${col}30`,color:col}},city.team.length,h("span",null,"مهندس")),
-                    h("div",{className:"org-dc-badge",style:{background:"rgba(52,211,153,.1)",border:"1px solid rgba(52,211,153,.2)",color:"#34D399"}},city.projects.length,h("span",null,"مشروع"))
-                  )
-                ),
-
-                /* managers (always shown, editable) */
-                h("div",{className:"org-section-hdr",style:{background:"rgba(96,165,250,.05)",color:"var(--sub)",fontSize:10,letterSpacing:".8px",borderBottom:"1px solid rgba(255,255,255,.05)"}},
-                  h("span",null,"👤 المديرون"),
-                  orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:14,width:22,height:22},onClick:()=>upd(d=>{d.cities[ci].managers.push({name:"اسم المدير",role:"مدير المشروع"});})},"+")
-                ),
-                city.managers.map((mgr,mi)=>
-                  h("div",{key:mi,className:"org-row"},
-                    h("div",{className:"org-row-num",style:{background:bg,color:col}},mi+1),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",value:mgr.name,onChange:e=>upd(d=>{d.cities[ci].managers[mi].name=e.target.value;})})
-                      :h("div",{className:"org-row-main"},mgr.name),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",style:{width:120,flexShrink:0},value:mgr.role,onChange:e=>upd(d=>{d.cities[ci].managers[mi].role=e.target.value;})})
-                      :h("div",{className:"org-row-sub"},mgr.role),
-                    orgEdit&&city.managers.length>1&&h("button",{className:"org-icon-btn",style:{background:"rgba(248,113,113,.12)",color:"#F87171",marginRight:4},onClick:()=>upd(d=>{d.cities[ci].managers.splice(mi,1);})},"✕")
-                  )
-                ),
-
-                /* team */
-                h("div",{className:"org-section-hdr",style:{background:`${col}0A`,color:col,fontSize:10,letterSpacing:".8px",borderBottom:`1px solid ${col}15`,borderTop:`1px solid ${col}10`}},
-                  h("span",null,h(Ic,{n:"eng",sz:10,c:col})," الفريق الهندسي"),
-                  orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:14,width:22,height:22},onClick:()=>upd(d=>{d.cities[ci].team.push({name:"اسم المهندس",role:"مهندس"});})},"+")
-                ),
-                city.team.map((m,mi)=>
-                  h("div",{key:mi,className:"org-row"},
-                    h("div",{className:"org-row-num",style:{background:"rgba(99,102,241,.15)",color:"#A78BFA"}},mi+1),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",value:m.name,onChange:e=>upd(d=>{d.cities[ci].team[mi].name=e.target.value;})})
-                      :h("div",{className:"org-row-main"},m.name),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",style:{width:110,flexShrink:0},value:m.role,onChange:e=>upd(d=>{d.cities[ci].team[mi].role=e.target.value;})})
-                      :h("div",{className:"org-row-sub"},m.role),
-                    orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(248,113,113,.12)",color:"#F87171",marginRight:4,opacity:1},onClick:()=>upd(d=>{d.cities[ci].team.splice(mi,1);})},"✕")
-                  )
-                ),
-
-                /* pending engineers from sheet */
-                !orgEdit&&cityPending.length>0&&h("div",null,
-                  h("div",{style:{
-                    display:"flex",alignItems:"center",justifyContent:"space-between",
-                    padding:"7px 18px",background:"rgba(52,211,153,.05)",
-                    borderTop:"1px dashed rgba(52,211,153,.2)",
-                    fontSize:10,fontWeight:800,color:"#34D399",letterSpacing:".6px",
-                  }},
-                    h("span",null,"⟳ من كشف الإعاشة — في انتظار الإضافة"),
-                    h("span",{style:{fontSize:11,fontWeight:900}},cityPending.length)
-                  ),
-                  cityPending.map((e,ei)=>
-                    h("div",{key:ei,style:{
-                      display:"flex",alignItems:"center",gap:10,
-                      padding:"7px 18px",borderBottom:"1px solid rgba(52,211,153,.07)",
-                      background:"rgba(52,211,153,.03)",opacity:.85,
-                    }},
-                      h("div",{style:{width:20,height:20,borderRadius:"50%",background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},city.team.length+ei+1),
-                      h("div",{style:{flex:1,fontSize:11,fontWeight:700,color:"var(--text)",opacity:.7}},e.name),
-                      h("div",{style:{fontSize:10,color:"#34D399",fontWeight:500,flexShrink:0}},e.role)
-                    )
-                  )
-                ),
-
-                /* projects */
-                h("div",{className:"org-section-hdr",style:{background:"rgba(52,211,153,.05)",color:"#34D399",fontSize:10,letterSpacing:".8px",borderBottom:"1px solid rgba(52,211,153,.1)",borderTop:"1px solid rgba(52,211,153,.08)"}},
-                  h("span",null,h(Ic,{n:"dash",sz:10,c:"#34D399"})," المشروعات"),
-                  orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:14,width:22,height:22},onClick:()=>upd(d=>{d.cities[ci].projects.push("اسم المشروع");})},"+")
-                ),
-                city.projects.map((p,pi)=>
-                  h("div",{key:pi,className:"org-row"},
-                    h("div",{className:"org-row-num",style:{background:"rgba(52,211,153,.15)",color:"#34D399",borderRadius:4}},pi+1),
-                    orgEdit
-                      ?h("input",{className:"org-edit-input",value:p,onChange:e=>upd(d=>{d.cities[ci].projects[pi]=e.target.value;})})
-                      :h("div",{className:"org-row-main"},p),
-                    orgEdit&&h("button",{className:"org-icon-btn",style:{background:"rgba(248,113,113,.12)",color:"#F87171",marginRight:4,opacity:1},onClick:()=>upd(d=>{d.cities[ci].projects.splice(pi,1);})},"✕")
-                  )
-                )
-              );
-            })
           )
         );
       })(),
