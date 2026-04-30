@@ -1312,6 +1312,21 @@ html.light .att-th-sum{background:#f8fafc}
 .att-th-wknd{color:#F87171!important}
 .att-th-today{color:#60A5FA!important;background:rgba(96,165,250,.06)!important}
 
+/* Vacation balance card */
+.att-vac-card{padding:16px 18px}
+.att-vac-period{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bdr2)}
+.att-vac-period-badge{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:800;background:rgba(96,165,250,.12);color:#60A5FA;border:1px solid rgba(96,165,250,.25)}
+.att-vac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.att-vac-row{background:var(--bg);border:1px solid var(--bdr2);border-radius:10px;padding:10px 12px}
+html.light .att-vac-row{background:#f8fafc}
+.att-vac-name{font-size:11.5px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.att-vac-spec{font-size:9.5px;color:var(--sub);margin-bottom:8px}
+.att-vac-bar-wrap{height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-bottom:6px}
+html.light .att-vac-bar-wrap{background:#e2e8f0}
+.att-vac-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.att-vac-nums{display:flex;justify-content:space-between;font-size:9.5px;font-weight:700}
+.att-vac-exceeded{font-size:9px;font-weight:800;color:#EF4444;margin-top:3px}
+
 /* ── Scrollbar global ── */
 *{scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
 ::-webkit-scrollbar{width:4px;height:4px}
@@ -3170,6 +3185,25 @@ function App(){
           const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
           const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att);return{P:a.P+s.P,A:a.A+s.A,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,vac:0,hrs:0});
 
+          /* ── Vacation balance (15 days / 6 months) ── */
+          const VAC_ALLOW=15;
+          const halfStart=cfg.month<=6?1:7;
+          const halfEnd=cfg.month<=6?6:12;
+          const halfLabel=cfg.month<=6?"الفترة الأولى — يناير : يونيو "+cfg.year:"الفترة الثانية — يوليو : ديسمبر "+cfg.year;
+          const halfKeys=sortedKeys.filter(k=>{const[y,m]=k.split('-');return +y===cfg.year&&+m>=halfStart&&+m<=halfEnd;});
+          const vacUsed={};
+          halfKeys.forEach(k=>{
+            Object.entries(months[k]?.attendance||{}).forEach(([eid,days])=>{
+              if(!vacUsed[eid])vacUsed[eid]=0;
+              Object.values(days).forEach(d=>{if(d?.s==='AL')vacUsed[eid]++;});
+            });
+          });
+          const getVac=eid=>{
+            const used=vacUsed[eid]||0;
+            return{used,remaining:Math.max(0,VAC_ALLOW-used),exceeded:used>VAC_ALLOW,pct:Math.min(100,Math.round(used/VAC_ALLOW*100))};
+          };
+          const vacColor=v=>v.exceeded?"#EF4444":v.remaining<=3?"#F97316":v.remaining<=7?"#FCD34D":"#10B981";
+
           return h("div",{className:"att-page"},
 
             /* ── Header + province tabs ── */
@@ -3188,6 +3222,42 @@ function App(){
                       onClick:()=>setAttProv(p)},p.replace("محافظة ",""));
                   })
                 )
+              )
+            ),
+
+            /* ── Vacation balance card ── */
+            h("div",{className:"card"},
+              h("div",{className:"att-vac-card"},
+                h("div",{className:"att-vac-period"},
+                  h("div",{className:"card-title"},
+                    h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.1)"}},h(Ic,{n:"hist",sz:13,c:"#60A5FA"})),
+                    "رصيد الإجازات السنوية"
+                  ),
+                  h("div",{className:"att-vac-period-badge"},halfLabel),
+                  h("div",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)",fontWeight:700}},
+                    h("span",{style:{color:"#60A5FA",fontWeight:900}},VAC_ALLOW)," يوم لكل مهندس"
+                  )
+                ),
+                provEngs.length===0
+                  ?h("div",{style:{color:"var(--sub)",fontSize:12,textAlign:"center",padding:"10px 0"}},"لا يوجد مهندسون")
+                  :h("div",{className:"att-vac-grid"},
+                    provEngs.map(eng=>{
+                      const vb=getVac(eng.id);
+                      const col=vacColor(vb);
+                      return h("div",{key:eng.id,className:"att-vac-row",style:{borderColor:vb.exceeded?"rgba(239,68,68,.3)":vb.remaining<=3?"rgba(249,115,22,.25)":"var(--bdr2)"}},
+                        h("div",{className:"att-vac-name"},eng.name),
+                        h("div",{className:"att-vac-spec"},eng.spec),
+                        h("div",{className:"att-vac-bar-wrap"},
+                          h("div",{className:"att-vac-bar-fill",style:{width:vb.pct+"%",background:col}})
+                        ),
+                        h("div",{className:"att-vac-nums"},
+                          h("span",{style:{color:col}},vb.used," مستخدم"),
+                          h("span",{style:{color:vb.remaining===0?"#EF4444":"var(--sub)"}},vb.remaining," متبقي / ",VAC_ALLOW)
+                        ),
+                        vb.exceeded&&h("div",{className:"att-vac-exceeded"},"⚠ تجاوز الرصيد بـ "+(vb.used-VAC_ALLOW)+" أيام")
+                      );
+                    })
+                  )
               )
             ),
 
@@ -3223,6 +3293,8 @@ function App(){
                       provEngs.map(eng=>{
                         const s=attGetStats(eng.id,att);
                         const eAtt=att[eng.id]||{};
+                        const vb=getVac(eng.id);
+                        const vc=vacColor(vb);
                         return h("tr",{key:eng.id},
                           /* Engineer name */
                           h("td",{className:"att-td-name"},
@@ -3254,9 +3326,18 @@ function App(){
                           h("td",{className:"att-td-sum"},
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
-                            (s.AL||s.SL||s.EL)>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},s.vac),h("span",{className:"att-stat-lbl"},"إجازة")),
+                            s.vac>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},s.vac),h("span",{className:"att-stat-lbl"},"إجازة (شهر)")),
                             h("div",{className:"att-stat-div"},
-                              h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل"))
+                              h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل")),
+                              h("div",{className:"att-stat-row",style:{marginTop:4}},
+                                h("div",{className:"att-stat-dot",style:{background:vc}}),
+                                h("span",{className:"att-stat-val",style:{color:vc}},vb.remaining),
+                                h("span",{className:"att-stat-lbl"}," رصيد / "+VAC_ALLOW)
+                              ),
+                              h("div",{style:{marginTop:4,height:4,borderRadius:2,background:"rgba(255,255,255,.06)",overflow:"hidden"}},
+                                h("div",{style:{height:"100%",width:vb.pct+"%",background:vc,borderRadius:2,transition:"width .4s"}})
+                              ),
+                              vb.exceeded&&h("div",{style:{fontSize:8,color:"#EF4444",fontWeight:800,marginTop:3}},"⚠ تجاوز الرصيد")
                             )
                           )
                         );
