@@ -51,8 +51,11 @@ function initDb() {
   try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'"); } catch(e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN province TEXT'); } catch(e) {}
 
-  // إنشاء مستخدم الأدمن الافتراضي
-  const count = db.prepare('SELECT COUNT(*) as c FROM users WHERE role = \'admin\'').get();
+  // تأكد أن جميع المستخدمين بدون role يحصلون على 'admin' (صفوف قديمة)
+  db.exec("UPDATE users SET role = 'admin' WHERE role IS NULL AND province IS NULL");
+
+  // إنشاء مستخدم الأدمن الافتراضي إذا لم يكن موجوداً
+  const count = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get();
   if (Number(count.c) === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
     db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')").run('admin', hash);

@@ -11,7 +11,8 @@ router.use((req, res, next) => {
 });
 
 const adminOnly = (req, res, next) => {
-  if (req.session.user.role !== 'admin') return res.status(403).json({ error: 'للأدمن فقط' });
+  const role = req.session.user.role || 'admin'; // NULL/undefined = old session = admin
+  if (role !== 'admin') return res.status(403).json({ error: 'للأدمن فقط' });
   next();
 };
 
