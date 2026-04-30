@@ -1856,8 +1856,48 @@ function App(){
   const submitEng=()=>{
     if(!form.name.trim()){msg("أدخل اسم المهندس","err");return;}
     const nd=dc(data);
-    if(form.id){nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}:e);msg("تم الحفظ");}
-    else{nd[form.prov]=[...(nd[form.prov]||[]),{id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}];msg("تمت الإضافة");}
+    if(form.id){
+      nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}:e);
+      // Update org chart for edited engineer
+      if(orgData){
+        const cityId=CITY_CFG.find(c=>c.prov===form.prov)?.id;
+        if(cityId){
+          const no=dc(orgData);
+          const city=no.cities.find(c=>c.id===cityId);
+          if(city){
+            const upd=e=>e.name===form.name?e:{...e};
+            const updateList=arr=>arr.map(e=>{
+              const orig=nd[form.prov].find(x=>x.id===form.id);
+              return e.name===(orig?orig.name:form.name)?{name:form.name,role:form.spec||"مهندس"}:e;
+            });
+            city.managers=updateList(city.managers);
+            city.team=updateList(city.team);
+            setOrgData(no);
+            fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:no})}).catch(()=>{});
+          }
+        }
+      }
+      msg("تم الحفظ");
+    } else {
+      const newEng={id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,addedAt:new Date().toISOString().split('T')[0]};
+      nd[form.prov]=[...(nd[form.prov]||[]),newEng];
+      // Update org chart
+      if(orgData){
+        const cityId=CITY_CFG.find(c=>c.prov===form.prov)?.id;
+        if(cityId){
+          const no=dc(orgData);
+          const city=no.cities.find(c=>c.id===cityId);
+          if(city){
+            const entry={name:newEng.name,role:newEng.spec};
+            if(newEng.spec.includes("مدير"))city.managers.push(entry);
+            else city.team.push(entry);
+            setOrgData(no);
+            fetch("/api/org-chart",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:no})}).catch(()=>{});
+          }
+        }
+      }
+      msg("تمت الإضافة");
+    }
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
@@ -2873,6 +2913,50 @@ function App(){
                 G.tot>0?h(DoughnutChart,{labels:PROVS.map(p=>p.replace("محافظة ","")),data:totals.map(t=>+t.tot.toFixed(2)),colors:PCOLS,height:165}):
                 h("div",{style:{height:165,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:"var(--sub)",gap:8}},h(Ic,{n:"stats",sz:28,c:"var(--bdr2)"}),h("div",{style:{fontSize:11}},"أدخل أيام الحضور لعرض الرسم"))
               )
+            )
+          ),
+          isAdmin&&h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"eng",sz:13,c:"#2563EB"})),"إدارة المهندسين"),
+              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+                h("span",{className:"card-badge"},G.n+" مهندس"),
+                h("button",{className:"btn blue",style:{padding:"4px 12px",fontSize:11},
+                  onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}
+                },h(Ic,{n:"plus",sz:11})," إضافة مهندس")
+              )
+            ),
+            h("div",{style:{padding:"8px 12px",display:"flex",flexDirection:"column",gap:8}},
+              PROVS.map((p,pi)=>{
+                const engs=data[p]||[];
+                const c=PCOLS[pi];
+                return h("div",{key:p,style:{borderRadius:8,border:"1px solid var(--bdr)",overflow:"hidden"}},
+                  h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)"}},
+                    h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                      h("div",{style:{width:9,height:9,borderRadius:"50%",background:c,flexShrink:0}}),
+                      h("span",{style:{fontSize:12,fontWeight:700}},p.replace("محافظة ","")),
+                      h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:2}},"("+engs.length+")")
+                    ),
+                    h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,borderColor:"rgba(96,165,250,.3)",color:"var(--blue)"},
+                      onClick:()=>{setForm({prov:p,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}
+                    },h(Ic,{n:"plus",sz:10})," إضافة")
+                  ),
+                  engs.length===0
+                    ?h("div",{style:{padding:"10px 14px",fontSize:11,color:"var(--sub)",textAlign:"center"}},"لا يوجد مهندسون — اضغط إضافة")
+                    :h("div",{style:{maxHeight:200,overflowY:"auto"}},
+                      engs.map((e,ei)=>h("div",{key:e.id,style:{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",borderTop:"1px solid var(--bdr)",background:ei%2===0?"var(--bg)":"transparent"}},
+                        h("div",{style:{flex:1,minWidth:0}},
+                          h("div",{style:{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},e.name),
+                          h("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:2}},
+                            h("span",{style:{fontSize:10,color:"var(--sub)"}},(e.spec||"مهندس")),
+                            e.addedAt&&h("span",{style:{fontSize:9,color:"var(--green)",background:"rgba(52,211,153,.1)",padding:"1px 6px",borderRadius:100}},"أُضيف "+e.addedAt)
+                          )
+                        ),
+                        h("button",{className:"btn-icon edit",title:"تعديل",onClick:()=>{setForm({prov:p,...e});setModal("form");}},h(Ic,{n:"edit",sz:11})),
+                        h("button",{className:"btn-icon del",title:"حذف",onClick:()=>delEng(p,e.id,e.name)},h(Ic,{n:"del",sz:11}))
+                      ))
+                    )
+                );
+              })
             )
           )
         ),
