@@ -1623,6 +1623,10 @@ function App(){
   const [user,setUser]=useState(null);
   const [loginForm,setLoginForm]=useState({username:"",password:""});
   const [loginError,setLoginError]=useState("");
+  const [provUsers,setProvUsers]=useState([]);
+  const [pwdModal,setPwdModal]=useState(null); // {id,username,val}
+  const isAdmin=useMemo(()=>user?.role!=='province',[user]);
+  const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",usd:"",lyd:"",date:"",note:""});
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
@@ -1647,21 +1651,34 @@ function App(){
     fetch("/auth/me").then(r=>r.json()).then(u=>{
       if(!u.username){setLoaded(true);return;}
       setUser(u);
-      return Promise.all([
+      if(u.province)setAttProv(u.province);
+      if(u.role==='province')setPage("att");
+      const fetches=[
         fetch("/api/months").then(r=>r.json()),
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
-        fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})),
-      ]).then(([md,ld,od])=>{
+      ];
+      if(u.role==='admin'){
+        fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
+        fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
+      }
+      return Promise.all(fetches).then(([md,ld,od,ud])=>{
         const m=md.months||{};
         setMonths(m);
         const keys=Object.keys(m).sort();
         if(keys.length>0)setAk(keys[keys.length-1]);
         setLogo(ld.logo||null);
-        setOrgData(od.data||DEFAULT_ORG);
+        if(u.role==='admin'){setOrgData(od?.data||DEFAULT_ORG);setProvUsers(ud?.users||[]);}
         setLoaded(true);
       });
     }).catch(()=>setLoaded(true));
   },[]);
+
+  /* ── Load province users when admin opens report page ── */
+  useEffect(()=>{
+    if(page==='report'&&isAdmin){
+      fetch('/api/users').then(r=>r.json()).then(d=>{if(d.users)setProvUsers(d.users);}).catch(()=>{});
+    }
+  },[page,isAdmin]);
 
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
@@ -1691,15 +1708,22 @@ function App(){
       const d=await r.json();
       if(!r.ok){setLoginError(d.error||"خطأ في تسجيل الدخول");return;}
       setUser(d);
-      const[md,ld]=await Promise.all([
+      if(d.province)setAttProv(d.province);
+      if(d.role==='province')setPage("att");
+      const fetches=[
         fetch("/api/months").then(r=>r.json()),
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
-      ]);
+      ];
+      if(d.role==='admin'){
+        fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
+      }
+      const [md,ld,ud]=await Promise.all(fetches);
       const m=md.months||{};
       setMonths(m);
       const keys=Object.keys(m).sort();
       if(keys.length>0)setAk(keys[keys.length-1]);
       setLogo(ld.logo||null);
+      if(d.role==='admin')setProvUsers(ud?.users||[]);
     }catch(e){setLoginError("خطأ في الاتصال بالخادم");}
   };
 
@@ -1799,16 +1823,18 @@ function App(){
     msg(`تم فتح ${MONTHS[nmForm.month-1]} ${nmForm.year}`);
   };
 
+  const mkMonthBase=()=>({...(months[ak]||{data,cfg})});
+
   const updData=(p,id,f,v)=>{
     const nd=dc(data);nd[p]=nd[p].map(e=>e.id===id?{...e,[f]:Math.max(0,Math.min(15,+v||0))}:e);
-    const updated={...( months[ak]||{cfg}),data:nd,savedAt:null};
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
   };
 
   const updCfg=(k,v)=>{
     const nc={...cfg,[k]:['month','year','rate','egp'].includes(k)?+v||0:v};
-    const updated={...(months[ak]||{data}),cfg:nc,savedAt:null};
+    const updated={...mkMonthBase(),cfg:nc,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
   };
@@ -1818,7 +1844,7 @@ function App(){
     const nd=dc(data);
     if(form.id){nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}:e);msg("تم الحفظ");}
     else{nd[form.prov]=[...(nd[form.prov]||[]),{id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}];msg("تمت الإضافة");}
-    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
     setModal(null);
@@ -1827,7 +1853,7 @@ function App(){
   const delEng=(p,id,name)=>{
     if(!confirm("حذف "+name+"؟"))return;
     const nd=dc(data);nd[p]=nd[p].filter(e=>e.id!==id);
-    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
     msg("تم الحذف");
@@ -1836,7 +1862,7 @@ function App(){
   const togglePaid=(p,id)=>{
     const nd=dc(data);
     nd[p]=nd[p].map(e=>e.id===id?{...e,paid:!e.paid}:e);
-    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
   };
@@ -1844,7 +1870,7 @@ function App(){
   const markAllPaid=(paid)=>{
     const nd=dc(data);
     PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>({...e,paid}));});
-    const updated={...(months[ak]||{cfg}),data:nd,savedAt:null};
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
     msg(paid?"تم تأشير الكل كمدفوع ✓":"تم إلغاء الكل");
@@ -1858,7 +1884,7 @@ function App(){
   const ATT_BG={P:'rgba(16,185,129,.2)',A:'rgba(239,68,68,.15)',AL:'rgba(96,165,250,.15)',SL:'rgba(252,211,77,.15)',EL:'rgba(249,115,22,.15)',H:'rgba(148,163,184,.1)'};
 
   const attCycleStatus=(engId,day)=>{
-    const existing=months[ak]||{cfg,data};
+    const existing=mkMonthBase();
     const att=existing.attendance||{};
     const cur=att[engId]?.[day]?.s||null;
     const next=ATT_CYCLE[(ATT_CYCLE.indexOf(cur)+1)%ATT_CYCLE.length];
@@ -1871,7 +1897,7 @@ function App(){
   };
 
   const attSetTime=(engId,day,field,val)=>{
-    const existing=months[ak]||{cfg,data};
+    const existing=mkMonthBase();
     const att=existing.attendance||{};
     const na=JSON.parse(JSON.stringify(att));
     if(!na[engId])na[engId]={};
@@ -2321,7 +2347,7 @@ function App(){
   };
 
   const saveExpData=(newData)=>{
-    const updated={...(months[ak]||{cfg,data}),expenses:newData,savedAt:null};
+    const updated={...mkMonthBase(),expenses:newData,savedAt:null};
     setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
   };
   const submitCust=()=>{
@@ -2401,6 +2427,11 @@ function App(){
       h("div",{style:{color:"var(--sub)",fontSize:14}},"جارٍ التحميل...")
     )
   );
+
+  /* ── Province page guard ──────────────────────────── */
+  if(user?.role==='province'&&!["eng","att"].includes(page)){
+    setTimeout(()=>setPage("att"),0);
+  }
 
   /* ── Login screen ─────────────────────────────────── */
   if(!user)return h("div",{className:"login-screen"},
@@ -2619,6 +2650,41 @@ function App(){
       )
     ),
 
+    /* ── PASSWORD RESET MODAL ─────────────────────────── */
+    pwdModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setPwdModal(null);}},
+      h("div",{className:"modal",style:{width:380}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"تغيير كلمة مرور — ",h("span",{style:{color:"var(--blue)"}},pwdModal.username)),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setPwdModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body"},
+          h("div",{className:"fld"},
+            h("label",null,"كلمة المرور الجديدة (6 أحرف على الأقل)"),
+            h("input",{type:"password",placeholder:"••••••••",value:pwdModal.val,
+              autoFocus:true,
+              onChange:ev=>setPwdModal(p=>({...p,val:ev.target.value})),
+              onKeyDown:async ev=>{
+                if(ev.key!=="Enter")return;
+                if(pwdModal.val.length<6){msg("كلمة المرور قصيرة جداً","err");return;}
+                const r=await fetch(`/api/users/${pwdModal.id}/password`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pwdModal.val})});
+                if(r.ok){msg(`تم تغيير كلمة مرور ${pwdModal.username} ✓`);setPwdModal(null);}
+                else{const d=await r.json();msg(d.error||"خطأ","err");}
+              }
+            })
+          )
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setPwdModal(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:async()=>{
+            if(pwdModal.val.length<6){msg("كلمة المرور قصيرة جداً","err");return;}
+            const r=await fetch(`/api/users/${pwdModal.id}/password`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pwdModal.val})});
+            if(r.ok){msg(`تم تغيير كلمة مرور ${pwdModal.username} ✓`);setPwdModal(null);}
+            else{const d=await r.json();msg(d.error||"خطأ","err");}
+          }},"حفظ")
+        )
+      )
+    ),
+
     /* ── SIDEBAR ──────────────────────────────────────── */
     h("div",{className:`sidebar ${mobOpen?"open":""}`},
 
@@ -2632,70 +2698,67 @@ function App(){
       /* ── navigation ── */
       h("div",{className:"sb-nav"},
 
-        h("div",{className:"sb-section"},"الرئيسية"),
-        [
-          {id:"dash",n:"dash",lbl:"لوحة التحكم"},
-          {id:"eng",n:"eng",lbl:"المهندسون"},
-          {id:"att",n:"att",lbl:"الحضور والانصراف"},
-        ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),
-          h("span",null,lbl)
-        )),
+        h("div",{className:"sb-section"},isAdmin?"الرئيسية":"المحافظة"),
 
-        h("div",{className:"sb-section"},"المالية"),
-        [
-          {id:"expenses",n:"wallet",lbl:"العهدة والمصروفات"},
-        ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),
-          h("span",null,lbl)
-        )),
-
-        h("div",{className:"sb-section"},"التحليلات"),
-        [
-          {id:"stats",n:"stats",lbl:"الإحصائيات"},
-          {id:"hist",n:"hist",lbl:"السجل التاريخي"},
-          {id:"compare",n:"compare",lbl:"المقارنة"},
-          {id:"report",n:"report",lbl:"التقارير"},
-        ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),
-          h("span",null,lbl)
-        )),
-
-        h("div",{className:"sb-section"},"المشروعات"),
-        /* Org chart nav item */
-        h("div",{key:"org",className:`nav-item ${page==="org"&&!orgFocus?"on":""}`,onClick:()=>{setPage("org");setOrgFocus(null);setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n:"org",sz:15})),
-          h("span",null,"الهيكل التنظيمي")
+        /* Province user badge */
+        !isAdmin&&h("div",{style:{margin:"0 12px 8px",padding:"8px 12px",borderRadius:"var(--r)",background:"rgba(96,165,250,.1)",border:"1px solid rgba(96,165,250,.2)",fontSize:11,color:"#93C5FD",fontWeight:700,textAlign:"center"}},
+          userProv||"مستخدم محافظة"
         ),
-        /* Province sub-items */
-        ...CITY_CFG.map(({id,name,color})=>
-          h("div",{key:"city-"+id,className:`nav-sub-item ${page==="org"&&orgFocus===id?"on":""}`,
-            onClick:()=>{
-              setPage("org");setOrgFocus(id);setMobOpen(false);
-              setTimeout(()=>{
-                const el=orgSecRefs.current[id];
-                if(el)el.scrollIntoView({behavior:"smooth",block:"start"});
-              },80);
-            }},
-            h("div",{className:"nav-sub-dot",style:{background:color}}),
-            h("span",null,name)
+
+        isAdmin&&h("div",{key:"dash",className:`nav-item ${page==="dash"?"on":""}`,onClick:()=>{setPage("dash");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"dash",sz:15})),h("span",null,"لوحة التحكم")
+        ),
+        h("div",{key:"eng",className:`nav-item ${page==="eng"?"on":""}`,onClick:()=>{setPage("eng");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"eng",sz:15})),h("span",null,"المهندسون")
+        ),
+        h("div",{key:"att",className:`nav-item ${page==="att"?"on":""}`,onClick:()=>{setPage("att");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"att",sz:15})),h("span",null,"الحضور والانصراف")
+        ),
+
+        isAdmin&&h(React.Fragment,{key:"admin-nav"},
+          h("div",{className:"sb-section"},"المالية"),
+          h("div",{className:`nav-item ${page==="expenses"?"on":""}`,onClick:()=>{setPage("expenses");setMobOpen(false);}},
+            h("div",{className:"nav-item-icon"},h(Ic,{n:"wallet",sz:15})),h("span",null,"العهدة والمصروفات")
+          ),
+          h("div",{className:"sb-section"},"التحليلات"),
+          ...[
+            {id:"stats",n:"stats",lbl:"الإحصائيات"},
+            {id:"hist",n:"hist",lbl:"السجل التاريخي"},
+            {id:"compare",n:"compare",lbl:"المقارنة"},
+            {id:"report",n:"report",lbl:"التقارير"},
+          ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
+            h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),h("span",null,lbl)
+          )),
+          h("div",{className:"sb-section"},"المشروعات"),
+          h("div",{key:"org",className:`nav-item ${page==="org"&&!orgFocus?"on":""}`,onClick:()=>{setPage("org");setOrgFocus(null);setMobOpen(false);}},
+            h("div",{className:"nav-item-icon"},h(Ic,{n:"org",sz:15})),h("span",null,"الهيكل التنظيمي")
+          ),
+          ...CITY_CFG.map(({id,name,color})=>
+            h("div",{key:"city-"+id,className:`nav-sub-item ${page==="org"&&orgFocus===id?"on":""}`,
+              onClick:()=>{setPage("org");setOrgFocus(id);setMobOpen(false);setTimeout(()=>{const el=orgSecRefs.current[id];if(el)el.scrollIntoView({behavior:"smooth",block:"start"});},80);}},
+              h("div",{className:"nav-sub-dot",style:{background:color}}),h("span",null,name)
+            )
+          ),
+          h("div",{key:"backup",className:`nav-item ${page==="backup"?"on":""}`,onClick:()=>{setPage("backup");setMobOpen(false);}},
+            h("div",{className:"nav-item-icon"},h(Ic,{n:"backup",sz:15})),h("span",null,"النسخ الاحتياطي"),
+            unsaved>0&&h("div",{className:"nav-badge"},unsaved)
           )
-        ),
-        /* Backup nav item */
-        h("div",{key:"backup",className:`nav-item ${page==="backup"?"on":""}`,onClick:()=>{setPage("backup");setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n:"backup",sz:15})),
-          h("span",null,"النسخ الاحتياطي"),
-          unsaved>0&&h("div",{className:"nav-badge"},unsaved)
         )
       ),
 
       /* ── footer ── */
       h("div",{className:"sb-footer"},
-        h("div",{className:"sb-month-info"},
-          h("div",{className:"sb-month-dot"}),
-          h("div",{className:"sb-month-text"},mn+" "+cfg.year),
-          h("div",{className:"sb-month-count"},G.n," مهندس")
-        ),
+        isAdmin
+          ?h("div",{className:"sb-month-info"},
+              h("div",{className:"sb-month-dot"}),
+              h("div",{className:"sb-month-text"},mn+" "+cfg.year),
+              h("div",{className:"sb-month-count"},G.n," مهندس")
+            )
+          :h("div",{className:"sb-month-info"},
+              h("div",{className:"sb-month-dot",style:{background:"#60A5FA",boxShadow:"0 0 8px #60A5FA"}}),
+              h("div",{className:"sb-month-text"},userProv||"مستخدم محافظة"),
+              h("div",{className:"sb-month-count",style:{color:"#60A5FA"}},"محدود الصلاحيات")
+            ),
         h("button",{className:"logout-btn",onClick:doLogout},
           h(Ic,{n:"logout",sz:13}),
           h("span",null,"تسجيل الخروج"),
@@ -2715,7 +2778,7 @@ function App(){
             MONTHS[+mo-1]+" "+y
           );
         }),
-        h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
+        isAdmin&&h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
       ),
       h("div",{className:"topbar"},
         h("div",{className:"topbar-left"},
@@ -2724,14 +2787,14 @@ function App(){
           h("span",{className:"page-sub"},`${mn} ${cfg.year} · ${G.n} مهندس · ${isSaved?"محفوظ ✓":"لم يُحفظ"}`)
         ),
         h("div",{className:"topbar-right"},
-          page==="eng"&&h("div",{className:"search-wrap"},
+          page==="eng"&&isAdmin&&h("div",{className:"search-wrap"},
             h("span",{className:"search-icon",dangerouslySetInnerHTML:{__html:IC.srch},style:{position:"absolute",right:9,top:"50%",transform:"translateY(-50%)",width:14,height:14,fill:"var(--sub)",pointerEvents:"none"}}),
             h("input",{placeholder:"بحث...",value:search,onChange:ev=>setSearch(ev.target.value),style:{paddingRight:"32px"}})
           ),
-          h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
-          h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
-          h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
-          h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
+          isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
+          isAdmin&&h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
+          isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
+          isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("button",{
             className:"btn",
             onClick:()=>setDark(d=>!d),
@@ -3047,16 +3110,19 @@ function App(){
               h("tbody",null,filtered.map((e,i)=>{const c=calc(e,cfg.rate,cfg.egp);return h("tr",{key:e.id},h("td",{style:{color:"var(--sub)"}},i+1),h("td",{className:"l",style:{fontWeight:600}},e.name),h("td",{className:"l",style:{color:"var(--sub)"}},e.spec),h("td",{className:"l",style:{fontSize:11}},e.prov.replace("محافظة ","")),h("td",{style:{fontWeight:700,color:"#2563EB"}},f$(c.tot)));})  )
             ))
           ),
-          !search&&PROVS.map((prov,pi)=>{
-            const engs=data[prov]||[],T=totals[pi],color=PCOLS[pi];
+          !search&&PROVS.filter(p=>isAdmin||p===userProv).map((prov,_,arr)=>{
+            const pi=PROVS.indexOf(prov),engs=data[prov]||[],T=totals[pi],color=PCOLS[pi],maxTv=isAdmin?maxT:T.tot||1;
             return h("div",{key:prov,className:"card"},
               h("div",{className:"prov-hdr"},
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
-                h("div",{style:{display:"flex",gap:6,alignItems:"center"}},h("span",{style:{fontSize:11,fontWeight:600,color:"var(--sub)"}},f$(T.tot)),h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة"))
+                h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
+                  h("span",{style:{fontSize:11,fontWeight:600,color:"var(--sub)"}},f$(T.tot)),
+                  isAdmin&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة")
+                )
               ),
-              h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxT*100).toFixed(1)}%`,background:color}})),
+              h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxTv*100).toFixed(1)}%`,background:color}})),
               h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,"الحالة"),h("th",null,""))),
+                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,"الحالة"),isAdmin&&h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const c=calc(e,cfg.rate,cfg.egp);
@@ -3076,13 +3142,13 @@ function App(){
                           e.paid?"مدفوع":"معلق"
                         )
                       ),
-                      h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
+                      isAdmin&&h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delEng(prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
                       ))
                     );
                   }),
-                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),h("td",null,""),h("td",null,""))
+                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),h("td",null,""),isAdmin&&h("td",null,""))
                 )
               ))
             );
@@ -3354,13 +3420,16 @@ function App(){
                   h("div",{className:"att-view-btn"+(attView==="log"?" on":""),onClick:()=>setAttView("log")},h(Ic,{n:"hist",sz:12})," السجل")
                 ),
                 attView==="table"&&h("div",{style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}},
-                  PROVS.map(p=>{
+                  isAdmin&&PROVS.map(p=>{
                     const cc=CITY_CFG.find(c=>c.prov===p);
                     const col=cc?.color||"#60A5FA";
                     return h("div",{key:p,className:"att-tab"+(attProv===p?" on":""),
                       style:attProv===p?{background:col}:{},
                       onClick:()=>setAttProv(p)},p.replace("محافظة ",""));
                   }),
+                  !isAdmin&&h("div",{className:"att-tab on",style:{background:CITY_CFG.find(c=>c.prov===userProv)?.color||"#60A5FA",cursor:"default"}},
+                    (userProv||"").replace("محافظة ","")
+                  ),
                   h("button",{className:"btn",
                     style:{padding:"7px 14px",fontSize:11,gap:5,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171"},
                     onClick:printAtt},h(Ic,{n:"pdf",sz:13}),"PDF")
@@ -3375,7 +3444,7 @@ function App(){
                 const mData=months[k]?.data||{};
                 const mCfg=months[k]?.cfg||{};
                 const [y,m]=k.split('-');
-                const provRows=PROVS.map(p=>{
+                const provRows=PROVS.filter(p=>isAdmin||p===userProv).map(p=>{
                   const engs=mData[p]||[];
                   let P=0,A=0,vac=0,hrs=0;
                   engs.forEach(e=>{const s=attGetStats(e.id,mAtt);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
@@ -3671,7 +3740,43 @@ ${PROVS.map(prov=>{
               )
             )
           ),
-          h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة.")
+          h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
+
+          /* ── User management ── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.12)"}},
+                  h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"#A78BFA",strokeWidth:"1.8",strokeLinecap:"round",width:13,height:13},
+                    h("circle",{cx:7,cy:7,r:3}),h("path",{d:"M2 17c0-3 2.24-5 5-5s5 2 5 5"}),
+                    h("circle",{cx:14,cy:7,r:2.5}),h("path",{d:"M14 12c2.5 0 4 1.5 4 4"})
+                  )
+                ),
+                "مستخدمو المحافظات"
+              ),
+              h("span",{className:"card-badge"},provUsers.length+" مستخدم")
+            ),
+            provUsers.length===0
+              ?h("div",{style:{padding:"20px 16px",textAlign:"center",color:"var(--sub)",fontSize:12}},"يتطلب إعادة تشغيل الخادم لتفعيل المستخدمين — راجع لوحة التحكم")
+              :h("div",{style:{padding:"8px 16px 14px"}},
+                provUsers.map(u=>
+                  h("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}},
+                    h("div",{style:{width:36,height:36,borderRadius:"50%",background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}},"👤"),
+                    h("div",{style:{flex:1,minWidth:0}},
+                      h("div",{style:{fontWeight:700,fontSize:13,marginBottom:2}},u.username),
+                      h("div",{style:{fontSize:11,color:"var(--sub)"}},u.province)
+                    ),
+                    h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},
+                      onClick:()=>setPwdModal({id:u.id,username:u.username,val:""})},
+                      h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",width:12,height:12},
+                        h("rect",{x:3,y:9,width:14,height:9,rx:1.5}),h("path",{d:"M7 9V6a3 3 0 016 0v3"})
+                      ),
+                      " تغيير كلمة المرور"
+                    )
+                  )
+                )
+              )
+          )
         )
       ),
 
@@ -3893,8 +3998,9 @@ ${PROVS.map(prov=>{
       /* ── BOTTOM NAV (mobile) ──────────────────────────── */
       h("div",{className:"bottom-nav"},
         h("div",{className:"bottom-nav-inner"},
-          mobileNavs.map(({id,n,lbl})=>h("div",{key:id,className:`bn-item ${page===id?"on":""}`,onClick:()=>setPage(id)},h(Ic,{n,sz:20}),h("span",null,lbl.split(" ")[0]))),
-          h("div",{className:`bn-item ${["backup","report"].includes(page)?"on":""}`,onClick:()=>setPage("backup")},
+          (isAdmin?mobileNavs:[{id:"eng",n:"eng",lbl:"المهندسون"},{id:"att",n:"att",lbl:"الحضور"}])
+            .map(({id,n,lbl})=>h("div",{key:id,className:`bn-item ${page===id?"on":""}`,onClick:()=>setPage(id)},h(Ic,{n,sz:20}),h("span",null,lbl.split(" ")[0]))),
+          isAdmin&&h("div",{className:`bn-item ${["backup","report"].includes(page)?"on":""}`,onClick:()=>setPage("backup")},
             h(Ic,{n:"backup",sz:20}),h("span",null,"أدوات"),
             unsaved>0&&h("div",{className:"nav-badge",style:{position:"absolute",top:4,left:"50%",transform:"translateX(-50%)",margin:0}},unsaved)
           )

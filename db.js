@@ -48,13 +48,32 @@ function initDb() {
   // أضف أعمدة للقواعد القديمة
   try { db.exec('ALTER TABLE months ADD COLUMN expenses TEXT'); } catch(e) {}
   try { db.exec('ALTER TABLE months ADD COLUMN attendance TEXT'); } catch(e) {}
+  try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'"); } catch(e) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN province TEXT'); } catch(e) {}
 
-  const count = db.prepare('SELECT COUNT(*) as c FROM users').get();
+  // إنشاء مستخدم الأدمن الافتراضي
+  const count = db.prepare('SELECT COUNT(*) as c FROM users WHERE role = \'admin\'').get();
   if (Number(count.c) === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
-    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('admin', hash);
+    db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')").run('admin', hash);
     console.log('✅ تم إنشاء المستخدم الافتراضي: admin / admin123');
     console.log('⚠️  غيّر كلمة المرور من صفحة الإعدادات بعد أول تسجيل دخول.');
+  }
+
+  // إنشاء مستخدمي المحافظات إذا لم يكونوا موجودين
+  const provUsers = [
+    { username: 'derna',    password: 'derna123',    province: 'محافظة درنة'    },
+    { username: 'albaida',  password: 'albaida123',  province: 'محافظة البيضاء' },
+    { username: 'benghazi', password: 'benghazi123', province: 'محافظة بنغازى'  },
+    { username: 'tobruk',   password: 'tobruk123',   province: 'محافظة طبرق'   },
+  ];
+  for (const u of provUsers) {
+    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    if (!exists) {
+      const hash = bcrypt.hashSync(u.password, 10);
+      db.prepare("INSERT INTO users (username, password, role, province) VALUES (?, ?, 'province', ?)").run(u.username, hash, u.province);
+      console.log(`✅ مستخدم المحافظة: ${u.username} / ${u.password} (${u.province})`);
+    }
   }
 }
 

@@ -6,7 +6,11 @@ const router = express.Router();
 
 router.get('/me', (req, res) => {
   if (req.session.user) {
-    res.json({ username: req.session.user.username });
+    res.json({
+      username: req.session.user.username,
+      role:     req.session.user.role     || 'admin',
+      province: req.session.user.province || null,
+    });
   } else {
     res.json({});
   }
@@ -25,8 +29,8 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   }
 
-  req.session.user = { id: user.id, username: user.username };
-  res.json({ username: user.username });
+  req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null };
+  res.json({ username: user.username, role: user.role || 'admin', province: user.province || null });
 });
 
 router.post('/logout', (req, res) => {
