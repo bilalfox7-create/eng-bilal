@@ -4098,8 +4098,8 @@ ${PROVS.map(prov=>{
               h("div",{className:"org-banner-sub"},"الهيكل التنظيمي — مشاريع ليبيا")
             ),
             h("div",{className:"org-banner-stats"},
-              [{v:od.cities.length,l:"محافظة"},{v:totalMgr,l:"مدير"},{v:totalEng,l:"مهندس"},{v:totalProj,l:"مشروع"}]
-              .map(({v,l})=>h("div",{key:l,className:"org-bs"},h("div",{className:"org-bs-v"},v),h("div",{className:"org-bs-l"},l)))
+              [{v:totalMgr+totalEng+1,l:"إجمالي الطاقم",hi:true},{v:od.cities.length,l:"محافظة"},{v:totalMgr,l:"مدير"},{v:totalEng,l:"مهندس"},{v:totalProj,l:"مشروع"}]
+              .map(({v,l,hi})=>h("div",{key:l,className:"org-bs",style:hi?{background:"rgba(99,102,241,.25)",border:"1px solid rgba(99,102,241,.45)"}:undefined},h("div",{className:"org-bs-v",style:hi?{color:"#A5B4FC",fontSize:26}:undefined},v),h("div",{className:"org-bs-l"},l)))
             ),
             h("div",{className:"org-banner-actions"},
               !orgEdit&&h("button",{className:"btn",style:{padding:"7px 14px",fontSize:12,background:"rgba(52,211,153,.12)",border:"1px solid rgba(52,211,153,.3)",color:"#34D399"},onClick:()=>window.print()},
