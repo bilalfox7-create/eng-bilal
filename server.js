@@ -1,16 +1,32 @@
-const express = require('express');
-const session = require('express-session');
-const path    = require('path');
-const fs      = require('fs');
+const express    = require('express');
+const compression= require('compression');
+const session    = require('express-session');
+const path       = require('path');
+const fs         = require('fs');
 const { initDb, getDb } = require('./db');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-app.use(express.json({ limit: '15mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+/* ── gzip all responses ──────────────────────────────── */
+app.use(compression());
+
+/* ── Static files: cache assets 7 days, HTML via ETag ── */
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge:  '7d',
+  etag:    true,
+  lastModified: true,
+  setHeaders(res, filePath) {
+    // index.html: always revalidate (ETag check) but allow cache
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
+
+app.use(express.json({ limit: '5mb' }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'eng-ieshat-secret-key-2025',
@@ -22,18 +38,21 @@ app.use(session({
   }
 }));
 
+/* ── Health check for Railway uptime monitoring ─────── */
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
 app.use('/auth', require('./routes/auth'));
 app.use('/api',  require('./routes/api'));
 
 app.get('*', (_req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 initDb();
 
 /* ── Auto backup every 24h ───────────────────────────── */
-const apiRouter = require('./routes/api');
+const apiRouter  = require('./routes/api');
 const BACKUP_DIR = apiRouter.BACKUP_DIR;
 
 function runBackup() {
@@ -54,14 +73,12 @@ function runBackup() {
     const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const file = path.join(BACKUP_DIR, `backup-${ts}.json`);
     fs.writeFileSync(file, JSON.stringify({ months }, null, 2));
-    // Keep only last 7 backups
     const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
-    while (all.length > 7) { fs.unlinkSync(path.join(BACKUP_DIR, all.shift())); }
+    while (all.length > 7) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
     console.log(`✅ نسخة احتياطية: ${file}`);
   } catch (e) { console.error('❌ فشل النسخ الاحتياطي:', e.message); }
 }
 
-// Run once on startup then every 24h
 setTimeout(() => { runBackup(); setInterval(runBackup, 24 * 60 * 60 * 1000); }, 5000);
 
 app.listen(PORT, () => console.log(`🚀 Server ready → http://localhost:${PORT}`));

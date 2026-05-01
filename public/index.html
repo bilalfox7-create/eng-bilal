@@ -1672,7 +1672,7 @@ function App(){
     if(!isAdmin||!user)return;
     const fetchActive=()=>fetch('/api/active-users').then(r=>r.json()).then(d=>{if(d.users)setActiveUsers(d.users);}).catch(()=>{});
     fetchActive();
-    const t=setInterval(fetchActive,30000);
+    const t=setInterval(fetchActive,120000);
     return()=>clearInterval(t);
   },[isAdmin,user]);
 
@@ -1693,7 +1693,7 @@ function App(){
         setSaveLogs(prev=>[...prev,...d.logs].slice(-50));
       }).catch(()=>{});
     // Start polling after 2s to let initial load settle
-    const t=setTimeout(()=>{poll();const iv=setInterval(poll,30000);return()=>clearInterval(iv);},2000);
+    const t=setTimeout(()=>{poll();const iv=setInterval(poll,120000);return()=>clearInterval(iv);},2000);
     return()=>clearTimeout(t);
   },[isAdmin,user]);
 
