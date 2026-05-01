@@ -1111,6 +1111,19 @@ html.light .att-th-sum{background:#f8fafc}
 .att-chk{width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0;margin-top:2px}
 .att-td-name-inner{display:flex;align-items:flex-start;gap:6px;width:100%}
 .att-td-name-body{flex:1;min-width:0}
+/* -- Leave Request System -- */
+.leave-card{background:var(--bg2);border:1px solid var(--bdr2);border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:all .2s}
+.leave-card:hover{border-color:var(--bdr3)}
+.leave-status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:800;border:1px solid}
+.leave-status-pending{background:rgba(239,159,39,.12);color:#EF9F27;border-color:rgba(239,159,39,.3)}
+.leave-status-approved{background:rgba(29,158,117,.12);color:#1D9E75;border-color:rgba(29,158,117,.3)}
+.leave-status-rejected{background:rgba(226,75,74,.1);color:#E24B4A;border-color:rgba(226,75,74,.3)}
+.leave-elig-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:6px 0}
+.leave-elig-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.leave-tabs{display:flex;gap:4px;background:var(--bg2);border-radius:10px;padding:4px;margin-bottom:14px}
+.leave-tab{flex:1;padding:7px 4px;text-align:center;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:var(--sub);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:4px}
+.leave-tab.on{background:var(--bg3);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.leave-info-box{background:var(--bg3);border:1px solid var(--bdr2);border-radius:8px;padding:10px 12px;margin:8px 0}
 .att-hours{font-size:11px;font-weight:800;color:#FCD34D;margin-right:auto;white-space:nowrap}
 
 /* Weekly/monthly day header colors */
@@ -1296,6 +1309,7 @@ const IC={
   paid:'<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>',
   org:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="1" width="6" height="4" rx="1"/><rect x="1" y="13" width="5" height="4" rx="1"/><rect x="7.5" y="13" width="5" height="4" rx="1"/><rect x="14" y="13" width="5" height="4" rx="1"/><line x1="10" y1="5" x2="10" y2="9"/><line x1="10" y1="9" x2="3" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="10" y1="9" x2="16.5" y2="9"/><line x1="3" y1="9" x2="3" y2="13"/><line x1="10" y1="9" x2="10" y2="13"/><line x1="16.5" y1="9" x2="16.5" y2="13"/></svg>',
   att:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="14" height="13" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2" x2="7" y2="6"/><line x1="13" y1="2" x2="13" y2="6"/><polyline points="7,12 9,14 13,11" stroke-linejoin="round"/></svg>',
+  plane:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l13-7-4 13-4-5z"/><line x1="12" y1="6" x2="7" y2="11"/></svg>',
 };
 const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{display:"inline-flex",alignItems:"center",width:sz||16,height:sz||16,color:c||"inherit",flexShrink:0}});
 
@@ -1599,7 +1613,10 @@ function App(){
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
   const [attLogMonth,setAttLogMonth]=useState(null);
   const [attSelected,setAttSelected]=useState(()=>new Set());
-  const [attHovEng,setAttHovEng]=useState(null); // key when viewing a past month from log
+  const [attHovEng,setAttHovEng]=useState(null);
+  const [leaveTab,setLeaveTab]=useState('pending');
+  const [leaveForm,setLeaveForm]=useState({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});
+  const [leaveElig,setLeaveElig]=useState(null); // key when viewing a past month from log
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -1742,7 +1759,7 @@ function App(){
   const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{const c=calc(e,cfg.rate,cfg.egp);return{p,n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};},{p,n:0,a1:0,a2:0,tot:0,egp:0})),[data,cfg]);
   const G=useMemo(()=>totals.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0}),[totals]);
   const maxT=useMemo(()=>Math.max(...totals.map(t=>t.tot),1),[totals]);
-  const sortedKeys=useMemo(()=>Object.keys(months).sort(),[months]);
+  const sortedKeys=useMemo(()=>Object.keys(months).filter(k=>k!=='leaves').sort(),[months]);
   const allE=useMemo(()=>PROVS.flatMap(p=>(data[p]||[]).map(e=>({...e,prov:p}))),[data]);
   const filtered=useMemo(()=>search.trim()?allE.filter(e=>e.name.includes(search)||e.spec.includes(search)):[],[search,allE]);
   const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0},cfg.rate,cfg.egp),[form.d1,form.d2,cfg.rate,cfg.egp]);
@@ -1753,6 +1770,8 @@ function App(){
     return {custody:raw.custody||[],items:raw.items||[],transfers:raw.transfers||[]};
   },[am]);
   const att=useMemo(()=>am?.attendance||{},[am]);
+  const leaves=useMemo(()=>months['leaves']?.requests||[],[months]);
+  const pendingLeaves=useMemo(()=>leaves.filter(l=>l.status==='pending').length,[leaves]);
   const custody=expData.custody;
   const expItems=expData.items;
   const transfers=expData.transfers;
@@ -1768,7 +1787,7 @@ function App(){
   }),[expItems,custody]);
   const isSaved=!!months[ak]?.savedAt;
   const mn=MONTHS[cfg.month-1];
-  const unsaved=Object.values(months).filter(m=>!m?.savedAt).length;
+  const unsaved=Object.entries(months).filter(([k,m])=>k!=='leaves'&&!m?.savedAt).length;
 
   const histStats=useMemo(()=>sortedKeys.filter(k=>months[k]?.savedAt).map(k=>{
     const m=months[k],[y,mo]=k.split("-");
@@ -1975,6 +1994,73 @@ function App(){
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
     msg("تم إلغاء تحضير "+mn2+" ✓");
+  };
+
+  const saveLeaves=(list)=>{
+    const upd={requests:list};
+    setMonths(p=>({...p,'leaves':upd}));
+    fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)}).catch(()=>{});
+  };
+
+  const calcEligibility=(engId)=>{
+    const allDays=[];
+    Object.entries(months).forEach(([key,mdata])=>{
+      if(key==='leaves'||!mdata?.attendance)return;
+      const parts=key.split('-');const y=+parts[0],m=+parts[1];
+      const ea=mdata.attendance[engId]||{};
+      Object.entries(ea).forEach(([d,dd])=>{if(dd?.s&&dd.s!=='A')allDays.push({date:new Date(y,m-1,+d),s:dd.s});});
+    });
+    if(!allDays.length)return{eligible:false,label:'لا يوجد سجل حضور',daysInLibya:0,monthsInLibya:0,remDays:0,lastEntryDate:null,presentDays:0,remaining:180};
+    allDays.sort((a,b)=>a.date-b.date);
+    let li=0;
+    for(let i=allDays.length-1;i>0;i--){const gap=(allDays[i].date-allDays[i-1].date)/86400000;if(gap>=7){li=i;break;}}
+    const led=allDays[li].date;
+    const days=Math.floor((new Date()-led)/86400000);
+    const mon=Math.floor(days/30);const rem=days%30;
+    return{lastEntryDate:led.toISOString().slice(0,10),daysInLibya:days,monthsInLibya:mon,remDays:rem,eligible:days>=180,remaining:Math.max(0,180-days),label:mon+' شهر و '+rem+' يوم',presentDays:allDays.filter(d=>d.s==='P').length};
+  };
+
+  const submitLeave=()=>{
+    if(!leaveForm.engId){msg('اختر المهندس','err');return;}
+    if(!leaveForm.startDate||!leaveForm.endDate){msg('أدخل تاريخ الإجازة','err');return;}
+    const dur=Math.round((new Date(leaveForm.endDate+'T12:00')- new Date(leaveForm.startDate+'T12:00'))/86400000)+1;
+    if(dur<=0){msg('تاريخ النهاية يجب أن يكون بعد تاريخ البداية','err');return;}
+    const elig=calcEligibility(leaveForm.engId);
+    let eng=null,engProv='';
+    PROVS.forEach(p=>{const f=(data[p]||[]).find(e=>e.id===leaveForm.engId);if(f){eng=f;engProv=p;}});
+    if(!eng){msg('المهندس غير موجود','err');return;}
+    const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketDetails:leaveForm.ticketDetails,status:'pending',notes:leaveForm.notes,createdAt:new Date().toISOString(),decidedAt:null,decidedBy:null};
+    saveLeaves([...leaves,newReq]);
+    setModal(null);setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
+    msg('تم إرسال طلب الإجازة ✓');
+  };
+
+  const approveLeave=(req)=>{
+    const start=new Date(req.leaveStartDate+'T12:00');const end=new Date(req.leaveEndDate+'T12:00');
+    const updMths={};
+    let cur=new Date(start);
+    while(cur<=end){
+      if(cur.getDay()!==5){
+        const key=mkKey(cur.getMonth()+1,cur.getFullYear());
+        if(!updMths[key])updMths[key]=JSON.parse(JSON.stringify(months[key]||{attendance:{}}));
+        if(!updMths[key].attendance)updMths[key].attendance={};
+        if(!updMths[key].attendance[req.engineerId])updMths[key].attendance[req.engineerId]={};
+        updMths[key].attendance[req.engineerId][cur.getDate()]={s:'AL'};
+        updMths[key].savedAt=null;
+      }
+      cur.setDate(cur.getDate()+1);
+    }
+    const newLeaves=leaves.map(l=>l.id===req.id?{...l,status:'approved',decidedAt:new Date().toISOString(),decidedBy:user?.username||''}:l);
+    setMonths(p=>({...p,...updMths,'leaves':{requests:newLeaves}}));
+    Object.entries(updMths).forEach(([k,v])=>fetch('/api/months/'+k,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)}).catch(()=>{}));
+    fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests:newLeaves})}).catch(()=>{});
+    msg('تمت الموافقة على الإجازة ✓');
+  };
+
+  const rejectLeave=(req)=>{
+    const newLeaves=leaves.map(l=>l.id===req.id?{...l,status:'rejected',decidedAt:new Date().toISOString(),decidedBy:user?.username||''}:l);
+    saveLeaves(newLeaves);
+    msg('تم رفض طلب الإجازة');
   };
 
   const attSetTime=(engId,day,field,val)=>{
@@ -2543,6 +2629,68 @@ function App(){
     h("input",{ref:logoRef,type:"file",accept:"image/*",style:{display:"none"},onChange:ev=>uploadLogo(ev.target.files[0])}),
     h("div",{className:`mob-overlay ${mobOpen?"show":""}`,onClick:()=>setMobOpen(false)}),
 
+    /* ── LEAVE REQUEST MODAL ──────────────────────── */
+    modal==="leave-form"&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setModal(null);}},
+      h("div",{className:"modal",style:{width:500,maxHeight:"90vh",display:"flex",flexDirection:"column"}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"✈ طلب إجازة جديد"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{style:{padding:"16px",overflowY:"auto",flex:1}},
+          h("div",{className:"fld"},
+            h("label",null,"المهندس *"),
+            h("select",{value:leaveForm.engId,onChange:ev=>{const id=ev.target.value;setLeaveForm(p=>({...p,engId:id}));setLeaveElig(id?calcEligibility(id):null);}},
+              h("option",{value:""},"اختر المهندس..."),
+              PROVS.filter(p=>isAdmin||p===userProv).flatMap(p=>(data[p]||[]).map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+p.replace("محافظة ",""))))
+            )
+          ),
+          leaveElig?h("div",{className:"leave-info-box"},
+            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
+              h("div",null,
+                h("div",{style:{fontWeight:800,fontSize:12}},leaveElig.eligible?h("span",{style:{color:"#1D9E75"}},"✅ مؤهل للإجازة"):h("span",{style:{color:"#E24B4A"}},"⚠ غير مؤهل بعد")),
+                h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},"آخر دخول: ",(leaveElig.lastEntryDate||"غير محدد")," · ",leaveElig.label)
+              ),
+              h("div",{style:{fontSize:10,color:"var(--sub)",textAlign:"center"}},leaveElig.presentDays,h("br",null),"يوم حضور")
+            ),
+            h("div",{className:"leave-elig-bar"},h("div",{className:"leave-elig-fill",style:{width:Math.min(100,Math.round(leaveElig.daysInLibya/180*100))+"%",background:leaveElig.eligible?"#1D9E75":"#EF9F27"}})),
+            !leaveElig.eligible&&h("div",{style:{fontSize:10,color:"#EF9F27",marginTop:2}},"متبقي "+leaveElig.remaining+" يوم على اكتمال 6 أشهر")
+          ):h("div",{style:{textAlign:"center",padding:"12px 0",color:"var(--sub)",fontSize:11}},"اختر مهندساً لعرض أهليته للإجازة"),
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"تاريخ بداية الإجازة *"),
+              h("input",{type:"date",value:leaveForm.startDate,onChange:ev=>setLeaveForm(p=>({...p,startDate:ev.target.value}))})
+            ),
+            h("div",{className:"fld",style:{margin:0}},
+              h("label",null,"تاريخ نهاية الإجازة *"),
+              h("input",{type:"date",value:leaveForm.endDate,onChange:ev=>setLeaveForm(p=>({...p,endDate:ev.target.value}))})
+            )
+          ),
+          leaveForm.startDate&&leaveForm.endDate&&(()=>{
+            const dur=Math.round((new Date(leaveForm.endDate+"T12:00")-new Date(leaveForm.startDate+"T12:00"))/86400000)+1;
+            const urgent=(new Date(leaveForm.startDate+"T12:00")-new Date())<14*86400000;
+            return dur>0?h("div",{className:"leave-info-box",style:{borderColor:urgent?"rgba(239,159,39,.5)":""}},
+              h("div",{style:{fontWeight:800,fontSize:13}},"مدة الإجازة: "+dur+" يوم"),
+              urgent&&h("div",{style:{color:"#EF9F27",fontSize:11,marginTop:3}},"⚠ الإجازة تبدأ خلال أقل من 14 يوم")
+            ):h("div",{className:"leave-info-box",style:{borderColor:"rgba(226,75,74,.4)"}},"❌ التاريخ غير صحيح");
+          })(),
+          h("div",{className:"fld"},
+            h("label",null,"التذكرة"),
+            h("div",{style:{display:"flex",gap:20,marginTop:4}},
+              h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===true,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:true}))}),"✅ محجوزة"),
+              h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===false,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:false}))}),"⚠ غير محجوزة")
+            )
+          ),
+          leaveForm.ticketBooked&&h("div",{className:"fld"},h("label",null,"تفاصيل الحجز"),h("input",{type:"text",placeholder:"رقم التذكرة أو تفاصيل الحجز...",value:leaveForm.ticketDetails,onChange:ev=>setLeaveForm(p=>({...p,ticketDetails:ev.target.value}))})),
+          !leaveElig?.eligible&&leaveElig&&h("div",{className:"info",style:{borderColor:"rgba(226,75,74,.3)",background:"rgba(226,75,74,.05)"}},h(Ic,{n:"warn",sz:14,c:"#E24B4A"}),"المهندس لم يكمل 6 شهور — يمكن إرسال الطلب مع ملاحظة"),
+          h("div",{className:"fld",style:{marginBottom:0}},h("label",null,"ملاحظات"),h("textarea",{rows:2,placeholder:"ملاحظات إضافية...",style:{resize:"vertical"},value:leaveForm.notes,onChange:ev=>setLeaveForm(p=>({...p,notes:ev.target.value}))}))
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+          h("button",{className:"btn green",style:{gap:5},onClick:submitLeave},h(Ic,{n:"plane",sz:13}),"إرسال الطلب")
+        )
+      )
+    ),
+
     /* ── ATTENDANCE TIME MODAL ───────────────────────── */
     attTimeModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setAttTimeModal(null);}},
       h("div",{className:"modal",style:{width:480,maxHeight:"80vh",display:"flex",flexDirection:"column"}},
@@ -2854,6 +3002,10 @@ function App(){
         ),
         h("div",{key:"att",className:`nav-item ${page==="att"?"on":""}`,onClick:()=>{setPage("att");setMobOpen(false);}},
           h("div",{className:"nav-item-icon"},h(Ic,{n:"att",sz:15})),h("span",null,"الحضور والانصراف")
+        ),
+        h("div",{key:"leaves",className:`nav-item ${page==="leaves"?"on":""}`,onClick:()=>{setPage("leaves");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"plane",sz:15})),h("span",null,"طلبات الإجازة"),
+          pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)
         ),
 
         isAdmin&&h(React.Fragment,{key:"admin-nav"},
@@ -3966,6 +4118,72 @@ ${PROVS.map(prov=>{
             )
 
             ) /* end attView==="table" Fragment */
+          );
+        })(),
+
+        /* ══ LEAVES ══ */
+        page==="leaves"&&(()=>{
+          const myLvs=isAdmin?leaves:leaves.filter(l=>l.prov===userProv||l.requestedBy===(user?.username||''));
+          const tabLvs=leaveTab==='all'?myLvs:myLvs.filter(l=>l.status===leaveTab);
+          const cnts={all:myLvs.length,pending:myLvs.filter(l=>l.status==='pending').length,approved:myLvs.filter(l=>l.status==='approved').length,rejected:myLvs.filter(l=>l.status==='rejected').length};
+          const SL={pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض'};
+          const SC={pending:'leave-status-pending',approved:'leave-status-approved',rejected:'leave-status-rejected'};
+          return h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+            h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.15)"}},h(Ic,{n:"plane",sz:13,c:"#60A5FA"})),
+                "طلبات الإجازة",
+                myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
+              ),
+              h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setModal('leave-form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
+            ),
+            h("div",{className:"leave-tabs"},
+              ['all','pending','approved','rejected'].map(tab=>h("div",{key:tab,className:"leave-tab "+(leaveTab===tab?'on':''),onClick:()=>setLeaveTab(tab)},
+                {all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض'}[tab],
+                cnts[tab]>0&&h("div",{className:"nav-badge",style:{position:"static",marginRight:0}},cnts[tab])
+              ))
+            ),
+            tabLvs.length===0
+              ?h("div",{className:"info"},h(Ic,{n:"info",sz:16}),"لا توجد طلبات في هذا التصنيف")
+              :h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
+                tabLvs.map(req=>{
+                  const ep=Math.min(100,Math.round(req.daysInLibya/180*100));
+                  return h("div",{key:req.id,className:"leave-card"},
+                    h("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10,gap:8}},
+                      h("div",null,
+                        h("span",{className:"leave-status "+SC[req.status]},{pending:"⏳",approved:"✅",rejected:"❌"}[req.status]," ",SL[req.status]),
+                        h("div",{style:{fontSize:14,fontWeight:800,marginTop:6}},req.engineerName),
+                        h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},req.prov," · طلبها: ",req.requestedBy)
+                      ),
+                      req.status==='pending'&&isAdmin&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
+                        h("button",{className:"btn",style:{background:"rgba(29,158,117,.15)",borderColor:"rgba(29,158,117,.35)",color:"#1D9E75",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>approveLeave(req)},h(Ic,{n:"check",sz:12}),"موافقة"),
+                        h("button",{className:"btn",style:{background:"rgba(226,75,74,.1)",borderColor:"rgba(226,75,74,.3)",color:"#E24B4A",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>rejectLeave(req)},h(Ic,{n:"del",sz:12}),"رفض")
+                      )
+                    ),
+                    h("div",{className:"leave-info-box"},
+                      h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}},
+                        h("span",null,"آخر دخول ليبيا: ",(req.lastEntryDate||"—")),
+                        h("span",{style:{fontWeight:700,color:req.eligible?"#1D9E75":"#EF4444"}},req.eligible?"✅ مؤهل":"⚠ غير مؤهل")
+                      ),
+                      h("div",{className:"leave-elig-bar"},h("div",{className:"leave-elig-fill",style:{width:ep+"%",background:req.eligible?"#1D9E75":"#EF9F27"}})),
+                      h("div",{style:{fontSize:10,color:"var(--sub)"}},req.monthsInLibya," شهر في ليبيا",(req.eligible?" ✓":" · متبقي "+req.remaining+" يوم"))
+                    ),
+                    h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,fontSize:11,marginTop:8}},
+                      h("div",null,h("div",{style:{color:"var(--sub)",fontSize:9,fontWeight:700,marginBottom:2}},"بداية الإجازة"),h("div",{style:{fontWeight:800}},req.leaveStartDate)),
+                      h("div",null,h("div",{style:{color:"var(--sub)",fontSize:9,fontWeight:700,marginBottom:2}},"نهاية الإجازة"),h("div",{style:{fontWeight:800}},req.leaveEndDate)),
+                      h("div",null,h("div",{style:{color:"var(--sub)",fontSize:9,fontWeight:700,marginBottom:2}},"المدة"),h("div",{style:{fontWeight:800}},req.durationDays," يوم"))
+                    ),
+                    h("div",{style:{display:"flex",alignItems:"center",gap:10,marginTop:8,fontSize:11,flexWrap:"wrap"}},
+                      h("span",{style:{fontWeight:700,color:req.ticketBooked?"#1D9E75":"#EF9F27"}},req.ticketBooked?"✈ تذكرة محجوزة":"⚠ التذكرة غير محجوزة"),
+                      req.ticketDetails&&h("span",{style:{color:"var(--sub)"}},req.ticketDetails),
+                      req.notes&&h("span",{style:{color:"var(--sub)",borderRight:"1px solid var(--bdr2)",paddingRight:8,marginRight:8}},req.notes)
+                    ),
+                    req.decidedAt&&h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:6}},
+                      "قرار بواسطة: ",req.decidedBy," · ",new Date(req.decidedAt).toLocaleDateString('ar-EG')
+                    )
+                  );
+                })
+              )
           );
         })(),
 
