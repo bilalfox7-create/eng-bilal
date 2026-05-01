@@ -1409,6 +1409,7 @@ function OcOrgChart(props){
   const data=props.data,att=props.att,orgData=props.orgData;
   const od=orgData||DEFAULT_ORG;
   const cs=useState(null);const city=cs[0],setCity=cs[1];
+  const ss=useState('');const srch=ss[0],setSrch=ss[1];
   const dirName=(od.director&&od.director.name)||'ضياء الدين محمود';
   const dirTitle=(od.director&&od.director.title)||'مدير مشروعات ليبيا';
   const company=od.company||'شركة الرائد';
