@@ -1485,7 +1485,7 @@ function OcOrgChart(props){
     );
   }
   const totalEng=cities.reduce(function(a,c){return a+c.engs.length;},0);
-  const activeCities=cities.filter(function(c){return c.engs.length>0;});
+  const activeCities=cities.filter(function(c){return c.engs.length>0&&(!srch||c.name.includes(srch)||c.engs.some(function(e){return e.name.includes(srch)||(e.spec||'').includes(srch);}));});
   return h('div',{className:'oc-canvas'},
     h('div',{className:'oc-topbar'},
       h('span',{style:{fontSize:12,fontWeight:800,color:'var(--sub)'}},company),
