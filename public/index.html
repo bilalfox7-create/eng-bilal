@@ -1954,7 +1954,6 @@ function App(){
     const allEngs=PROVS.flatMap(p=>data[p]||[]);
     const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(cfg.year,cfg.month-1,d).getDay()!==5);
     const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
-    if(!confirm("تحضير الشهر كامل؟\n\n"+mn2+" · "+allEngs.length+" مهندس · "+wDays.length+" يوم عمل\n\u26a0 الأيام المسجلة مسبقاً (غياب / إجازة) لن تتغير"))return;
     const existing=mkMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     wDays.forEach(d=>{allEngs.forEach(eng=>{if(!na[eng.id])na[eng.id]={};if(!na[eng.id][d]?.s)na[eng.id][d]={...(na[eng.id][d]||{}),s:"P"};});});
