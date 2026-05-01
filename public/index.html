@@ -4244,10 +4244,18 @@ ${PROVS.map(prov=>{
           ),
 
           /* ── Tree view (non-edit) ── */
-          !orgEdit&&h("div",{className:"ot-wrap"},
-            h("div",{className:"ot-inner"},h(OrgNode,{node:buildOrgTree(od)})),
-            h(OrgLegend)
-          ),
+          !orgEdit&&(()=>{
+            const treeData=buildOrgTree(od);
+            console.log("TREE DATA:", JSON.stringify(treeData,null,2));
+            console.log("CONTAINER:", document.getElementById("ot-inner-debug"));
+            const testData={id:1,name:"ضياء الدين محمود",role:"مدير مشروعات ليبيا",level:0,stats:["38 مشروع"],children:[]};
+            return h("div",{className:"ot-wrap"},
+              h("div",{id:"ot-inner-debug",className:"ot-inner",style:{border:"3px solid red",minHeight:200}},
+                h(OrgNode,{node:testData})
+              ),
+              h(OrgLegend)
+            );
+          })(),
 
           /* ── Edit mode: classic director card ── */
           orgEdit&&h("div",{className:"org-ceo-wrap"},
