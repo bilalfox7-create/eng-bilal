@@ -920,11 +920,17 @@ html.light .login-sub{color:var(--sub)}
 /* ══ Org Chart — Professional v3 ════════════════════════ */
 .org-page{display:flex;flex-direction:column;gap:0;padding:0}
 .org-full{position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg1);}
-/* ── OrgChart tree ── */
-.oct-wrap{padding:0 0 32px;overflow-x:auto;overflow-y:visible;direction:ltr}
-.oct-inner{display:flex;flex-direction:column;align-items:center;min-width:max-content;padding:32px 48px}
-.oct-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:12px 24px 24px;border-top:1px solid var(--border);margin-top:4px}
-.oct-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--sub)}
+/* ── OrgTree ── */
+.ot-wrap{padding:0 0 32px;overflow-x:auto;overflow-y:visible}
+.ot-inner{display:flex;flex-direction:column;align-items:center;min-width:max-content;padding:32px 48px}
+.ot-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:12px 24px 24px;border-top:1px solid var(--border);margin-top:4px}
+.ot-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--sub)}
+.ot-node{display:flex;flex-direction:column;align-items:center}
+.ot-stem{width:2px;height:20px;background:#e2e8f0;flex-shrink:0;align-self:center}
+.ot-row{display:grid;grid-template-columns:repeat(var(--n,1),minmax(min-content,1fr));gap:24px;position:relative;padding-top:20px}
+.ot-row::before{content:'';position:absolute;top:0;left:calc(50% / var(--n,1));right:calc(50% / var(--n,1));height:2px;background:#e2e8f0;pointer-events:none}
+.ot-col{display:flex;flex-direction:column;align-items:center}
+.ot-col::before{content:'';display:block;width:2px;height:20px;background:#e2e8f0;flex-shrink:0}
 
 /* ── Company Banner ────────────────────────────────────── */
 .org-banner{
@@ -1600,59 +1606,39 @@ function buildOrgFromBase(){
 const DEFAULT_ORG=buildOrgFromBase();
 
 /* ══════════════════════════════════════════════════════
-   ORG CHART TREE COMPONENT
+   ORG CHART TREE COMPONENT  (CSS-only connectors)
 ══════════════════════════════════════════════════════ */
-const OCT_COLORS={
+const ORG_COLORS={
   0:{border:"#378ADD",bw:4,avatarBg:"#E6F1FB",avatarText:"#185FA5"},
   1:{border:"#1D9E75",bw:4,avatarBg:"#E1F5EE",avatarText:"#0F6E56"},
   2:{border:"#EF9F27",bw:3,avatarBg:"#FAEEDA",avatarText:"#854F0B"},
   3:{border:"#7F77DD",bw:3,avatarBg:"#EDEAFC",avatarText:"#4C3EB5"},
 };
-const OCT_STATUS={
-  active:{color:"#1D9E75",label:"جاري"},
-  pending:{color:"#EF9F27",label:"معلق"},
-  done:{color:"#378ADD",label:"منجز"},
-};
 
-function OctAvatar({name,level}){
-  const c=OCT_COLORS[level]||OCT_COLORS[2];
-  const sz=level>=3?28:36;
-  const initials=(name||"?").trim().split(" ").slice(0,2).map(w=>w[0]).join("");
-  return h("div",{style:{width:sz,height:sz,borderRadius:"50%",background:c.avatarBg,color:c.avatarText,display:"flex",alignItems:"center",justifyContent:"center",fontSize:level>=3?11:13,fontWeight:600,margin:"0 auto 6px",flexShrink:0}},initials);
-}
-
-function OctProjectCard({node}){
-  const s=OCT_STATUS[node.status]||OCT_STATUS.active;
-  return h("div",{style:{background:"var(--bg1)",border:"0.5px solid var(--border)",borderTop:"2px solid #7F77DD",borderRadius:10,padding:"8px 10px",minWidth:110,maxWidth:150,textAlign:"center"}},
-    h("div",{style:{width:8,height:8,borderRadius:"50%",background:s.color,margin:"0 auto 5px"}}),
-    h("div",{style:{fontSize:10,fontWeight:500,lineHeight:1.4,color:"var(--fg)"}},node.name),
-    h("div",{style:{fontSize:10,color:s.color,marginTop:3}},s.label)
-  );
-}
-
-function OctNodeCard({node,onClick,hasChildren}){
-  const c=OCT_COLORS[node.level]||OCT_COLORS[2];
+function OrgCard({node,onClick,hasChildren}){
+  const c=ORG_COLORS[node.level]||ORG_COLORS[2];
   const [hov,setHov]=useState(false);
-  const minW=[220,165,145,130][node.level]||130;
+  const minW=[220,175,155,140,125][node.level]||125;
+  const initials=(node.name||"?").trim().split(" ").slice(0,2).map(w=>w[0]).join("");
+  const sz=node.level>=3?28:36;
   return h("div",{
     onClick,
     onMouseEnter:()=>setHov(true),
     onMouseLeave:()=>setHov(false),
     style:{
-      background:"var(--bg1)",
-      border:"1px solid var(--border)",
-      borderTop:`${c.bw}px solid ${c.border}`,
-      borderRadius:12,
+      background:"var(--bg1)",border:"1px solid var(--border)",
+      borderTop:`${c.bw}px solid ${c.border}`,borderRadius:12,
       padding:node.level>=2?"8px 12px":"12px 16px",
-      minWidth:minW,maxWidth:minW+80,
-      textAlign:"center",flexShrink:0,
+      minWidth:minW,textAlign:"center",flexShrink:0,
       cursor:hasChildren?"pointer":"default",
       transition:"transform .15s,box-shadow .15s",
-      transform:hov&&hasChildren?"translateY(-3px)":"translateY(0)",
+      transform:hov&&hasChildren?"translateY(-3px)":"none",
       boxShadow:hov&&hasChildren?"0 8px 24px rgba(0,0,0,.18)":"0 2px 8px rgba(0,0,0,.08)"
     }
   },
-    h(OctAvatar,{name:node.name,level:node.level}),
+    h("div",{style:{width:sz,height:sz,borderRadius:"50%",background:c.avatarBg,color:c.avatarText,
+      display:"flex",alignItems:"center",justifyContent:"center",
+      fontSize:node.level>=3?11:13,fontWeight:600,margin:"0 auto 6px",flexShrink:0}},initials),
     h("div",{style:{fontSize:node.level>=2?11:13,fontWeight:700,color:"var(--fg)",wordBreak:"break-word",lineHeight:1.4,direction:"rtl"}},node.name),
     h("div",{style:{fontSize:9,color:"var(--sub)",marginTop:3,lineHeight:1.3,direction:"rtl"}},node.role),
     node.stats&&node.stats.length>0&&h("div",{style:{display:"flex",gap:3,justifyContent:"center",marginTop:7,flexWrap:"wrap"}},
@@ -1661,85 +1647,37 @@ function OctNodeCard({node,onClick,hasChildren}){
   );
 }
 
-/* Inline stem helper — avoids component overhead */
-const octStem=h("div",{style:{width:2,height:20,background:"#e2e8f0",flexShrink:0}});
-
-function OctTreeNode({node}){
+function OrgNode({node}){
   const [open,setOpen]=useState(true);
-  const rowRef=useRef(null);
-  const barRef=useRef(null);
   const ch=node.children||[];
-  const hasCh=ch.length>0;
-
-  /* Measure the horizontal bar position AFTER the DOM paints */
-  useEffect(()=>{
-    if(!open||!hasCh)return;
-    const measure=()=>{
-      const row=rowRef.current;
-      const bar=barRef.current;
-      if(!row||!bar)return;
-      const cols=[...row.children]; /* direct child wrappers */
-      if(cols.length<2){bar.style.display="none";return;}
-      const rr=row.getBoundingClientRect();
-      const fc=cols[0].getBoundingClientRect();
-      const lc=cols[cols.length-1].getBoundingClientRect();
-      /* bar spans from centre of first child to centre of last child */
-      const L=fc.left-rr.left+fc.width/2;
-      const R=rr.right-lc.right+lc.width/2;
-      Object.assign(bar.style,{
-        display:"block",position:"absolute",top:"0",
-        left:Math.round(L)+"px",right:Math.round(R)+"px",
-        height:"2px",background:"#e2e8f0",pointerEvents:"none"
-      });
-    };
-    const t=setTimeout(measure,80);
-    window.addEventListener("resize",measure);
-    return()=>{clearTimeout(t);window.removeEventListener("resize",measure);};
-  },[open,hasCh,ch.length]);
-
-  const cardEl=h(OctNodeCard,{node,onClick:hasCh?()=>setOpen(v=>!v):undefined,hasChildren:hasCh});
-
-  if(!hasCh) return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},cardEl);
-
-  return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-    cardEl,
-    octStem,
-    h("button",{
+  const n=ch.length;
+  const hasCh=n>0;
+  return h("div",{className:"ot-node"},
+    h(OrgCard,{node,onClick:hasCh?()=>setOpen(v=>!v):undefined,hasChildren:hasCh}),
+    hasCh&&h("div",{className:"ot-stem"}),
+    hasCh&&h("button",{
       onClick:()=>setOpen(v=>!v),
       style:{width:20,height:20,borderRadius:"50%",border:"1px solid #e2e8f0",
-             background:"var(--bg2)",fontSize:12,color:"var(--sub)",cursor:"pointer",
-             display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}
+        background:"var(--bg2)",fontSize:12,color:"var(--sub)",cursor:"pointer",
+        display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}
     },open?"−":"+"),
-    !open?null:h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-      octStem,
-      /* position:relative so the bar can use absolute positioning inside */
-      h("div",{style:{position:"relative",flexShrink:0}},
-        h("div",{ref:barRef,style:{display:"none"}}),  /* bar: measured & positioned by effect */
-        h("div",{
-          ref:rowRef,
-          style:{display:"flex",flexWrap:"nowrap",gap:24,alignItems:"flex-start"}
-        },
-          ch.map(child=>
-            h("div",{key:child.id,style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-              octStem,
-              h(OctTreeNode,{node:child})
-            )
-          )
-        )
-      )
+    hasCh&&open&&h("div",{className:"ot-stem"}),
+    hasCh&&open&&h("div",{className:"ot-row",style:{"--n":n}},
+      ch.map(child=>h("div",{key:child.id,className:"ot-col"},h(OrgNode,{node:child})))
     )
   );
 }
 
-function OctLegend(){
-  return h("div",{className:"oct-legend"},
-    [["#378ADD","الإدارة العليا"],["#1D9E75","المحافظات"],["#EF9F27","القيادة"],["#D4537E","المهندسون"],["#7F77DD","المشاريع"]]
-    .map(([c,l])=>h("span",{key:l,className:"oct-legend-item"},h("span",{style:{width:12,height:3,background:c,borderRadius:2,display:"inline-block"}}),l)),
-    Object.values(OCT_STATUS).map(s=>h("span",{key:s.label,className:"oct-legend-item"},h("span",{style:{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}),s.label))
+function OrgLegend(){
+  return h("div",{className:"ot-legend"},
+    [["#378ADD","الإدارة العليا"],["#1D9E75","المحافظات"],["#EF9F27","القيادة"],["#7F77DD","المشاريع"]]
+    .map(([c,l])=>h("span",{key:l,className:"ot-legend-item"},
+      h("span",{style:{width:12,height:3,background:c,borderRadius:2,display:"inline-block"}}),l
+    ))
   );
 }
 
-function transformToOrgTree(od){
+function buildOrgTree(od){
   if(!od)return null;
   return {
     id:"root",name:od.director?.name||"المدير",role:od.director?.title||"المدير التنفيذي",level:0,
@@ -1748,25 +1686,16 @@ function transformToOrgTree(od){
       const mgrs=city.managers||[];
       const team=city.team||[];
       const projs=city.projects||[];
-      /* Level-2 group nodes — prevents 30+ leaf nodes in one flat row */
       const groups=[];
-      if(mgrs.length) groups.push({
-        id:`g-mgr-${city.id}`,name:"القيادة",role:`${mgrs.length} مدير`,level:2,
-        children:mgrs.map((m,i)=>({id:`mgr-${city.id}-${i}`,name:m.name,role:m.role||"مدير",level:3,children:[]}))
-      });
-      if(team.length) groups.push({
-        id:`g-eng-${city.id}`,name:"الفريق الهندسي",role:`${team.length} مهندس`,level:2,
-        children:team.map((e,i)=>({id:`eng-${city.id}-${i}`,name:e.name,role:e.role||"مهندس",level:3,children:[]}))
-      });
-      if(projs.length) groups.push({
-        id:`g-prj-${city.id}`,name:"المشاريع",role:`${projs.length} مشروع`,level:2,
-        children:projs.map((p,i)=>({id:`prj-${city.id}-${i}`,name:typeof p==="string"?p:p.name,role:"مشروع",level:3,children:[]}))
-      });
-      return {
-        id:city.id,name:city.name,role:"الفريق الهندسي",level:1,
+      if(mgrs.length) groups.push({id:`g-mgr-${city.id}`,name:"القيادة",role:`${mgrs.length} مدير`,level:2,
+        children:mgrs.map((m,i)=>({id:`mgr-${city.id}-${i}`,name:m.name,role:m.role||"مدير",level:3,children:[]}))});
+      if(team.length) groups.push({id:`g-eng-${city.id}`,name:"الفريق الهندسي",role:`${team.length} مهندس`,level:2,
+        children:team.map((e,i)=>({id:`eng-${city.id}-${i}`,name:e.name,role:e.role||"مهندس",level:3,children:[]}))});
+      if(projs.length) groups.push({id:`g-prj-${city.id}`,name:"المشاريع",role:`${projs.length} مشروع`,level:2,
+        children:projs.map((p,i)=>({id:`prj-${city.id}-${i}`,name:typeof p==="string"?p:p.name,role:"مشروع",level:3,children:[]}))});
+      return {id:city.id,name:city.name,role:"الفريق الهندسي",level:1,
         stats:[mgrs.length?`${mgrs.length} مدير`:null,team.length?`${team.length} مهندس`:null,projs.length?`${projs.length} مشروع`:null].filter(Boolean),
-        children:groups
-      };
+        children:groups};
     })
   };
 }
@@ -4308,9 +4237,9 @@ ${PROVS.map(prov=>{
           ),
 
           /* ── Tree view (non-edit) ── */
-          !orgEdit&&h("div",{className:"oct-wrap"},
-            h("div",{className:"oct-inner"},h(OctTreeNode,{node:transformToOrgTree(od)})),
-            h(OctLegend)
+          !orgEdit&&h("div",{className:"ot-wrap"},
+            h("div",{className:"ot-inner"},h(OrgNode,{node:buildOrgTree(od)})),
+            h(OrgLegend)
           ),
 
           /* ── Edit mode: classic director card ── */
