@@ -1485,6 +1485,7 @@ function OcOrgChart(props){
     w.document.write('<html><head><meta charset="utf-8"><title>الهيكل التنظيمي</title><style>'+css+'</style></head><body>'+body+'</body></html>');
     w.document.close();setTimeout(function(){w.print();},500);
   }
+  if(props.onPrintReady)props.onPrintReady(doPrint);
   const svgPrint=h('svg',{viewBox:'0 0 20 20',fill:'none',stroke:'currentColor',strokeWidth:'1.8',width:13,height:13},h('path',{d:'M5 7V3h10v4'}),h('rect',{x:'2',y:'7',width:'16',height:'8',rx:'1.5'}),h('path',{d:'M5 11h10M7 15h6'}));
   const svgChevron=h('svg',{viewBox:'0 0 20 20',fill:'none',stroke:'currentColor',strokeWidth:'2',width:12,height:12},h('path',{d:'M9 5l7 7-7 7'}));
   if(selectedCity){
@@ -1629,6 +1630,7 @@ function App(){
   const pendingRef=useRef({});
   const timerRef=useRef(null);
   const printAttRef=useRef(null);
+  const orgPrintRef=useRef(null);
   const [pendingPrint,setPendingPrint]=useState(null);
 
   /* ── Load data on mount ───────────────────────────── */
@@ -2200,6 +2202,7 @@ function App(){
   const handlePdfClick=()=>{
     if(page==="eng"||page==="dash"||page==="report")exportPDF();
     else if(page==="att"){if(printAttRef.current)printAttRef.current();else setModal("print-select");}
+    else if(page==="org"){if(orgPrintRef.current)orgPrintRef.current("all");else setModal("print-select");}
     else setModal("print-select");
   };
   useEffect(()=>{
@@ -2697,9 +2700,9 @@ function App(){
             onClick:()=>{setModal(null);setPage("att");setPendingPrint("att");}},
             h(Ic,{n:"att",sz:15,c:"#10B981"}),h("div",null,h("div",{style:{fontWeight:700}},"كشف الحضور"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"سيتم فتح نافذة الطباعة تلقائياً"))
           ),
-          isAdmin&&page!=="org"&&h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(96,165,250,.06)",border:"1px solid rgba(96,165,250,.2)",color:"var(--text)"},
-            onClick:()=>{setModal(null);setPage("org");}},
-            h(Ic,{n:"eng",sz:15,c:"#60A5FA"}),h("div",null,h("div",{style:{fontWeight:700}},"الهيكل التنظيمي"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الهيكل واضغط زر الطباعة الأخضر"))
+          isAdmin&&h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(96,165,250,.06)",border:"1px solid rgba(96,165,250,.2)",color:"var(--text)"},
+            onClick:()=>{setModal(null);if(page==="org"&&orgPrintRef.current){orgPrintRef.current("all");}else{setPage("org");}}},
+            h(Ic,{n:"eng",sz:15,c:"#60A5FA"}),h("div",null,h("div",{style:{fontWeight:700}},"الهيكل التنظيمي"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},page==="org"?"سيتم فتح نافذة الطباعة":"انتقل لصفحة الهيكل واضغط طباعة هناك"))
           )
         ),
         h("div",{className:"modal-ftr"},
@@ -4047,7 +4050,7 @@ ${PROVS.map(prov=>{
                       h("th",{className:"att-th att-th-name"},"المهندس"),
                       ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28}},
                         h("div",null,d),
-                        h("div",{style:{fontSize:7,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
+                        h("div",{style:{fontSize:10,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
                       )),
                       h("th",{className:"att-th att-th-sum"},"الملخص")
                     )),
@@ -4113,7 +4116,7 @@ ${PROVS.map(prov=>{
                               h("div",{style:{marginTop:4,height:4,borderRadius:2,background:"rgba(255,255,255,.06)",overflow:"hidden"}},
                                 h("div",{style:{height:"100%",width:vb.pct+"%",background:vc,borderRadius:2,transition:"width .4s"}})
                               ),
-                              vb.exceeded&&h("div",{style:{fontSize:8,color:"#EF4444",fontWeight:800,marginTop:3}},"⚠ تجاوز الرصيد")
+                              vb.exceeded&&h("div",{style:{fontSize:10,color:"#EF4444",fontWeight:800,marginTop:3}},"⚠ تجاوز الرصيد")
                             )
                           )
                         );
@@ -4383,7 +4386,7 @@ ${PROVS.map(prov=>{
 
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
-        h(OcOrgChart,{data:data,att:att,orgData:orgData})
+        h(OcOrgChart,{data:data,att:att,orgData:orgData,onPrintReady:fn=>{orgPrintRef.current=fn;}})
       ),
 
       /* ── BOTTOM NAV (mobile) ──────────────────────────── */
