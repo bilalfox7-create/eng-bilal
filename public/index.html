@@ -1661,42 +1661,73 @@ function OctNodeCard({node,onClick,hasChildren}){
   );
 }
 
-/* Vertical stem line */
-const OctStem=({h:ht=20})=>h("div",{style:{width:2,height:ht,background:"#e2e8f0",flexShrink:0}});
+/* Inline stem helper — avoids component overhead */
+const octStem=h("div",{style:{width:2,height:20,background:"#e2e8f0",flexShrink:0}});
 
 function OctTreeNode({node}){
   const [open,setOpen]=useState(true);
+  const rowRef=useRef(null);
+  const barRef=useRef(null);
   const ch=node.children||[];
   const hasCh=ch.length>0;
-  const toggle=()=>setOpen(v=>!v);
-  const card=h(OctNodeCard,{node,onClick:hasCh?toggle:undefined,hasChildren:hasCh});
 
-  if(!hasCh) return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},card);
+  /* Measure the horizontal bar position AFTER the DOM paints */
+  useEffect(()=>{
+    if(!open||!hasCh)return;
+    const measure=()=>{
+      const row=rowRef.current;
+      const bar=barRef.current;
+      if(!row||!bar)return;
+      const cols=[...row.children]; /* direct child wrappers */
+      if(cols.length<2){bar.style.display="none";return;}
+      const rr=row.getBoundingClientRect();
+      const fc=cols[0].getBoundingClientRect();
+      const lc=cols[cols.length-1].getBoundingClientRect();
+      /* bar spans from centre of first child to centre of last child */
+      const L=fc.left-rr.left+fc.width/2;
+      const R=rr.right-lc.right+lc.width/2;
+      Object.assign(bar.style,{
+        display:"block",position:"absolute",top:"0",
+        left:Math.round(L)+"px",right:Math.round(R)+"px",
+        height:"2px",background:"#e2e8f0",pointerEvents:"none"
+      });
+    };
+    const t=setTimeout(measure,80);
+    window.addEventListener("resize",measure);
+    return()=>{clearTimeout(t);window.removeEventListener("resize",measure);};
+  },[open,hasCh,ch.length]);
+
+  const cardEl=h(OctNodeCard,{node,onClick:hasCh?()=>setOpen(v=>!v):undefined,hasChildren:hasCh});
+
+  if(!hasCh) return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},cardEl);
 
   return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-    card,
-    h(OctStem),
+    cardEl,
+    octStem,
     h("button",{
-      onClick:toggle,
-      style:{width:20,height:20,borderRadius:"50%",border:"1px solid #e2e8f0",background:"var(--bg2)",fontSize:12,color:"var(--sub)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,lineHeight:1}
+      onClick:()=>setOpen(v=>!v),
+      style:{width:20,height:20,borderRadius:"50%",border:"1px solid #e2e8f0",
+             background:"var(--bg2)",fontSize:12,color:"var(--sub)",cursor:"pointer",
+             display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}
     },open?"−":"+"),
-    open ? h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-      h(OctStem),
-      /* ── children row: horizontal bar + children ── */
-      h("div",{style:{display:"flex",flexDirection:"column",alignItems:"stretch",flexShrink:0}},
-        /* horizontal connecting bar */
-        h("div",{style:{height:2,background:"#e2e8f0",flexShrink:0}}),
-        /* children in a flex row */
-        h("div",{style:{display:"flex",flexDirection:"row",flexWrap:"nowrap",gap:24,alignItems:"flex-start",justifyContent:"center"}},
+    !open?null:h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
+      octStem,
+      /* position:relative so the bar can use absolute positioning inside */
+      h("div",{style:{position:"relative",flexShrink:0}},
+        h("div",{ref:barRef,style:{display:"none"}}),  /* bar: measured & positioned by effect */
+        h("div",{
+          ref:rowRef,
+          style:{display:"flex",flexWrap:"nowrap",gap:24,alignItems:"flex-start"}
+        },
           ch.map(child=>
             h("div",{key:child.id,style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
-              h(OctStem),
+              octStem,
               h(OctTreeNode,{node:child})
             )
           )
         )
       )
-    ) : null
+    )
   );
 }
 
