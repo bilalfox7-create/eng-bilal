@@ -1114,7 +1114,7 @@ html.light .att-th-sum{background:#f8fafc}
 .att-hours{font-size:11px;font-weight:800;color:#FCD34D;margin-right:auto;white-space:nowrap}
 
 /* Weekly/monthly day header colors */
-.att-th-wknd{color:#F87171!important}
+.att-th-wknd{color:#94A3B8!important}
 .att-th-today{color:#60A5FA!important;background:rgba(96,165,250,.06)!important}
 
 /* Attendance log view */
@@ -1973,7 +1973,7 @@ function App(){
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
 
-  const attGetStats=(engId,att)=>{
+  const attGetStats=(engId,att,year,month)=>{
     const ea=att[engId]||{};
     let P=0,A=0,AL=0,SL=0,EL=0,H=0,mins=0;
     Object.values(ea).forEach(d=>{
@@ -1981,6 +1981,7 @@ function App(){
       if(d.s==='P'){P++;if(d.in&&d.out){const[ih,im]=d.in.split(':').map(Number);const[oh,om]=d.out.split(':').map(Number);const dm=(oh*60+om)-(ih*60+im);if(dm>0)mins+=dm;else mins+=8*60;}else mins+=8*60;}
       else if(d.s==='A')A++;else if(d.s==='AL')AL++;else if(d.s==='SL')SL++;else if(d.s==='EL')EL++;else if(d.s==='H')H++;
     });
+    if(year&&month){const dim=new Date(year,month,0).getDate();for(let d=1;d<=dim;d++)if(new Date(year,month-1,d).getDay()===5)H++;}
     return{P,A,AL,SL,EL,H,vac:AL+SL+EL,hrs:Math.floor(mins/60),min:mins%60};
   };
 
@@ -2556,7 +2557,7 @@ function App(){
                       onChange:ev=>{attSetTime(attTimeModal.engId,d,"in",ev.target.value);setAttTimeModal(p=>({...p,eAtt:{...p.eAtt,[d]:{...p.eAtt[d],in:ev.target.value}}}));}}),
                     h("input",{type:"time",className:"att-time-inp",value:live.out||"17:00",
                       onChange:ev=>{attSetTime(attTimeModal.engId,d,"out",ev.target.value);setAttTimeModal(p=>({...p,eAtt:{...p.eAtt,[d]:{...p.eAtt[d],out:ev.target.value}}}));}}),
-                    h("div",{className:"att-hours"},calcHrs(live.in||"08:00",live.out||"17:00"))
+                    h("div",{className:"att-hours"},calcHrs(live.in,live.out))
                   );
                 })
               )
@@ -3491,7 +3492,7 @@ function App(){
           const selNone=()=>setAttSelected(new Set());
           const bulkSet=status=>{if(!todayD||attSelected.size===0)return;attSelected.forEach(id=>attSetStatus(id,todayD,status));setAttSelected(new Set());};
           const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="ا"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"AL");}};
-          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att);return{P:a.P+s.P,A:a.A+s.A,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,vac:0,hrs:0});
+          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att,cfg.year,cfg.month);return{P:a.P+s.P,A:a.A+s.A,H:a.H+s.H,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,H:0,vac:0,hrs:0});
 
           /* ── Vacation balance (15 days / 6 months) ── */
           const VAC_ALLOW=15;
@@ -3525,13 +3526,13 @@ function App(){
 
             const buildCell=(eAtt,d)=>{
               const dd=eAtt[d];const st=dd?.s;const fri=isWknd(d);
-              if(fri)return`<td style="${tdStyle};background:#FFF1F2;color:#FDA4AF;font-size:9px;font-weight:700">ج</td>`;
+              if(fri)return`<td style="${tdStyle};background:#F1F5F9;color:#94A3B8;font-size:9px;font-weight:700">ع</td>`;
               if(!st)return`<td style="${tdStyle}"></td>`;
               return`<td style="${tdStyle};background:${S_BG[st]};color:${S_COL[st]};font-size:9px;font-weight:800">${st}</td>`;
             };
 
             const rows=provEngs.map(eng=>{
-              const s=attGetStats(eng.id,att);
+              const s=attGetStats(eng.id,att,cfg.year,cfg.month);
               const vb=getVac(eng.id);
               const vc=vacColor(vb);
               const eAtt=att[eng.id]||{};
@@ -3593,7 +3594,7 @@ function App(){
 <table>
   <thead><tr>
     <th style="${nameThStyle}">المهندس</th>
-    ${days.map(d=>`<th style="${thStyle};${isWknd(d)?'background:#FFF1F2;color:#FDA4AF':''};font-size:9px">${d}<br>${DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]}</th>`).join('')}
+    ${days.map(d=>`<th style="${thStyle};${isWknd(d)?'background:#F1F5F9;color:#94A3B8':''};font-size:9px">${d}<br>${DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]}</th>`).join('')}
     <th style="${nameThStyle}">الملخص</th>
   </tr></thead>
   <tbody>${rows}</tbody>
@@ -3658,7 +3659,7 @@ function App(){
                 const provRows=PROVS.filter(p=>isAdmin||p===userProv).map(p=>{
                   const engs=mData[p]||[];
                   let P=0,A=0,vac=0,hrs=0;
-                  engs.forEach(e=>{const s=attGetStats(e.id,mAtt);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
+                  engs.forEach(e=>{const s=attGetStats(e.id,mAtt,+y,+m);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
                   return{prov:p,n:engs.length,P,A,vac,hrs};
                 }).filter(r=>r.P>0||r.A>0||r.vac>0);
                 const totP=provRows.reduce((a,r)=>a+r.P,0);
@@ -3704,10 +3705,10 @@ ${PROVS.map(prov=>{
   if(engs.length===0)return'';
   const rows=engs.map(eng=>{
     const eAtt=mAtt[eng.id]||{};
-    const s=attGetStats(eng.id,mAtt);
+    const s=attGetStats(eng.id,mAtt,y,m);
     const cells=dys.map(d=>{
       const st=eAtt[d]?.s;const fri=isFri(d);
-      if(fri)return`<td style="${tdS};background:#FFF1F2;color:#FDA4AF;font-size:8px">ج</td>`;
+      if(fri)return`<td style="${tdS};background:#F1F5F9;color:#94A3B8;font-size:8px">ع</td>`;
       if(!st)return`<td style="${tdS}"></td>`;
       return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
     }).join('');
@@ -3717,7 +3718,7 @@ ${PROVS.map(prov=>{
 <br><span style="color:#92400E;font-weight:700">${s.hrs}h</span></td></tr>`;
   }).join('');
   return`<div class="section"><div class="sec-t">${prov}</div>
-<table><thead><tr><th style="${nmThS}">المهندس</th>${dys.map(d=>`<th style="${thS};${isFri(d)?'background:#FFF1F2;color:#FDA4AF':''}">${d}<br>${DAY_AR[new Date(y,m-1,d).getDay()]}</th>`).join('')}<th style="${nmThS}">الملخص</th></tr></thead>
+<table><thead><tr><th style="${nmThS}">المهندس</th>${dys.map(d=>`<th style="${thS};${isFri(d)?'background:#F1F5F9;color:#94A3B8':''}">${d}<br>${DAY_AR[new Date(y,m-1,d).getDay()]}</th>`).join('')}<th style="${nmThS}">الملخص</th></tr></thead>
 <tbody>${rows}</tbody></table></div>`;}).join('')}
 <div class="foot">
 <div class="sign"><div class="sign-line"></div><div>مدير المشروع</div></div>
@@ -3859,7 +3860,7 @@ ${PROVS.map(prov=>{
                     /* ── TBODY ── */
                     h("tbody",null,
                       provEngs.map(eng=>{
-                        const s=attGetStats(eng.id,att);
+                        const s=attGetStats(eng.id,att,cfg.year,cfg.month);
                         const eAtt=att[eng.id]||{};
                         const vb=getVac(eng.id);
                         const vc=vacColor(vb);
@@ -3890,11 +3891,11 @@ ${PROVS.map(prov=>{
                             const dd=eAtt[d];
                             const st=dd?.s||null;
                             const wk=isWknd(d);
-                            return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(239,68,68,.03)":""}},
+                            return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
-                                className:"att-cell att-cell-"+(wk&&!st?"wknd":st||"e"),
+                                className:"att-cell att-cell-"+(wk&&!st?"H":st||"e"),
                                 onClick:()=>{if(!wk)attCycleStatus(eng.id,d);},
-                                title:st?ATT_LABEL[st]:wk?"عطلة":"",
+                                title:st?ATT_LABEL[st]:wk?"عطلة رسمية":"",
                                 style:{cursor:wk&&!st?"default":"pointer"}
                               },st?ATT_SHORT[st]:wk?"ع":""),
                               st==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
@@ -3906,6 +3907,7 @@ ${PROVS.map(prov=>{
                           h("td",{className:"att-td-sum"},
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
+                            s.H>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#94A3B8"}}),h("span",{className:"att-stat-val"},s.H),h("span",{className:"att-stat-lbl"},"عطلة رسمية")),
                             s.vac>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},s.vac),h("span",{className:"att-stat-lbl"},"إجازة (شهر)")),
                             h("div",{className:"att-stat-div"},
                               h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل")),
@@ -3939,8 +3941,8 @@ ${PROVS.map(prov=>{
                     )
                   ),
                   h("div",{className:"att-leg-item"},
-                    h("div",{className:"att-leg-box",style:{background:"rgba(239,68,68,.05)",borderColor:"rgba(239,68,68,.15)",color:"rgba(239,68,68,.4)"}},"ع"),
-                    h("span",{style:{color:"var(--sub)",fontSize:10}},"عطلة أسبوعية (الجمعة فقط)")
+                    h("div",{className:"att-leg-box att-leg-box-H"},"ع"),
+                    h("span",{style:{color:"var(--sub)",fontSize:10}},"عطلة رسمية (الجمعة)")
                   )
                 ),
                 h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:10}},"← اضغط على خلية يوم لتغيير الحالة (ح ← غ ← إجازة سنوية ← مرضية ← طارئة ← عطلة) | اضغط ⏰ لإدخال أوقات الحضور والانصراف")
