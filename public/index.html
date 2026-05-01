@@ -2200,7 +2200,7 @@ function App(){
   };
 
   const handlePdfClick=()=>{
-    if(page==="eng"||page==="dash"||page==="report")exportPDF();
+    if(page==="eng")exportPDF();
     else if(page==="att"){if(printAttRef.current)printAttRef.current();else setModal("print-select");}
     else if(page==="org"){if(orgPrintRef.current)orgPrintRef.current("all");else setModal("print-select");}
     else setModal("print-select");
