@@ -918,10 +918,10 @@ html.light .login-title{color:var(--text)}
 html.light .login-sub{color:var(--sub)}
 
 /* ══ Org Chart — Professional v3 ════════════════════════ */
-.org-page{display:flex;flex-direction:column;gap:0;padding:0}
+.org-page{display:flex;flex-direction:column;gap:0;padding:0;flex:1;overflow-y:auto;order:3;min-height:0}
 .org-full{position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg1);}
 /* ── OrgTree ── */
-.ot-wrap{padding:0 0 32px;overflow-x:auto;overflow-y:visible;direction:ltr}
+.ot-wrap{padding:0 0 32px;overflow-x:auto;direction:ltr;flex-shrink:0}
 .ot-inner{display:flex;flex-direction:column;align-items:center;min-width:max-content;padding:32px 48px}
 .ot-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:12px 24px 24px;border-top:1px solid var(--border);margin-top:4px}
 .ot-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--sub)}
@@ -1377,12 +1377,35 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
   .bottom-nav{display:block}
   .content{padding:12px}
   .g2{grid-template-columns:1fr}
+  /* ── Org chart mobile ── */
+  .org-banner{padding:14px 16px;gap:10px;flex-wrap:wrap}
+  .org-banner-logo{width:40px;height:40px;border-radius:10px;flex-shrink:0}
+  .org-banner-logo img{width:34px;height:34px}
+  .org-banner-company{font-size:15px}
+  .org-banner-sub{font-size:10px}
+  .org-banner-stats{gap:4px;flex-wrap:wrap;flex-shrink:1}
+  .org-bs{padding:6px 8px;min-width:52px;border-radius:8px}
+  .org-bs-v{font-size:16px}
+  .org-banner-actions{gap:5px}
+  .ot-inner{padding:20px 16px}
+  .org-edit-bar{flex-wrap:wrap;padding:8px 12px;gap:6px}
+  /* ── Card / table tweaks ── */
+  .card{border-radius:12px}
+  .card-hdr{padding:10px 14px}
+  .topbar{padding:8px 14px;gap:8px}
+  .mstrip{padding:6px 14px}
 }
 @media(max-width:480px){
   .sg{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sc-val{font-size:20px}
   .page-sub{display:none}
   .sep{display:none}
+  /* ── Org chart small phones ── */
+  .org-banner-stats{display:none}
+  .org-banner-company{font-size:13px}
+  .org-banner-logo{width:32px;height:32px}
+  .ot-inner{padding:12px 8px}
+  .org-banner{padding:10px 12px;gap:8px}
 }
 </style>
 </head>
@@ -1644,7 +1667,6 @@ function OrgCard({node,onClick,hasChildren}){
 const OT_STEM=Object.freeze({width:2,height:20,background:"#e2e8f0",flexShrink:0,alignSelf:"center"});
 
 function OrgNode({node}){
-  console.log("OrgChart rendering, data:", node);
   const [open,setOpen]=useState(true);
   const ch=node.children||[];
   const n=ch.length;
@@ -1704,6 +1726,86 @@ function buildOrgTree(od){
         stats:[mgrs.length?`${mgrs.length} مدير`:null,team.length?`${team.length} مهندس`:null,projs.length?`${projs.length} مشروع`:null].filter(Boolean),
         children:groups};
     })
+  };
+}
+
+/* ── Build org tree from live attendance data ── */
+function buildOrgTreeFromData(data,att,months,orgData){
+  const director=orgData?.director||DEFAULT_ORG.director;
+  const company=orgData?.company||DEFAULT_ORG.company;
+
+  /* أيام الحضور الفعلية + عدد الأشهر في ليبيا لكل مهندس */
+  function engStats(engId){
+    let totalPresent=0,monthsActive=0;
+    Object.values(months).forEach(m=>{
+      const engAtt=(m.attendance||{})[engId]||{};
+      const pDays=Object.values(engAtt).filter(d=>d.s==='P').length;
+      if(pDays>0){totalPresent+=pDays;monthsActive++;}
+      else{
+        const eng=Object.values(m.data||{}).flat().find(e=>e.id===engId);
+        if(eng&&(eng.d1>0||eng.d2>0))monthsActive++;
+      }
+    });
+    const out=[];
+    if(totalPresent>0)out.push(`${totalPresent} يوم حضور`);
+    if(monthsActive>0)out.push(`${monthsActive} شهر في ليبيا`);
+    return out;
+  }
+
+  /* الحالة الحالية بناءً على سجلات الحضور لهذا الشهر */
+  function engStatus(engId){
+    const vals=Object.values(att[engId]||{});
+    const present=vals.filter(d=>d.s==='P').length;
+    const onLeave=vals.filter(d=>d.s==='AL'||d.s==='SL'||d.s==='EL').length;
+    if(present>15)return'نشط';
+    if(present>0)return'جزئي';
+    if(onLeave>0)return'إجازة';
+    return'غائب';
+  }
+
+  const cityChildren=CITY_CFG.map(({id,name,prov})=>{
+    const allEngs=(data[prov]||[]).filter(e=>e.name!==director.name);
+    const mgrs=allEngs.filter(e=>e.spec&&e.spec.includes('مدير'));
+    const team=allEngs.filter(e=>!e.spec||!e.spec.includes('مدير'));
+    const cityRep=mgrs[0];
+    const projects=(orgData?.cities||DEFAULT_ORG.cities||[]).find(c=>c.id===id)?.projects||[];
+    const groups=[];
+    if(mgrs.length)groups.push({
+      id:`g-mgr-${id}`,name:'القيادة',role:`${mgrs.length} مدير`,level:2,stats:[],
+      children:mgrs.map((m,i)=>({
+        id:`mgr-${id}-${i}`,name:m.name,role:m.spec||'مدير',level:3,
+        stats:[...engStats(m.id),engStatus(m.id)],children:[]
+      }))
+    });
+    if(team.length)groups.push({
+      id:`g-eng-${id}`,name:'الفريق الهندسي',role:`${team.length} مهندس`,level:2,stats:[],
+      children:team.map((e,i)=>({
+        id:`eng-${id}-${i}`,name:e.name,role:e.spec||'مهندس',level:3,
+        stats:[...engStats(e.id),engStatus(e.id)],children:[]
+      }))
+    });
+    if(projects.length)groups.push({
+      id:`g-prj-${id}`,name:'المشاريع',role:`${projects.length} مشروع`,level:2,stats:[],
+      children:projects.map((p,i)=>({
+        id:`prj-${id}-${i}`,name:typeof p==='string'?p:p.name,role:'مشروع',level:3,stats:[],children:[]
+      }))
+    });
+    return{
+      id,name:cityRep?.name||name,
+      role:cityRep?(cityRep.spec||'مدير المشروع'):'الفريق الهندسي',
+      level:1,
+      stats:[allEngs.length?`${allEngs.length} مهندس`:null,projects.length?`${projects.length} مشروع`:null].filter(Boolean),
+      children:groups
+    };
+  }).filter(c=>(data[CITY_CFG.find(cc=>cc.id===c.id)?.prov]||[]).filter(e=>e.name!==director.name).length>0);
+
+  const totalEng=Object.values(data).flat().filter(e=>e.name!==director.name).length;
+  return{
+    id:'root',name:director.name||'المدير',
+    role:director.title||'مدير مشروعات ليبيا',
+    level:0,
+    stats:[company,`${totalEng} مهندس`].filter(Boolean),
+    children:cityChildren
   };
 }
 
@@ -3077,7 +3179,7 @@ function App(){
         )
       ),
 
-      h("div",{className:"content",style:page==="org"?{padding:0,gap:0}:undefined},
+      h("div",{className:"content",style:page==="org"?{display:"none"}:undefined},
 
         /* ══ DASHBOARD ══ */
         page==="dash"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
@@ -4245,15 +4347,32 @@ ${PROVS.map(prov=>{
 
           /* ── Tree view (non-edit) ── */
           !orgEdit&&(()=>{
-            const treeData=buildOrgTree(od);
-            console.log("TREE DATA:", JSON.stringify(treeData,null,2));
-            console.log("CONTAINER:", document.getElementById("ot-inner-debug"));
-            const testData={id:1,name:"ضياء الدين محمود",role:"مدير مشروعات ليبيا",level:0,stats:["38 مشروع"],children:[]};
-            return h("div",{className:"ot-wrap"},
-              h("div",{id:"ot-inner-debug",className:"ot-inner",style:{border:"3px solid red",minHeight:200}},
-                h(OrgNode,{node:testData})
+            const treeData=buildOrgTreeFromData(data,att,months,orgData);
+            if(!treeData)return null;
+            const displayTree=orgFocus
+              ?{...treeData,children:treeData.children.filter(c=>c.id===orgFocus)}
+              :treeData;
+            const focusedCity=orgFocus?CITY_CFG.find(c=>c.id===orgFocus):null;
+            return h("div",{style:{display:"flex",flexDirection:"column",minHeight:0}},
+              orgFocus&&h("div",{style:{
+                padding:"8px 20px",display:"flex",alignItems:"center",gap:10,
+                borderBottom:"1px solid var(--border)",background:"var(--bg2)",flexShrink:0
+              }},
+                h("span",{style:{fontSize:12,color:"var(--sub)"}},
+                  "عرض: ",h("strong",{style:{color:"var(--text)"}},focusedCity?.name||orgFocus)
+                ),
+                h("button",{
+                  className:"btn",
+                  style:{padding:"4px 12px",fontSize:11,marginRight:"auto"},
+                  onClick:()=>setOrgFocus(null)
+                },"← عرض الكل")
               ),
-              h(OrgLegend)
+              h("div",{className:"ot-wrap"},
+                h("div",{className:"ot-inner"},
+                  h(OrgNode,{node:displayTree})
+                ),
+                h(OrgLegend)
+              )
             );
           })(),
 
