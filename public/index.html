@@ -1949,6 +1949,20 @@ function App(){
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
 
+  const attFillMonth=()=>{
+    const dIM=new Date(cfg.year,cfg.month,0).getDate();
+    const allEngs=PROVS.flatMap(p=>data[p]||[]);
+    const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(cfg.year,cfg.month-1,d).getDay()!==5);
+    const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
+    if(!confirm("تحضير الشهر كامل؟\n\n"+mn2+" · "+allEngs.length+" مهندس · "+wDays.length+" يوم عمل\n\u26a0 الأيام المسجلة مسبقاً (غياب / إجازة) لن تتغير"))return;
+    const existing=mkMonthBase();
+    const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+    wDays.forEach(d=>{allEngs.forEach(eng=>{if(!na[eng.id])na[eng.id]={};if(!na[eng.id][d]?.s)na[eng.id][d]={...(na[eng.id][d]||{}),s:"P"};});});
+    const upd={...existing,attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    msg("تم تحضير "+mn2+" كاملاً ✓");
+  };
+
   const attSetTime=(engId,day,field,val)=>{
     const existing=mkMonthBase();
     const att=existing.attendance||{};
@@ -3628,7 +3642,11 @@ function App(){
                   ),
                   h("button",{className:"btn",
                     style:{padding:"7px 14px",fontSize:11,gap:5,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171"},
-                    onClick:printAtt},h(Ic,{n:"pdf",sz:13}),"PDF")
+                    onClick:printAtt},h(Ic,{n:"pdf",sz:13}),"PDF"),
+                  isAdmin&&h("button",{className:"btn",
+                    style:{padding:"7px 14px",fontSize:11,gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:700},
+                    onClick:attFillMonth,title:"تعيين حضور كل المهندسين لكل أيام الشهر (الجمعة مستثناة)"},
+                    h(Ic,{n:"att",sz:13}),"تحضير الشهر ✓")
                 )
               )
             ),
