@@ -939,7 +939,8 @@ html.dark .oc-root-name{color:#f1f5f9}
 .oc-root-badge{display:inline-block;margin-top:8px;background:#dbeafe;color:#1e40af;font-size:9px;font-weight:800;padding:3px 10px;border-radius:20px}
 .oc-line{width:2px;height:24px;background:linear-gradient(180deg,#3b82f6,rgba(59,130,246,.2));margin:0 auto}
 .oc-branch{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:0 8px}
-.oc-city{border-radius:14px;background:#fff;border:1px solid #e2e8f0;border-top:4px solid var(--cc,#3b82f6);padding:0;overflow:hidden;width:210px;flex-shrink:0;cursor:pointer;transition:box-shadow .2s,transform .2s;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.dash-2col{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+      .oc-city{border-radius:14px;background:#fff;border:1px solid #e2e8f0;border-top:4px solid var(--cc,#3b82f6);padding:0;overflow:hidden;width:210px;flex-shrink:0;cursor:pointer;transition:box-shadow .2s,transform .2s;box-shadow:0 2px 12px rgba(0,0,0,.07)}
 .oc-city:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,0,0,.14)}
 html.dark .oc-city{background:#1e293b;border-color:#334155}
 .oc-city-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #f1f5f9}
@@ -985,6 +986,7 @@ html.dark .oc-proj-item{background:#1e293b;border-color:#334155;color:#f1f5f9}
   .oc-city{width:calc(50% - 5px);min-width:140px}
   .oc-eng-grid{grid-template-columns:1fr}
 }
+@media(max-width:480px){.dash-2col{grid-template-columns:1fr}.att-cell{width:22px;height:22px;font-size:7.5px}.att-th-name,.att-td-name{min-width:96px}.att-td-sum,.att-th-sum{min-width:116px}.att-vac-period{flex-wrap:wrap}.att-vac-grid{grid-template-columns:1fr}}
 /* ══════════════════════════════════════════════
    ATTENDANCE PAGE
 ══════════════════════════════════════════════ */
@@ -1143,7 +1145,7 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
 
-@media(max-width:768px){
+@media(max-width:768px){.mstrip{-webkit-overflow-scrolling:touch}.att-table-wrap{-webkit-overflow-scrolling:touch}
   .sidebar{position:fixed;top:0;right:0;bottom:0;z-index:60;transform:translateX(100%)}
   .sidebar.open{transform:translateX(0);box-shadow:var(--shadow3)}
   .mob-overlay.show{display:block}
@@ -2904,7 +2906,7 @@ function App(){
               h("div",{className:"sc-bar"},h("div",{className:"sc-fill",style:{width:s.pct.toFixed(1)+"%",background:s.c}}))
             ))
           ),
-          h("div",{style:{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr)",gap:12}},
+          h("div",{className:"dash-2col"},
             h("div",{className:"card"},
               h("div",{className:"card-hdr"},
                 h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"dash",sz:13,c:"#2563EB"})),"توزيع الإعاشات بالمحافظات"),
