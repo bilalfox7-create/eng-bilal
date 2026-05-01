@@ -340,6 +340,9 @@ body::before{
   box-shadow:0 0 10px rgba(52,211,153,.4);
 }
 
+/* ── Live rate banner ── */
+.rate-banner{display:flex;align-items:center;gap:10px;padding:9px 16px;background:linear-gradient(135deg,rgba(217,119,6,.07),rgba(245,158,11,.03));border:1px solid rgba(217,119,6,.22);border-radius:12px;font-size:12px;}
+
 /* ── Inline input ── */
 .inline-inp{
   width:100%;background:transparent;border:none;
@@ -1615,8 +1618,12 @@ function App(){
   const [attSelected,setAttSelected]=useState(()=>new Set());
   const [attHovEng,setAttHovEng]=useState(null);
   const [leaveTab,setLeaveTab]=useState('pending');
+  const [leaveView,setLeaveView]=useState('list');
   const [leaveForm,setLeaveForm]=useState({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});
   const [leaveElig,setLeaveElig]=useState(null); // key when viewing a past month from log
+  const [liveRate,setLiveRate]=useState(null);
+  const [rateAt,setRateAt]=useState(null);
+  const [rateFetching,setRateFetching]=useState(false);
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -1700,6 +1707,23 @@ function App(){
     window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);
   },[]);
 
+  /* ── Fetch live USD/EGP exchange rate ─────────────── */
+  const fetchLiveRate=useCallback(()=>{
+    setRateFetching(true);
+    fetch('https://open.er-api.com/v6/latest/USD')
+      .then(r=>r.json())
+      .then(d=>{if(d.rates?.EGP){setLiveRate(d.rates.EGP);setRateAt(new Date().toISOString());}else throw new Error();})
+      .catch(()=>fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json()).then(d=>{if(d.rates?.EGP){setLiveRate(d.rates.EGP);setRateAt(new Date().toISOString());}}).catch(()=>{}))
+      .finally(()=>setRateFetching(false));
+  },[]);
+
+  useEffect(()=>{
+    if(!user)return;
+    fetchLiveRate();
+    const t=setInterval(fetchLiveRate,300000);
+    return()=>clearInterval(t);
+  },[user,fetchLiveRate]);
+
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
     pendingRef.current[key]=val;
@@ -1761,6 +1785,19 @@ function App(){
   const maxT=useMemo(()=>Math.max(...totals.map(t=>t.tot),1),[totals]);
   const sortedKeys=useMemo(()=>Object.keys(months).filter(k=>k!=='leaves').sort(),[months]);
   const allE=useMemo(()=>PROVS.flatMap(p=>(data[p]||[]).map(e=>({...e,prov:p}))),[data]);
+  const leaveEngs=useMemo(()=>{
+    const seen=new Set();const res={};
+    PROVS.forEach(p=>res[p]=[]);
+    Object.keys(months).sort().reverse().forEach(key=>{
+      if(key==='leaves'||!months[key]?.data)return;
+      PROVS.forEach(p=>{
+        (months[key].data[p]||[]).forEach(e=>{
+          if(!seen.has(e.id)){seen.add(e.id);res[p].push(e);}
+        });
+      });
+    });
+    return res;
+  },[months]);
   const filtered=useMemo(()=>search.trim()?allE.filter(e=>e.name.includes(search)||e.spec.includes(search)):[],[search,allE]);
   const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0},cfg.rate,cfg.egp),[form.d1,form.d2,cfg.rate,cfg.egp]);
   const expData=useMemo(()=>{
@@ -2027,11 +2064,11 @@ function App(){
     if(dur<=0){msg('تاريخ النهاية يجب أن يكون بعد تاريخ البداية','err');return;}
     const elig=calcEligibility(leaveForm.engId);
     let eng=null,engProv='';
-    PROVS.forEach(p=>{const f=(data[p]||[]).find(e=>e.id===leaveForm.engId);if(f){eng=f;engProv=p;}});
+    PROVS.forEach(p=>{const f=(leaveEngs[p]||[]).find(e=>e.id===leaveForm.engId);if(f){eng=f;engProv=p;}});
     if(!eng){msg('المهندس غير موجود','err');return;}
     const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketDetails:leaveForm.ticketDetails,status:'pending',notes:leaveForm.notes,createdAt:new Date().toISOString(),decidedAt:null,decidedBy:null};
     saveLeaves([...leaves,newReq]);
-    setModal(null);setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
+    setLeaveView('list');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
     msg('تم إرسال طلب الإجازة ✓');
   };
 
@@ -2156,6 +2193,11 @@ function App(){
     rows.push(["","","","الإجمالى الكلى","",+G.a1.toFixed(2),"",+G.a2.toFixed(2),+G.tot.toFixed(2),+G.egp.toFixed(2)]);
     const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:4},{wch:28},{wch:22},{wch:20},{wch:9},{wch:16},{wch:9},{wch:16},{wch:14},{wch:18}];
     XLSX.utils.book_append_sheet(wb,ws,"الإعاشات");XLSX.writeFile(wb,`اعاشات_${mn}_${cfg.year}.xlsx`);msg("تم تصدير Excel ✓");
+  };
+
+  const handlePdfClick=()=>{
+    if(page==="eng")exportPDF();
+    else setModal("print-select");
   };
 
   const exportPDF=()=>{
@@ -2629,64 +2671,29 @@ function App(){
     h("input",{ref:logoRef,type:"file",accept:"image/*",style:{display:"none"},onChange:ev=>uploadLogo(ev.target.files[0])}),
     h("div",{className:`mob-overlay ${mobOpen?"show":""}`,onClick:()=>setMobOpen(false)}),
 
-    /* ── LEAVE REQUEST MODAL ──────────────────────── */
-    modal==="leave-form"&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setModal(null);}},
-      h("div",{className:"modal",style:{width:500,maxHeight:"90vh",display:"flex",flexDirection:"column"}},
+    /* ── PRINT SELECT MODAL ─────────────────────────── */
+    modal==="print-select"&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setModal(null);}},
+      h("div",{className:"modal",style:{width:340}},
         h("div",{className:"modal-hdr"},
-          h("h3",null,"✈ طلب إجازة جديد"),
+          h("h3",null,"اختر ما تريد طباعته"),
           h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
         ),
-        h("div",{style:{padding:"16px",overflowY:"auto",flex:1}},
-          h("div",{className:"fld"},
-            h("label",null,"المهندس *"),
-            h("select",{value:leaveForm.engId,onChange:ev=>{const id=ev.target.value;setLeaveForm(p=>({...p,engId:id}));setLeaveElig(id?calcEligibility(id):null);}},
-              h("option",{value:""},"اختر المهندس..."),
-              PROVS.filter(p=>isAdmin||p===userProv).flatMap(p=>(data[p]||[]).map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+p.replace("محافظة ",""))))
-            )
+        h("div",{style:{padding:"16px",display:"flex",flexDirection:"column",gap:10}},
+          h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(220,38,38,.06)",border:"1px solid rgba(220,38,38,.2)",color:"var(--text)"},
+            onClick:()=>{setModal(null);setPage("eng");setTimeout(exportPDF,150);}},
+            h(Ic,{n:"pdf",sz:15,c:"#DC2626"}),h("div",null,h("div",{style:{fontWeight:700}},"شيت الإعاشة"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"كشف إعاشات المهندسين لهذا الشهر"))
           ),
-          leaveElig?h("div",{className:"leave-info-box"},
-            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
-              h("div",null,
-                h("div",{style:{fontWeight:800,fontSize:12}},leaveElig.eligible?h("span",{style:{color:"#1D9E75"}},"✅ مؤهل للإجازة"):h("span",{style:{color:"#E24B4A"}},"⚠ غير مؤهل بعد")),
-                h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},"آخر دخول: ",(leaveElig.lastEntryDate||"غير محدد")," · ",leaveElig.label)
-              ),
-              h("div",{style:{fontSize:10,color:"var(--sub)",textAlign:"center"}},leaveElig.presentDays,h("br",null),"يوم حضور")
-            ),
-            h("div",{className:"leave-elig-bar"},h("div",{className:"leave-elig-fill",style:{width:Math.min(100,Math.round(leaveElig.daysInLibya/180*100))+"%",background:leaveElig.eligible?"#1D9E75":"#EF9F27"}})),
-            !leaveElig.eligible&&h("div",{style:{fontSize:10,color:"#EF9F27",marginTop:2}},"متبقي "+leaveElig.remaining+" يوم على اكتمال 6 أشهر")
-          ):h("div",{style:{textAlign:"center",padding:"12px 0",color:"var(--sub)",fontSize:11}},"اختر مهندساً لعرض أهليته للإجازة"),
-          h("div",{className:"g2"},
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"تاريخ بداية الإجازة *"),
-              h("input",{type:"date",value:leaveForm.startDate,onChange:ev=>setLeaveForm(p=>({...p,startDate:ev.target.value}))})
-            ),
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"تاريخ نهاية الإجازة *"),
-              h("input",{type:"date",value:leaveForm.endDate,onChange:ev=>setLeaveForm(p=>({...p,endDate:ev.target.value}))})
-            )
+          h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.2)",color:"var(--text)"},
+            onClick:()=>{setModal(null);setPage("att");}},
+            h(Ic,{n:"att",sz:15,c:"#10B981"}),h("div",null,h("div",{style:{fontWeight:700}},"كشف الحضور"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الحضور واضغط زر PDF هناك"))
           ),
-          leaveForm.startDate&&leaveForm.endDate&&(()=>{
-            const dur=Math.round((new Date(leaveForm.endDate+"T12:00")-new Date(leaveForm.startDate+"T12:00"))/86400000)+1;
-            const urgent=(new Date(leaveForm.startDate+"T12:00")-new Date())<14*86400000;
-            return dur>0?h("div",{className:"leave-info-box",style:{borderColor:urgent?"rgba(239,159,39,.5)":""}},
-              h("div",{style:{fontWeight:800,fontSize:13}},"مدة الإجازة: "+dur+" يوم"),
-              urgent&&h("div",{style:{color:"#EF9F27",fontSize:11,marginTop:3}},"⚠ الإجازة تبدأ خلال أقل من 14 يوم")
-            ):h("div",{className:"leave-info-box",style:{borderColor:"rgba(226,75,74,.4)"}},"❌ التاريخ غير صحيح");
-          })(),
-          h("div",{className:"fld"},
-            h("label",null,"التذكرة"),
-            h("div",{style:{display:"flex",gap:20,marginTop:4}},
-              h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===true,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:true}))}),"✅ محجوزة"),
-              h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===false,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:false}))}),"⚠ غير محجوزة")
-            )
-          ),
-          leaveForm.ticketBooked&&h("div",{className:"fld"},h("label",null,"تفاصيل الحجز"),h("input",{type:"text",placeholder:"رقم التذكرة أو تفاصيل الحجز...",value:leaveForm.ticketDetails,onChange:ev=>setLeaveForm(p=>({...p,ticketDetails:ev.target.value}))})),
-          !leaveElig?.eligible&&leaveElig&&h("div",{className:"info",style:{borderColor:"rgba(226,75,74,.3)",background:"rgba(226,75,74,.05)"}},h(Ic,{n:"warn",sz:14,c:"#E24B4A"}),"المهندس لم يكمل 6 شهور — يمكن إرسال الطلب مع ملاحظة"),
-          h("div",{className:"fld",style:{marginBottom:0}},h("label",null,"ملاحظات"),h("textarea",{rows:2,placeholder:"ملاحظات إضافية...",style:{resize:"vertical"},value:leaveForm.notes,onChange:ev=>setLeaveForm(p=>({...p,notes:ev.target.value}))}))
+          isAdmin&&h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(96,165,250,.06)",border:"1px solid rgba(96,165,250,.2)",color:"var(--text)"},
+            onClick:()=>{setModal(null);setPage("org");}},
+            h(Ic,{n:"eng",sz:15,c:"#60A5FA"}),h("div",null,h("div",{style:{fontWeight:700}},"الهيكل التنظيمي"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الهيكل واضغط طباعة هناك"))
+          )
         ),
         h("div",{className:"modal-ftr"},
-          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
-          h("button",{className:"btn green",style:{gap:5},onClick:submitLeave},h(Ic,{n:"plane",sz:13}),"إرسال الطلب")
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء")
         )
       )
     ),
@@ -3090,8 +3097,8 @@ function App(){
             h("input",{placeholder:"بحث...",value:search,onChange:ev=>setSearch(ev.target.value),style:{paddingRight:"32px"}})
           ),
           isAdmin&&h("button",{className:"btn",onClick:()=>setGOpen(true),title:"بحث شامل (Ctrl+K)"},h(Ic,{n:"srch",sz:14}),h("span",null,"بحث")),
-          isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
-          isAdmin&&h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
+          (page==="eng")&&isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
+          isAdmin&&h("button",{className:"btn",onClick:handlePdfClick,title:"طباعة PDF"},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
@@ -3111,9 +3118,9 @@ function App(){
         page==="dash"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
           h("div",{className:"sg"},
             [{l:"إجمالى المهندسين",v:G.n,sub:"مهندس نشط",c:"#2563EB",ic:"eng",bg:"#EFF6FF",pct:100},
-             {l:"النصف الأول",v:G.a1.toFixed(0)+"$",sub:fE(G.a1*cfg.egp),c:"#16A34A",ic:"stats",bg:"#F0FDF4",pct:G.a1/G.tot*100||0},
-             {l:"النصف الثاني",v:G.a2.toFixed(0)+"$",sub:fE(G.a2*cfg.egp),c:"#D97706",ic:"stats",bg:"#FFFBEB",pct:G.a2/G.tot*100||0},
-             {l:"الإجمالى الكلى",v:G.tot.toFixed(0)+"$",sub:fE(G.egp),c:"#DC2626",ic:"report",bg:"#FEF2F2",pct:100}]
+             {l:"النصف الأول",v:G.a1.toFixed(0)+"$",sub:fE(G.a1*(liveRate||cfg.egp)),c:"#16A34A",ic:"stats",bg:"#F0FDF4",pct:G.a1/G.tot*100||0},
+             {l:"النصف الثاني",v:G.a2.toFixed(0)+"$",sub:fE(G.a2*(liveRate||cfg.egp)),c:"#D97706",ic:"stats",bg:"#FFFBEB",pct:G.a2/G.tot*100||0},
+             {l:"الإجمالى الكلى",v:G.tot.toFixed(0)+"$",sub:fE(G.tot*(liveRate||cfg.egp)),c:"#DC2626",ic:"report",bg:"#FEF2F2",pct:100}]
             .map((s,i)=>h("div",{key:i,className:"sc"},
               h("div",{className:"sc-stripe",style:{background:s.c}}),
               h("div",{className:"sc-icon",style:{background:s.bg}},h(Ic,{n:s.ic,sz:18,c:s.c})),
@@ -3138,7 +3145,7 @@ function App(){
                   h("div",{className:"prov-bar-bg",style:{margin:0}},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxT*100).toFixed(1)}%`,background:c}}))
                 );}),
                 h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,background:"var(--bdr)",marginTop:12,borderRadius:8,overflow:"hidden"}},
-                  [{l:"النصف الأول",u:G.a1,e:G.a1*cfg.egp,c:"#2563EB"},{l:"النصف الثاني",u:G.a2,e:G.a2*cfg.egp,c:"#16A34A"},{l:"الشهر كامل",u:G.tot,e:G.egp,c:"#D97706"}]
+                  [{l:"النصف الأول",u:G.a1,e:G.a1*(liveRate||cfg.egp),c:"#2563EB"},{l:"النصف الثاني",u:G.a2,e:G.a2*(liveRate||cfg.egp),c:"#16A34A"},{l:"الشهر كامل",u:G.tot,e:G.tot*(liveRate||cfg.egp),c:"#D97706"}]
                   .map((r,i)=>h("div",{key:i,style:{background:"var(--bg)",padding:"10px 8px",textAlign:"center"}},h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,fontWeight:500}},r.l),h("div",{style:{fontWeight:700,fontSize:13,color:r.c}},f$(r.u)),h("div",{style:{fontSize:10,color:"var(--sub)"}},fE(r.e))))
                 )
               )
@@ -3442,6 +3449,14 @@ function App(){
 
         /* ══ ENGINEERS ══ */
         page==="eng"&&h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
+          h("div",{className:"rate-banner"},
+            h(Ic,{n:"report",sz:14,c:"#D97706"}),
+            h("span",{style:{fontWeight:800,color:"#D97706",fontSize:13}},liveRate?(liveRate.toFixed(2)+" ج.م / $"):"جارٍ تحميل السعر..."),
+            liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},rateAt?"آخر تحديث: "+new Date(rateAt).toLocaleTimeString("ar-EG"):""),
+            liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
+            liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"السعر المحفوظ: "+cfg.egp+" ج.م/$"),
+            h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
+          ),
           h("div",{className:"pay-strip"},
             h(Ic,{n:"paid",sz:15,c:"var(--green)"}),
             h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paidN+" مدفوع"),
@@ -3485,7 +3500,7 @@ function App(){
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
                       h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
                       h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
-                      h("td",{style:{fontWeight:700,color:"#D97706"}},c.egp.toFixed(0)),
+                      h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
                       h("td",null,
                         h("span",{className:`paid-badge ${e.paid?"yes":"no"}`,onClick:()=>togglePaid(prov,e.id),title:"اضغط للتغيير"},
                           h(Ic,{n:e.paid?"paid":"clock",sz:11}),
@@ -4135,9 +4150,67 @@ ${PROVS.map(prov=>{
                 "طلبات الإجازة",
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
-              h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setModal('leave-form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
+              leaveView==='list'
+                ?h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
+                :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
-            h("div",{className:"leave-tabs"},
+            leaveView==='form'&&h("div",{className:"card"},
+              h("div",{className:"modal-hdr"},h("h3",null,"✈ طلب إجازة جديد")),
+              h("div",{style:{padding:"16px",display:"flex",flexDirection:"column",gap:12}},
+                h("div",{className:"fld"},
+                  h("label",null,"المهندس *"),
+                  h("select",{value:leaveForm.engId,onChange:ev=>{const id=ev.target.value;setLeaveForm(p=>({...p,engId:id}));setLeaveElig(id?calcEligibility(id):null);}},
+                    h("option",{value:""},"اختر المهندس..."),
+                    PROVS.filter(p=>isAdmin||p===userProv).flatMap(p=>(leaveEngs[p]||[]).map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+p.replace("محافظة ",""))))
+                  )
+                ),
+                leaveElig?h("div",{className:"leave-info-box"},
+                  h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
+                    h("div",null,
+                      h("div",{style:{fontWeight:800,fontSize:12}},leaveElig.eligible?h("span",{style:{color:"#1D9E75"}},"✅ مؤهل للإجازة"):h("span",{style:{color:"#E24B4A"}},"⚠ غير مؤهل بعد")),
+                      h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},"آخر دخول: ",(leaveElig.lastEntryDate||"غير محدد")," · ",leaveElig.label)
+                    ),
+                    h("div",{style:{fontSize:10,color:"var(--sub)",textAlign:"center"}},leaveElig.presentDays,h("br",null),"يوم حضور")
+                  ),
+                  h("div",{className:"leave-elig-bar"},h("div",{className:"leave-elig-fill",style:{width:Math.min(100,Math.round(leaveElig.daysInLibya/180*100))+"%",background:leaveElig.eligible?"#1D9E75":"#EF9F27"}})),
+                  !leaveElig.eligible&&h("div",{style:{fontSize:10,color:"#EF9F27",marginTop:2}},"متبقي "+leaveElig.remaining+" يوم على اكتمال 6 أشهر")
+                ):h("div",{style:{textAlign:"center",padding:"8px 0",color:"var(--sub)",fontSize:11}},"اختر مهندساً لعرض أهليته للإجازة"),
+                h("div",{className:"g2"},
+                  h("div",{className:"fld",style:{margin:0}},
+                    h("label",null,"تاريخ بداية الإجازة *"),
+                    h("input",{type:"date",value:leaveForm.startDate,onChange:ev=>setLeaveForm(p=>({...p,startDate:ev.target.value}))})
+                  ),
+                  h("div",{className:"fld",style:{margin:0}},
+                    h("label",null,"تاريخ نهاية الإجازة *"),
+                    h("input",{type:"date",value:leaveForm.endDate,onChange:ev=>setLeaveForm(p=>({...p,endDate:ev.target.value}))})
+                  )
+                ),
+                leaveForm.startDate&&leaveForm.endDate&&(()=>{
+                  const dur=Math.round((new Date(leaveForm.endDate+"T12:00")-new Date(leaveForm.startDate+"T12:00"))/86400000)+1;
+                  const urgent=(new Date(leaveForm.startDate+"T12:00")-new Date())<14*86400000;
+                  return dur>0?h("div",{className:"leave-info-box",style:{borderColor:urgent?"rgba(239,159,39,.5)":""}},
+                    h("div",{style:{fontWeight:800,fontSize:13}},"مدة الإجازة: "+dur+" يوم"),
+                    urgent&&h("div",{style:{color:"#EF9F27",fontSize:11,marginTop:3}},"⚠ الإجازة تبدأ خلال أقل من 14 يوم")
+                  ):h("div",{className:"leave-info-box",style:{borderColor:"rgba(226,75,74,.4)"}},"❌ التاريخ غير صحيح");
+                })(),
+                h("div",{className:"fld"},
+                  h("label",null,"التذكرة"),
+                  h("div",{style:{display:"flex",gap:20,marginTop:4}},
+                    h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===true,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:true}))}),"✅ محجوزة"),
+                    h("label",{style:{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:12,fontWeight:600}},h("input",{type:"radio",name:"lv-tkt",checked:leaveForm.ticketBooked===false,onChange:()=>setLeaveForm(p=>({...p,ticketBooked:false}))}),"⚠ غير محجوزة")
+                  )
+                ),
+                leaveForm.ticketBooked&&h("div",{className:"fld"},h("label",null,"تفاصيل الحجز"),h("input",{type:"text",placeholder:"رقم التذكرة أو تفاصيل الحجز...",value:leaveForm.ticketDetails,onChange:ev=>setLeaveForm(p=>({...p,ticketDetails:ev.target.value}))})),
+                !leaveElig?.eligible&&leaveElig&&h("div",{className:"info",style:{borderColor:"rgba(226,75,74,.3)",background:"rgba(226,75,74,.05)"}},h(Ic,{n:"warn",sz:14,c:"#E24B4A"}),"المهندس لم يكمل 6 شهور — يمكن إرسال الطلب مع ملاحظة"),
+                h("div",{className:"fld",style:{marginBottom:0}},h("label",null,"ملاحظات"),h("textarea",{rows:2,placeholder:"ملاحظات إضافية...",style:{resize:"vertical"},value:leaveForm.notes,onChange:ev=>setLeaveForm(p=>({...p,notes:ev.target.value}))}))
+              ),
+              h("div",{className:"modal-ftr"},
+                h("button",{className:"btn",onClick:()=>setLeaveView('list')},"إلغاء"),
+                h("button",{className:"btn green",style:{gap:5},onClick:submitLeave},h(Ic,{n:"plane",sz:13}),"إرسال الطلب")
+              )
+            ),
+            leaveView==='list'&&h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
+              h("div",{className:"leave-tabs"},
               ['all','pending','approved','rejected'].map(tab=>h("div",{key:tab,className:"leave-tab "+(leaveTab===tab?'on':''),onClick:()=>setLeaveTab(tab)},
                 {all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض'}[tab],
                 cnts[tab]>0&&h("div",{className:"nav-badge",style:{position:"static",marginRight:0}},cnts[tab])
@@ -4184,6 +4257,7 @@ ${PROVS.map(prov=>{
                   );
                 })
               )
+            )
           );
         })(),
 
