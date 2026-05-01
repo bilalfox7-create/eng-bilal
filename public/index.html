@@ -1628,6 +1628,8 @@ function App(){
   const logoRef=useRef(null);
   const pendingRef=useRef({});
   const timerRef=useRef(null);
+  const printAttRef=useRef(null);
+  const [pendingPrint,setPendingPrint]=useState(null);
 
   /* ── Load data on mount ───────────────────────────── */
   useEffect(()=>{
@@ -2196,9 +2198,17 @@ function App(){
   };
 
   const handlePdfClick=()=>{
-    if(page==="eng"||page==="dash")exportPDF();
+    if(page==="eng"||page==="dash"||page==="report")exportPDF();
+    else if(page==="att"){if(printAttRef.current)printAttRef.current();else setModal("print-select");}
     else setModal("print-select");
   };
+  useEffect(()=>{
+    if(pendingPrint==="att"&&page==="att"){
+      const t=setTimeout(()=>{printAttRef.current?.();setPendingPrint(null);},900);
+      return()=>clearTimeout(t);
+    }
+  },[pendingPrint,page]);
+
 
   const exportPDF=()=>{
     const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
@@ -2684,12 +2694,12 @@ function App(){
             h(Ic,{n:"pdf",sz:15,c:"#DC2626"}),h("div",null,h("div",{style:{fontWeight:700}},"شيت الإعاشة"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"كشف إعاشات المهندسين لهذا الشهر"))
           ),
           h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(16,185,129,.06)",border:"1px solid rgba(16,185,129,.2)",color:"var(--text)"},
-            onClick:()=>{setModal(null);setPage("att");}},
-            h(Ic,{n:"att",sz:15,c:"#10B981"}),h("div",null,h("div",{style:{fontWeight:700}},"كشف الحضور"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الحضور واضغط زر PDF هناك"))
+            onClick:()=>{setModal(null);setPage("att");setPendingPrint("att");}},
+            h(Ic,{n:"att",sz:15,c:"#10B981"}),h("div",null,h("div",{style:{fontWeight:700}},"كشف الحضور"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"سيتم فتح نافذة الطباعة تلقائياً"))
           ),
-          isAdmin&&h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(96,165,250,.06)",border:"1px solid rgba(96,165,250,.2)",color:"var(--text)"},
+          isAdmin&&page!=="org"&&h("button",{className:"btn",style:{justifyContent:"flex-start",gap:10,padding:"12px 16px",fontSize:13,background:"rgba(96,165,250,.06)",border:"1px solid rgba(96,165,250,.2)",color:"var(--text)"},
             onClick:()=>{setModal(null);setPage("org");}},
-            h(Ic,{n:"eng",sz:15,c:"#60A5FA"}),h("div",null,h("div",{style:{fontWeight:700}},"الهيكل التنظيمي"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الهيكل واضغط طباعة هناك"))
+            h(Ic,{n:"eng",sz:15,c:"#60A5FA"}),h("div",null,h("div",{style:{fontWeight:700}},"الهيكل التنظيمي"),h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:400,marginTop:1}},"انتقل لصفحة الهيكل واضغط زر الطباعة الأخضر"))
           )
         ),
         h("div",{className:"modal-ftr"},
@@ -3798,6 +3808,7 @@ function App(){
             setTimeout(()=>{w.focus();w.print();},600);
             msg("تم فتح نافذة الطباعة ✓");
           };
+          printAttRef.current=printAtt;
 
           return h("div",{className:"att-page"},
 
