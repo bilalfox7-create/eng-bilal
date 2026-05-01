@@ -1090,6 +1090,27 @@ html.light .att-th-sum{background:#f8fafc}
 .att-time-day{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0}
 .att-time-inp{padding:5px 8px;border:1.5px solid var(--bdr2);border-radius:8px;background:var(--bg);color:var(--text);font-family:inherit;font-size:12.5px;width:96px}
 .att-time-inp:focus{outline:none;border-color:rgba(96,165,250,.5)}
+/* -- Quick Status Buttons -- */
+.att-qbtns{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.att-qbtn{padding:2px 8px;border-radius:5px;border:1.5px solid;font-size:9px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .15s;background:transparent;white-space:nowrap;line-height:1.5}
+.att-qbtn-P{border-color:rgba(16,185,129,.35);color:#10B981}
+.att-qbtn-P:hover,.att-qbtn-P.on{background:#10B981;color:#fff;border-color:#10B981}
+.att-qbtn-A{border-color:rgba(239,68,68,.35);color:#EF4444}
+.att-qbtn-A:hover,.att-qbtn-A.on{background:#EF4444;color:#fff;border-color:#EF4444}
+.att-qbtn-AL{border-color:rgba(59,130,246,.35);color:#60A5FA}
+.att-qbtn-AL:hover,.att-qbtn-AL.on{background:#3B82F6;color:#fff;border-color:#3B82F6}
+/* -- Bulk Actions Bar -- */
+.att-bulk-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:10px;flex-wrap:wrap;margin-bottom:8px}
+.att-bulk-count{font-size:11px;color:var(--sub);font-weight:700;flex-shrink:0}
+.att-bulk-count em{font-style:normal;color:var(--blue);font-size:13px;font-weight:900}
+.att-bulk-sep{width:1px;height:16px;background:var(--bdr2);flex-shrink:0}
+/* -- Keyboard tooltip -- */
+.att-kb-tip{font-size:8px;color:var(--sub);margin-top:0;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none}
+.att-table tr:hover .att-kb-tip{opacity:.8}
+/* -- Row checkbox -- */
+.att-chk{width:14px;height:14px;cursor:pointer;accent-color:var(--blue);flex-shrink:0;margin-top:2px}
+.att-td-name-inner{display:flex;align-items:flex-start;gap:6px;width:100%}
+.att-td-name-body{flex:1;min-width:0}
 .att-hours{font-size:11px;font-weight:800;color:#FCD34D;margin-right:auto;white-space:nowrap}
 
 /* Weekly/monthly day header colors */
@@ -1576,7 +1597,9 @@ function App(){
   const [gQ,setGQ]=useState("");
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
-  const [attLogMonth,setAttLogMonth]=useState(null); // key when viewing a past month from log
+  const [attLogMonth,setAttLogMonth]=useState(null);
+  const [attSelected,setAttSelected]=useState(()=>new Set());
+  const [attHovEng,setAttHovEng]=useState(null); // key when viewing a past month from log
   const fileRef=useRef(null);
   const logoRef=useRef(null);
   const pendingRef=useRef({});
@@ -1912,6 +1935,16 @@ function App(){
     if(!na[engId])na[engId]={};
     if(next===null)delete na[engId][day];
     else na[engId][day]={...(na[engId]?.[day]||{}),s:next};
+    const upd={...existing,attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+  };
+
+  const attSetStatus=(engId,day,status)=>{
+    const existing=mkMonthBase();
+    const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+    if(!na[engId])na[engId]={};
+    if(na[engId]?.[day]?.s===status)delete na[engId][day];
+    else na[engId][day]={...(na[engId]?.[day]||{}),s:status};
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
@@ -3438,6 +3471,12 @@ function App(){
           const provEngs=data[attProv]||[];
           const isWknd=d=>new Date(cfg.year,cfg.month-1,d).getDay()===5; /* الجمعة فقط */
           const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
+          const todayD=cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear()?now.getDate():null;
+          const toggleSel=id=>setAttSelected(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
+          const selAll=()=>setAttSelected(new Set(provEngs.map(e=>e.id)));
+          const selNone=()=>setAttSelected(new Set());
+          const bulkSet=status=>{if(!todayD||attSelected.size===0)return;attSelected.forEach(id=>attSetStatus(id,todayD,status));setAttSelected(new Set());};
+          const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="ا"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"AL");}};
           const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att);return{P:a.P+s.P,A:a.A+s.A,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,vac:0,hrs:0});
 
           /* ── Vacation balance (15 days / 6 months) ── */
@@ -3778,6 +3817,19 @@ ${PROVS.map(prov=>{
             provEngs.length===0
               ?h("div",{className:"info"},h(Ic,{n:"info",sz:16}),"لا يوجد مهندسون في هذه المحافظة للشهر الحالي")
               :h("div",{className:"card",style:{padding:0,overflow:"hidden"}},
+                h("div",{className:"att-bulk-bar"},
+                  h("input",{type:"checkbox",className:"att-chk",style:{marginTop:0},checked:attSelected.size===provEngs.length&&provEngs.length>0,onChange:ev=>ev.target.checked?selAll():selNone(),title:"تحديد الكل"}),
+                  h("span",{className:"att-bulk-count"},attSelected.size>0?h(React.Fragment,null,"محدد: ",h("em",null,attSelected.size)," مهندس"):"تحديد الكل"),
+                  attSelected.size>0&&h(React.Fragment,null,
+                    h("div",{className:"att-bulk-sep"}),
+                    todayD?h(React.Fragment,null,
+                      h("button",{className:"att-qbtn att-qbtn-P",onClick:()=>bulkSet("P")},"✓ حاضر"),
+                      h("button",{className:"att-qbtn att-qbtn-A",onClick:()=>bulkSet("A")},"✗ غائب"),
+                      h("button",{className:"att-qbtn att-qbtn-AL",onClick:()=>bulkSet("AL")},"✈ إجازة")
+                    ):h("span",{style:{fontSize:10,color:"var(--sub)"}},"التحديد يطبق على اليوم الحالي فقط"),
+                    h("button",{className:"att-qbtn",style:{borderColor:"rgba(148,163,184,.3)",color:"var(--sub)"},onClick:()=>selNone()},"إلغاء")
+                  )
+                ),
                 h("div",{className:"att-table-wrap"},
                   h("table",{className:"att-table"},
                     /* ── THEAD ── */
@@ -3796,15 +3848,27 @@ ${PROVS.map(prov=>{
                         const eAtt=att[eng.id]||{};
                         const vb=getVac(eng.id);
                         const vc=vacColor(vb);
-                        return h("tr",{key:eng.id},
+                        return h("tr",{key:eng.id,tabIndex:0,onMouseEnter:()=>setAttHovEng(eng.id),onMouseLeave:()=>setAttHovEng(null),onKeyDown:e=>handleRowKey(e,eng.id)},
                           /* Engineer name */
                           h("td",{className:"att-td-name"},
-                            h("div",{className:"att-td-eng"},eng.name),
-                            h("div",{className:"att-td-spec"},eng.spec),
-                            h("button",{
-                              onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),
-                              style:{marginTop:4,fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}
-                            },"⏰ الأوقات")
+                            h("div",{className:"att-td-name-inner"},
+                              h("input",{type:"checkbox",className:"att-chk",checked:attSelected.has(eng.id),onChange:()=>toggleSel(eng.id)}),
+                              h("div",{className:"att-td-name-body"},
+                                h("div",{className:"att-td-eng"},eng.name),
+                                h("div",{className:"att-td-spec"},eng.spec),
+                                todayD&&h("div",{className:"att-qbtns"},
+                                  ["P","A","AL"].map(function(st){
+                                    const cur=(att[eng.id]||{})[todayD]?.s;
+                                    const lbl={P:"✓ حاضر",A:"✗ غائب",AL:"✈ إجازة"}[st];
+                                    return h("button",{key:st,className:"att-qbtn att-qbtn-"+st+(cur===st?" on":""),onClick:function(e){e.stopPropagation();attSetStatus(eng.id,todayD,st);}},lbl);
+                                  })
+                                ),
+                                h("div",{style:{display:"flex",gap:4,marginTop:4,alignItems:"center"}},
+                                  h("button",{onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"⏰ الأوقات"),
+                                  attHovEng===eng.id&&h("span",{className:"att-kb-tip"},"ح=حاضر · غ=غائب · ا=إجازة")
+                                )
+                              )
+                            )
                           ),
                           /* Day cells */
                           ...days.map(d=>{
