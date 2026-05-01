@@ -921,16 +921,10 @@ html.light .login-sub{color:var(--sub)}
 .org-page{display:flex;flex-direction:column;gap:0;padding:0}
 .org-full{position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg1);}
 /* ── OrgTree ── */
-.ot-wrap{padding:0 0 32px;overflow-x:auto;overflow-y:visible}
+.ot-wrap{padding:0 0 32px;overflow-x:auto;overflow-y:visible;direction:ltr}
 .ot-inner{display:flex;flex-direction:column;align-items:center;min-width:max-content;padding:32px 48px}
 .ot-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:12px 24px 24px;border-top:1px solid var(--border);margin-top:4px}
 .ot-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--sub)}
-.ot-node{display:flex;flex-direction:column;align-items:center}
-.ot-stem{width:2px;height:20px;background:#e2e8f0;flex-shrink:0;align-self:center}
-.ot-row{display:grid;grid-template-columns:repeat(var(--n,1),minmax(min-content,1fr));gap:24px;position:relative;padding-top:20px}
-.ot-row::before{content:'';position:absolute;top:0;left:calc(50% / var(--n,1));right:calc(50% / var(--n,1));height:2px;background:#e2e8f0;pointer-events:none}
-.ot-col{display:flex;flex-direction:column;align-items:center}
-.ot-col::before{content:'';display:block;width:2px;height:20px;background:#e2e8f0;flex-shrink:0}
 
 /* ── Company Banner ────────────────────────────────────── */
 .org-banner{
@@ -1647,23 +1641,36 @@ function OrgCard({node,onClick,hasChildren}){
   );
 }
 
+const OT_STEM=Object.freeze({width:2,height:20,background:"#e2e8f0",flexShrink:0,alignSelf:"center"});
+
 function OrgNode({node}){
+  console.log("OrgChart rendering, data:", node);
   const [open,setOpen]=useState(true);
   const ch=node.children||[];
   const n=ch.length;
   const hasCh=n>0;
-  return h("div",{className:"ot-node"},
+  return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center"}},
     h(OrgCard,{node,onClick:hasCh?()=>setOpen(v=>!v):undefined,hasChildren:hasCh}),
-    hasCh&&h("div",{className:"ot-stem"}),
+    hasCh&&h("div",{style:OT_STEM}),
     hasCh&&h("button",{
       onClick:()=>setOpen(v=>!v),
       style:{width:20,height:20,borderRadius:"50%",border:"1px solid #e2e8f0",
         background:"var(--bg2)",fontSize:12,color:"var(--sub)",cursor:"pointer",
         display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}
     },open?"−":"+"),
-    hasCh&&open&&h("div",{className:"ot-stem"}),
-    hasCh&&open&&h("div",{className:"ot-row",style:{"--n":n}},
-      ch.map(child=>h("div",{key:child.id,className:"ot-col"},h(OrgNode,{node:child})))
+    hasCh&&open&&h("div",{style:OT_STEM}),
+    hasCh&&open&&h("div",{style:{position:"relative",paddingTop:20}},
+      h("div",{style:{
+        position:"absolute",top:0,
+        left:`calc(50% / ${n})`,right:`calc(50% / ${n})`,
+        height:2,background:"#e2e8f0",pointerEvents:"none"
+      }}),
+      h("div",{style:{display:"grid",gridTemplateColumns:`repeat(${n},minmax(min-content,1fr))`,gap:24}},
+        ch.map(child=>h("div",{key:child.id,style:{display:"flex",flexDirection:"column",alignItems:"center"}},
+          h("div",{style:OT_STEM}),
+          h(OrgNode,{node:child})
+        ))
+      )
     )
   );
 }
