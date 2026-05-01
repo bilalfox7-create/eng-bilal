@@ -3033,6 +3033,7 @@ function App(){
                         ),
                         h("div",{style:{display:"flex",gap:4}},
                           h("button",{className:"btn-icon edit",onClick:()=>{setCustForm({...c,usd:c.usd||"",lyd:c.lyd||""});setModal("cust-form");}},h(Ic,{n:"edit",sz:12})),
+                          c.usd>0&&h("button",{className:"btn-icon",title:"تحويل إلى دينار",style:{color:"var(--gold)",borderColor:"rgba(234,179,8,.3)",background:"var(--gold2)"},onClick:()=>{setTrfForm({id:null,fromCustodyId:c.id,toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}},h(Ic,{n:"coin",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delCust(c.id)},h(Ic,{n:"del",sz:12}))
                         )
                       ),
@@ -3079,7 +3080,7 @@ function App(){
           ),
 
           /* ─── تحويلات العملة ─── */
-          custody.length>=1&&h("div",{className:"card"},
+          h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"var(--gold2)"}},h(Ic,{n:"coin",sz:13,c:"var(--gold)"})),
