@@ -1633,47 +1633,72 @@ function OctProjectCard({node}){
 function OctNodeCard({node,onClick,hasChildren}){
   const c=OCT_COLORS[node.level]||OCT_COLORS[2];
   const [hov,setHov]=useState(false);
-  const minW=[220,170,150,135][node.level]||135;
+  const minW=[220,165,145,130][node.level]||130;
   return h("div",{
     onClick,
     onMouseEnter:()=>setHov(true),
     onMouseLeave:()=>setHov(false),
-    style:{background:"var(--bg1)",border:"0.5px solid var(--border)",borderTop:`3px solid ${c.border}`,borderRadius:12,padding:node.level>=3?"8px 12px":"10px 14px",minWidth:minW,textAlign:"center",cursor:hasChildren?"pointer":"default",transition:"transform .15s,box-shadow .15s",transform:hov&&hasChildren?"translateY(-2px)":"translateY(0)",boxShadow:hov&&hasChildren?"0 6px 20px rgba(0,0,0,.15)":"0 2px 8px rgba(0,0,0,.08)"}
+    style:{
+      background:"var(--bg1)",border:"0.5px solid var(--border)",
+      borderTop:`3px solid ${c.border}`,borderRadius:12,
+      padding:node.level>=3?"8px 12px":"10px 14px",
+      minWidth:minW,maxWidth:minW+60,
+      textAlign:"center",flexShrink:0,
+      cursor:hasChildren?"pointer":"default",
+      transition:"transform .15s,box-shadow .15s",
+      transform:hov&&hasChildren?"translateY(-2px)":"translateY(0)",
+      boxShadow:hov&&hasChildren?"0 6px 20px rgba(0,0,0,.15)":"0 2px 8px rgba(0,0,0,.08)"
+    }
   },
     h(OctAvatar,{name:node.name,level:node.level}),
-    h("div",{style:{fontSize:node.level>=3?12:13,fontWeight:600,color:"var(--fg)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},node.name),
-    h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},node.role),
-    node.stats&&node.stats.length>0&&h("div",{style:{display:"flex",gap:4,justifyContent:"center",marginTop:7,flexWrap:"wrap"}},
-      node.stats.map((s,i)=>h("span",{key:i,style:{fontSize:10,padding:"2px 8px",borderRadius:20,background:c.avatarBg,color:c.avatarText,fontWeight:500}},s))
+    h("div",{style:{fontSize:node.level>=3?11:13,fontWeight:600,color:"var(--fg)",wordBreak:"break-word",lineHeight:1.3}},node.name),
+    h("div",{style:{fontSize:9,color:"var(--sub)",marginTop:2,lineHeight:1.3}},node.role),
+    node.stats&&node.stats.length>0&&h("div",{style:{display:"flex",gap:3,justifyContent:"center",marginTop:6,flexWrap:"wrap"}},
+      node.stats.map((s,i)=>h("span",{key:i,style:{fontSize:9,padding:"2px 6px",borderRadius:20,background:c.avatarBg,color:c.avatarText,fontWeight:500}},s))
     )
   );
 }
 
 function OctTreeNode({node}){
   const [open,setOpen]=useState(true);
-  const children=node.children||[];
-  const hasC=children.length>0;
-  const toggle=hasC?()=>setOpen(v=>!v):undefined;
-  return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center"}},
-    node.level===4
-      ?h(OctProjectCard,{node})
-      :h(OctNodeCard,{node,onClick:toggle,hasChildren:hasC}),
-    hasC&&h("div",null,
-      h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center"}},
-        h("div",{style:{width:1,height:14,background:"var(--border)"}}),
-        h("button",{onClick:toggle,style:{width:18,height:18,borderRadius:"50%",border:"1px solid var(--border)",background:"var(--bg2)",fontSize:11,color:"var(--sub)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,lineHeight:1}},open?"−":"+"),
-        open&&h("div",{style:{width:1,height:14,background:"var(--border)"}})
-      ),
-      open&&h("div",{style:{position:"relative",display:"flex",gap:12,alignItems:"flex-start"}},
-        h("div",{style:{position:"absolute",top:0,right:0,left:0,height:1,background:"var(--border)"}}),
-        children.map(child=>
-          h("div",{key:child.id,style:{display:"flex",flexDirection:"column",alignItems:"center"}},
-            h("div",{style:{width:1,height:14,background:"var(--border)"}}),
-            h(OctTreeNode,{node:child})
+  const ch=node.children||[];
+  const hasCh=ch.length>0;
+  const toggle=()=>setOpen(v=>!v);
+
+  const card=node.level===4
+    ?h(OctProjectCard,{node})
+    :h(OctNodeCard,{node,onClick:hasCh?toggle:undefined,hasChildren:hasCh});
+
+  // Leaf node — no connectors needed
+  if(!hasCh) return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},card);
+
+  return h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
+    card,
+    // Stem card → toggle
+    h("div",{style:{width:1,height:12,background:"var(--border)",flexShrink:0}}),
+    // Toggle button
+    h("button",{
+      onClick:toggle,
+      style:{width:18,height:18,borderRadius:"50%",border:"1px solid var(--border)",background:"var(--bg2)",fontSize:11,color:"var(--sub)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}
+    },open?"−":"+"),
+    // Branch (only when open)
+    open
+      ?h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
+          // Stem toggle → horizontal bar
+          h("div",{style:{width:1,height:12,background:"var(--border)"}}),
+          // Children row
+          h("div",{style:{position:"relative",display:"flex",flexWrap:"nowrap",gap:16,alignItems:"flex-start"}},
+            // Horizontal connecting bar
+            h("div",{style:{position:"absolute",top:0,left:0,right:0,height:1,background:"var(--border)"}}),
+            ch.map(child=>
+              h("div",{key:child.id,style:{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}},
+                h("div",{style:{width:1,height:12,background:"var(--border)"}}),
+                h(OctTreeNode,{node:child})
+              )
+            )
           )
         )
-      )
-    )
+      :null
   );
 }
 
