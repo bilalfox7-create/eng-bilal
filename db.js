@@ -2,9 +2,11 @@ const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
-// على Railway نستخدم /data (volume) وإلا المجلد الحالي
+// Railway: /data (volume) — Vercel: /tmp (ephemeral) — local: ./data.db
 const DB_PATH = process.env.DB_PATH ||
-  (process.env.RAILWAY_ENVIRONMENT ? '/data/data.db' : path.join(__dirname, 'data.db'));
+  (process.env.RAILWAY_ENVIRONMENT ? '/data/data.db' :
+   process.env.VERCEL               ? '/tmp/data.db'  :
+   path.join(__dirname, 'data.db'));
 
 let db;
 
