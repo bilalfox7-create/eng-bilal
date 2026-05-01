@@ -1962,6 +1962,21 @@ function App(){
     msg("تم تحضير "+mn2+" كاملاً ✓");
   };
 
+  const attClearMonth=()=>{
+    const allEngs=PROVS.flatMap(p=>data[p]||[]);
+    const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
+    const existing=mkMonthBase();
+    const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+    allEngs.forEach(eng=>{
+      if(!na[eng.id])return;
+      Object.keys(na[eng.id]).forEach(d=>{if(na[eng.id][d]?.s==='P')delete na[eng.id][d];});
+      if(Object.keys(na[eng.id]).length===0)delete na[eng.id];
+    });
+    const upd={...existing,attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    msg("تم إلغاء تحضير "+mn2+" ✓");
+  };
+
   const attSetTime=(engId,day,field,val)=>{
     const existing=mkMonthBase();
     const att=existing.attendance||{};
@@ -2926,6 +2941,7 @@ function App(){
           isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           isAdmin&&h("button",{className:"btn",onClick:exportPDF},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
+          page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
           isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("button",{
