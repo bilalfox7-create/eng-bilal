@@ -1619,6 +1619,7 @@ function App(){
   const [page,setPage]=useState("dash");
   const [months,setMonths]=useState({});
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
+  const [attKey,setAttKey]=useState(()=>{const m=now.getMonth(),y=now.getFullYear();return m===0?mkKey(12,y-1):mkKey(m,y);});
   const [cmpKeys,setCmpKeys]=useState([]);
   const [engProfile,setEngProfile]=useState(null);
   const [epTab,setEpTab]=useState('info');
@@ -1891,6 +1892,11 @@ function App(){
     return {custody:raw.custody||[],items:raw.items||[],transfers:raw.transfers||[]};
   },[am]);
   const att=useMemo(()=>am?.attendance||{},[am]);
+  const attAm=useMemo(()=>months[attKey]||null,[months,attKey]);
+  const attData=useMemo(()=>attAm?.data||dc(BASE),[attAm]);
+  const attCfg=useMemo(()=>attAm?.cfg||{month:now.getMonth()+1,year:now.getFullYear(),rate:300,egp:52.5,company:"شركة المشاريع الليبية"},[attAm]);
+  const attAtt=useMemo(()=>attAm?.attendance||{},[attAm]);
+  const attMn=MONTHS[attCfg.month-1];
   const leaves=useMemo(()=>months['leaves']?.requests||[],[months]);
   const pendingLeaves=useMemo(()=>leaves.filter(l=>l.status==='pending').length,[leaves]);
   const custody=expData.custody;
@@ -2055,6 +2061,8 @@ function App(){
 
   const mkMonthBase=()=>({...(months[ak]||{data,cfg})});
   const lockGuard=()=>{if(!isAdmin&&isMonthLocked(ak)){msg('🔒 هذا الشهر مقفول — لا يمكن التعديل','err');return true;}return false;};
+  const mkAttMonthBase=()=>({...(months[attKey]||{data:attData,cfg:attCfg})});
+  const attLockGuard=()=>{if(!isAdmin&&isMonthLocked(attKey)){msg('🔒 هذا الشهر مقفول — لا يمكن التعديل','err');return true;}return false;};
 
   const updData=(p,id,f,v)=>{
     if(lockGuard())return;
@@ -2164,50 +2172,50 @@ function App(){
   const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)'};
 
   const attCycleStatus=(engId,day)=>{
-    if(lockGuard())return;
-    const existing=mkMonthBase();
-    const att=existing.attendance||{};
-    const cur=att[engId]?.[day]?.s||null;
+    if(attLockGuard())return;
+    const existing=mkAttMonthBase();
+    const a=existing.attendance||{};
+    const cur=a[engId]?.[day]?.s||null;
     const next=ATT_CYCLE[(ATT_CYCLE.indexOf(cur)+1)%ATT_CYCLE.length];
-    const na=JSON.parse(JSON.stringify(att));
+    const na=JSON.parse(JSON.stringify(a));
     if(!na[engId])na[engId]={};
     if(next===null)delete na[engId][day];
     else na[engId][day]={...(na[engId]?.[day]||{}),s:next};
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
   const attSetStatus=(engId,day,status)=>{
-    if(lockGuard())return;
-    const existing=mkMonthBase();
+    if(attLockGuard())return;
+    const existing=mkAttMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     if(!na[engId])na[engId]={};
     if(na[engId]?.[day]?.s===status)delete na[engId][day];
     else na[engId][day]={...(na[engId]?.[day]||{}),s:status};
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
   const attFillMonth=()=>{
-    if(lockGuard())return;
-    const dIM=new Date(cfg.year,cfg.month,0).getDate();
-    const allEngs=PROVS.flatMap(p=>data[p]||[]);
-    const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(cfg.year,cfg.month-1,d).getDay()!==5);
-    const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
-    const existing=mkMonthBase();
+    if(attLockGuard())return;
+    const dIM=new Date(attCfg.year,attCfg.month,0).getDate();
+    const allEngs=PROVS.flatMap(p=>attData[p]||[]);
+    const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(attCfg.year,attCfg.month-1,d).getDay()!==5);
+    const mn2=MONTHS[attCfg.month-1]+" "+attCfg.year;
+    const existing=mkAttMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     wDays.forEach(d=>{allEngs.forEach(eng=>{if(!na[eng.id])na[eng.id]={};if(!na[eng.id][d]?.s)na[eng.id][d]={...(na[eng.id][d]||{}),s:"P"};});});
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
     logActivity('تحضير حضور',mn2);
     msg("تم تحضير "+mn2+" كاملاً ✓");
   };
 
   const attClearMonth=()=>{
-    if(lockGuard())return;
-    const allEngs=PROVS.flatMap(p=>data[p]||[]);
-    const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
-    const existing=mkMonthBase();
+    if(attLockGuard())return;
+    const allEngs=PROVS.flatMap(p=>attData[p]||[]);
+    const mn2=MONTHS[attCfg.month-1]+" "+attCfg.year;
+    const existing=mkAttMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     allEngs.forEach(eng=>{
       if(!na[eng.id])return;
@@ -2215,18 +2223,18 @@ function App(){
       if(Object.keys(na[eng.id]).length===0)delete na[eng.id];
     });
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
     logActivity('إلغاء تحضير حضور',mn2);
     msg("تم إلغاء تحضير "+mn2+" ✓");
   };
 
   const attClearCell=(engId,day)=>{
-    if(lockGuard())return;
-    const existing=mkMonthBase();
+    if(attLockGuard())return;
+    const existing=mkAttMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     if(na[engId])delete na[engId][day];
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
   const saveLeaves=(list)=>{
@@ -2297,14 +2305,14 @@ function App(){
   };
 
   const attSetTime=(engId,day,field,val)=>{
-    const existing=mkMonthBase();
-    const att=existing.attendance||{};
-    const na=JSON.parse(JSON.stringify(att));
+    const existing=mkAttMonthBase();
+    const a=existing.attendance||{};
+    const na=JSON.parse(JSON.stringify(a));
     if(!na[engId])na[engId]={};
     if(!na[engId][day])na[engId][day]={s:'P'};
     na[engId][day][field]=val;
     const upd={...existing,attendance:na};
-    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
   const attGetStats=(engId,att,year,month)=>{
@@ -2976,7 +2984,7 @@ function App(){
                   h("div",null,"اليوم"),h("div",null,"وقت الحضور"),h("div",null,"وقت الانصراف"),h("div",null,"ساعات العمل")
                 ),
                 attTimeModal.days.filter(d=>attTimeModal.eAtt[d]?.s==='P').map(d=>{
-                  const live=(months[ak]?.attendance||{})[attTimeModal.engId]?.[d]||{s:'P'};
+                  const live=(months[attKey]?.attendance||{})[attTimeModal.engId]?.[d]||{s:'P'};
                   const calcHrs=(i,o)=>{if(!i||!o)return"8h (تقديري)";const[ih,im]=i.split(':').map(Number);const[oh,om]=o.split(':').map(Number);const m=(oh*60+om)-(ih*60+im);return m>0?Math.floor(m/60)+"h "+m%60+"m":"--";};
                   return h("div",{key:d,className:"att-time-row"},
                     h("div",{className:"att-time-day",style:{background:"rgba(16,185,129,.15)",color:"#10B981"}},d),
@@ -4072,6 +4080,7 @@ function App(){
 
         /* ══ ATTENDANCE ══ */
         page==="att"&&(()=>{
+          const cfg=attCfg,data=attData,att=attAtt,mn=attMn;
           const daysInMonth=new Date(cfg.year,cfg.month,0).getDate();
           const days=Array.from({length:daysInMonth},(_,i)=>i+1);
           const provEngs=data[attProv]||[];
@@ -4220,7 +4229,9 @@ function App(){
               h("div",{className:"card-hdr",style:{flexWrap:"wrap",gap:10}},
                 h("div",{className:"card-title"},
                   h("div",{className:"card-title-icon",style:{background:"rgba(16,185,129,.12)"}},h(Ic,{n:"att",sz:14,c:"#10B981"})),
-                  "الحضور والانصراف — ",h("span",{style:{color:"var(--blue)",fontWeight:900}},mn+" "+cfg.year)
+                  "الحضور والانصراف — ",h("span",{style:{color:"var(--blue)",fontWeight:900}},mn+" "+cfg.year),
+                  h("select",{value:attKey,onChange:e=>setAttKey(e.target.value),style:{marginRight:10,padding:"4px 8px",borderRadius:6,border:"1px solid var(--bdr)",background:"var(--bg2)",color:"var(--text)",fontSize:12,cursor:"pointer"}},
+                    sortedKeys.map(k=>{const[y,m]=k.split('-');return h("option",{key:k,value:k},MONTHS[+m-1]+" "+y);}))
                 ),
                 /* view toggle */
                 h("div",{className:"att-view-toggle"},
@@ -4346,7 +4357,7 @@ ${PROVS.map(prov=>{
                       ),
                       h("div",{className:"att-log-actions"},
                         h("button",{className:"btn",style:{fontSize:11,padding:"6px 12px",gap:5},
-                          onClick:()=>{switchMonth(entry.key);setAttView("table");setAttLogMonth(null);}},
+                          onClick:()=>{setAttKey(entry.key);setAttView("table");}},
                           h(Ic,{n:"att",sz:12}),"عرض"),
                         h("button",{className:"btn",style:{fontSize:11,padding:"6px 12px",gap:5,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.25)",color:"#F87171"},
                           onClick:()=>printMonth(entry)},
