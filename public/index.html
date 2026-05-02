@@ -1661,9 +1661,16 @@ function App(){
   const isAdmin=useMemo(()=>user?.role==='admin',[user]);
   const isProvince=useMemo(()=>user?.role==='province',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
-  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
-  const [custForm,setCustForm]=useState({id:null,desc:"",usd:"",lyd:"",date:"",note:""});
+  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});
+  const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
+  const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
+  const [fixedRents,setFixedRents]=useState([
+    {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0},
+    {id:'r2',desc:'سكن رقم 2',day:7,lyd:3500,usd:0},
+    {id:'r3',desc:'سكن رقم 3',day:22,lyd:5000,usd:0}
+  ]);
+  const [editingRent,setEditingRent]=useState(null);
   const [orgData,setOrgData]=useState(null);
   const [attProv,setAttProv]=useState(PROVS[0]);
   const [saveLogs,setSaveLogs]=useState([]);
@@ -1707,6 +1714,7 @@ function App(){
         fetch("/api/months").then(r=>r.json()),
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
       ];
+      fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
       if(u.role==='admin'){
         fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
@@ -1846,6 +1854,7 @@ function App(){
         fetch("/api/months").then(r=>r.json()),
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
       ];
+      fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
       if(d.role==='admin'){
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
       }
@@ -1956,6 +1965,98 @@ function App(){
     custTotalUSD:custody.reduce((a,c)=>a+(+c.usd||0),0),
     custTotalLYD:custody.reduce((a,c)=>a+(+c.lyd||0),0),
   }),[expItems,custody]);
+
+  /* ── Aggregate finance across all months ───────────── */
+  const aggCustody=useMemo(()=>{
+    const list=[];
+    Object.entries(months).forEach(([key,m])=>{
+      if(key==='leaves')return;
+      const cust=(m?.expenses?.custody)||[];
+      cust.forEach(c=>list.push({...c,monthKey:key}));
+    });
+    return list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  },[months]);
+  const aggExpItems=useMemo(()=>{
+    const list=[];
+    Object.entries(months).forEach(([key,m])=>{
+      if(key==='leaves')return;
+      const items=(m?.expenses?.items)||[];
+      items.forEach(e=>list.push({...e,monthKey:key}));
+    });
+    return list;
+  },[months]);
+  const aggTransfers=useMemo(()=>{
+    const list=[];
+    Object.entries(months).forEach(([key,m])=>{
+      if(key==='leaves')return;
+      const trfs=(m?.expenses?.transfers)||[];
+      trfs.forEach(t=>list.push({...t,monthKey:key}));
+    });
+    return list;
+  },[months]);
+  const aggBalance=useMemo(()=>{
+    const receivedUSD=aggCustody.reduce((a,c)=>a+(+c.usd||0),0);
+    const receivedLYD=aggCustody.reduce((a,c)=>a+(+c.lyd||0),0);
+    const spentUSD=aggExpItems.reduce((a,e)=>a+(+e.usd||0),0);
+    const spentLYD=aggExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
+    const trfOutUSD=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
+    const trfInLYD=aggTransfers.filter(t=>t.toCustodyId).reduce((a,t)=>a+(+t.lyd||0),0);
+    const balanceUSD=receivedUSD-spentUSD-trfOutUSD;
+    const balanceLYD=receivedLYD-spentLYD+trfInLYD;
+    const rate=(+cfg.egp)||5;
+    const totalRecvUSD=receivedUSD+receivedLYD/rate;
+    const totalSpentUSD=spentUSD+(spentLYD-trfInLYD)/rate+trfOutUSD;
+    const pct=totalRecvUSD>0?Math.min(100,Math.round(totalSpentUSD/totalRecvUSD*100)):0;
+    const remPct=100-pct;
+    return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,pct,remPct,low:remPct<20,critical:remPct<10};
+  },[aggCustody,aggExpItems,aggTransfers,cfg.egp]);
+
+  /* ── Engineers list for "responsible" dropdown ─────── */
+  const allEngineers=useMemo(()=>{
+    const engs=[];
+    PROVS.forEach(p=>{
+      const list=data[p]||[];
+      list.forEach(e=>engs.push({id:e.id,name:e.name,prov:p}));
+    });
+    return engs;
+  },[data]);
+
+  /* ── Filtered finance items (respects user role + filters) ── */
+  const filterItem=useCallback((item)=>{
+    if(isProvince&&item.prov&&item.prov!==userProv)return false;
+    if(expFilters.dateFrom&&item.date&&item.date<expFilters.dateFrom)return false;
+    if(expFilters.dateTo&&item.date&&item.date>expFilters.dateTo)return false;
+    if(expFilters.prov&&item.prov!==expFilters.prov)return false;
+    if(expFilters.type&&item.type!==expFilters.type)return false;
+    if(expFilters.category&&item.category!==expFilters.category)return false;
+    return true;
+  },[isProvince,userProv,expFilters]);
+  const filteredCustody=useMemo(()=>aggCustody.filter(c=>{
+    if(isProvince&&c.prov&&c.prov!==userProv)return false;
+    if(expFilters.dateFrom&&c.date&&c.date<expFilters.dateFrom)return false;
+    if(expFilters.dateTo&&c.date&&c.date>expFilters.dateTo)return false;
+    if(expFilters.prov&&c.prov!==expFilters.prov)return false;
+    return true;
+  }),[aggCustody,isProvince,userProv,expFilters]);
+  const filteredExpItems=useMemo(()=>aggExpItems.filter(filterItem),[aggExpItems,filterItem]);
+
+  /* ── Fixed rents — current month status ────────────── */
+  const monthRents=useMemo(()=>{
+    const m=cfg.month||(now.getMonth()+1),y=cfg.year||now.getFullYear();
+    return fixedRents.map(r=>{
+      const dueDate=`${y}-${String(m).padStart(2,'0')}-${String(r.day).padStart(2,'0')}`;
+      const paid=expItems.find(e=>e.type==='إيجار'&&e.fixedRentId===r.id&&e.date===dueDate);
+      return {...r,dueDate,paid:!!paid,paidItemId:paid?.id||null};
+    });
+  },[fixedRents,expItems,cfg.month,cfg.year]);
+  const dueRentsToday=useMemo(()=>{
+    const today=new Date();
+    const td=today.getDate();
+    return monthRents.filter(r=>r.day===td&&!r.paid);
+  },[monthRents]);
+
+  const CATEGORIES=['وقود','مكتب','ضيافة','صيانة','اتصالات','طباعة','مواصلات','غيره'];
+  const SOURCES=['صاحب الشركة','مكتب رئيسي','بنك','تحويل من عهدة','غيره'];
   const isSaved=!!months[ak]?.savedAt;
   const mn=MONTHS[cfg.month-1];
   const unsaved=Object.entries(months).filter(([k,m])=>k!=='leaves'&&!m?.savedAt).length;
@@ -2025,8 +2126,11 @@ function App(){
     if(monthStatus.att.st==='none')notes.push({id:'att',lvl:'yellow',msg:`لم يتم تسجيل حضور ${MONTHS[pm-1]} ${py} حتى الآن`});
     if(d>=14&&monthStatus.d2.st==='none')notes.push({id:'d2',lvl:'yellow',msg:`لم يتم إعاشة النصف الثاني لـ${mn} ${cfg.year} بعد`});
     if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;if(monthStatus.d1.st==='none')notes.push({id:'d1',lvl:'yellow',msg:`لم يتم إعاشة النصف الأول لـ${MONTHS[nm-1]} ${ny} بعد`});}
+    if(dueRentsToday.length>0)dueRentsToday.forEach(r=>notes.push({id:'rent-'+r.id,lvl:'yellow',msg:`⚠️ إيجار مستحق اليوم: ${r.desc} (${(+r.lyd).toLocaleString('ar-EG')} د.ل)`}));
+    if(aggBalance.critical)notes.push({id:'bal-crit',lvl:'red',msg:`⚠️ الرصيد المتبقى منخفض جداً (${aggBalance.remPct}% فقط)`});
+    else if(aggBalance.low)notes.push({id:'bal-low',lvl:'yellow',msg:`⚠️ الرصيد المتبقى منخفض (${aggBalance.remPct}%)`});
     return notes;
-  },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year]);
+  },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year,dueRentsToday,aggBalance]);
 
   const engProfileData=useMemo(()=>{
     if(!engProfile)return null;
@@ -2899,24 +3003,39 @@ function App(){
   };
   const submitCust=()=>{
     if(!custForm.desc.trim()){msg("أدخل وصف العهدة","err");return;}
+    const finalSource=custForm.source==='غيره'?(custForm.sourceOther||'غيره'):custForm.source;
     const nc=[...custody];
-    const item={...custForm,usd:+custForm.usd||0,lyd:+custForm.lyd||0};
+    const item={...custForm,source:finalSource,usd:+custForm.usd||0,lyd:+custForm.lyd||0};
+    delete item.sourceOther;
     if(custForm.id){const i=nc.findIndex(c=>c.id===custForm.id);if(i>=0)nc[i]=item;}
     else nc.push({...item,id:"c"+Date.now()});
     saveExpData({custody:nc,items:expItems,transfers});
     setModal(null);msg(custForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
   const delCust=id=>{
-    if(!confirm("حذف هذه العهدة؟ سيتم إلغاء ربط المصروفات المرتبطة بها"))return;
+    const linked=aggExpItems.filter(e=>e.custodyId===id).length;
+    if(linked>0){
+      msg(`لا يمكن حذف العهدة — مرتبطة بـ ${linked} مصروف. احذف المصروفات أولاً أو فك ربطها`,"err");
+      return;
+    }
+    if(!confirm("حذف هذه العهدة؟"))return;
     const nc=custody.filter(c=>c.id!==id);
-    const ni=expItems.map(e=>e.custodyId===id?{...e,custodyId:""}:e);
     const nt=transfers.filter(t=>t.fromCustodyId!==id&&t.toCustodyId!==id);
-    saveExpData({custody:nc,items:ni,transfers:nt});msg("تم الحذف");
+    saveExpData({custody:nc,items:expItems,transfers:nt});msg("تم الحذف");
   };
   const submitExp=()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
+    const usd=+expForm.usd||0,lyd=+expForm.lyd||0;
+    // Balance warning
+    if(!expForm.id){
+      const rate=(+cfg.egp)||5;
+      const newSpentUSD=usd+lyd/rate;
+      if(newSpentUSD>aggBalance.balanceUSD+aggBalance.balanceLYD/rate){
+        if(!confirm("⚠️ المبلغ المطلوب أكبر من الرصيد المتبقى — هل تريد المتابعة؟"))return;
+      }
+    }
     const ni=[...expItems];
-    const item={...expForm,usd:+expForm.usd||0,lyd:+expForm.lyd||0};
+    const item={...expForm,usd,lyd};
     if(expForm.id){const i=ni.findIndex(e=>e.id===expForm.id);if(i>=0)ni[i]=item;}
     else ni.push({...item,id:"x"+Date.now()});
     saveExpData({custody,items:ni,transfers});
@@ -2949,6 +3068,137 @@ function App(){
   const updExpItem=(id,field,val)=>{
     const ni=expItems.map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e);
     saveExpData({custody,items:ni,transfers});
+  };
+
+  /* ── Cross-month item edit/delete (for items shown in filtered view) ── */
+  const findItemMonth=(itemId)=>{
+    for(const[key,m]of Object.entries(months)){
+      if(key==='leaves')continue;
+      const items=m?.expenses?.items||[];
+      if(items.some(e=>e.id===itemId))return key;
+    }
+    return null;
+  };
+  const delExpAcross=(id)=>{
+    if(!confirm("حذف هذا البند؟"))return;
+    const key=findItemMonth(id);
+    if(!key){msg('لم يتم العثور على البند','err');return;}
+    const m=months[key]||{};
+    const exp=m.expenses||{custody:[],items:[],transfers:[]};
+    const newExp={...exp,items:(exp.items||[]).filter(e=>e.id!==id)};
+    const newM={...m,expenses:newExp,savedAt:null};
+    setMonths(p=>({...p,[key]:newM}));
+    queueSave(key,newM);
+    msg("تم الحذف");
+  };
+  const updExpAcross=(id,field,val)=>{
+    const key=findItemMonth(id);
+    if(!key)return;
+    const m=months[key]||{};
+    const exp=m.expenses||{custody:[],items:[],transfers:[]};
+    const newExp={...exp,items:(exp.items||[]).map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e)};
+    const newM={...m,expenses:newExp,savedAt:null};
+    setMonths(p=>({...p,[key]:newM}));
+    queueSave(key,newM);
+  };
+  const editExpAcross=(item)=>{
+    setExpForm({...item,usd:item.usd||"",lyd:item.lyd||""});
+    setModal("exp-form");
+  };
+
+  /* ── Pay/unpay a fixed rent (creates or removes إيجار item) ── */
+  const payFixedRent=(rent)=>{
+    if(!isAdmin){msg('للأدمن فقط','err');return;}
+    const item={
+      id:'x'+Date.now(),
+      desc:rent.desc+' — '+MONTHS[(cfg.month||1)-1]+' '+(cfg.year||now.getFullYear()),
+      type:'إيجار',
+      category:'',
+      prov:'',
+      usd:+rent.usd||0,
+      lyd:+rent.lyd||0,
+      date:rent.dueDate,
+      note:'',
+      custodyId:'',
+      fixedRentId:rent.id
+    };
+    const ni=[...expItems,item];
+    saveExpData({custody,items:ni,transfers});
+    msg('تم تسجيل دفع الإيجار ✓');
+  };
+  const unpayFixedRent=(rent)=>{
+    if(!isAdmin){msg('للأدمن فقط','err');return;}
+    if(!rent.paidItemId)return;
+    if(!confirm('إلغاء دفع هذا الإيجار؟'))return;
+    saveExpData({custody,items:expItems.filter(e=>e.id!==rent.paidItemId),transfers});
+    msg('تم إلغاء الدفع');
+  };
+
+  /* ── Save fixed rents config ────────────────────────── */
+  const saveFixedRents=(newRents)=>{
+    setFixedRents(newRents);
+    fetch('/api/fixed-rents',{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({rents:newRents})}).catch(()=>{});
+  };
+
+  /* ── Export filtered expenses to Excel ───────────────── */
+  const exportExpExcel=()=>{
+    const wb=XLSX.utils.book_new();
+    // Custody sheet
+    const custSheet=XLSX.utils.json_to_sheet(filteredCustody.map((c,i)=>({
+      '#':i+1,'الوصف':c.desc,'المصدر':c.source||'—','المسؤول':allEngineers.find(e=>e.id===c.responsibleId)?.name||'—',
+      'المحافظة':c.prov?c.prov.replace('محافظة ',''):'—',
+      'المبلغ ($)':+c.usd||0,'المبلغ (د.ل)':+c.lyd||0,
+      'التاريخ':c.date||'—','ملاحظة':c.note||'—'
+    })));
+    XLSX.utils.book_append_sheet(wb,custSheet,'العهدة');
+    // Expenses sheet
+    const expSheet=XLSX.utils.json_to_sheet(filteredExpItems.map((e,i)=>({
+      '#':i+1,'النوع':e.type,'الوصف':e.desc,'التصنيف':e.category||'—',
+      'المحافظة':e.prov?e.prov.replace('محافظة ',''):'—',
+      'المبلغ ($)':+e.usd||0,'المبلغ (د.ل)':+e.lyd||0,
+      'من عهدة':custody.find(c=>c.id===e.custodyId)?.desc||'—',
+      'التاريخ':e.date||'—','ملاحظة':e.note||'—'
+    })));
+    XLSX.utils.book_append_sheet(wb,expSheet,'المصروفات');
+    XLSX.writeFile(wb,`المصروفات_${new Date().toISOString().slice(0,10)}.xlsx`);
+    msg('تم تصدير Excel ✓');
+  };
+
+  /* ── Print filtered expenses (PDF via print dialog) ── */
+  const printExp=()=>{
+    const w=window.open('','_blank','width=900,height=700');
+    if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
+    const fmt=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const today=new Date().toLocaleDateString('ar-EG');
+    const totalCustUSD=filteredCustody.reduce((a,c)=>a+(+c.usd||0),0);
+    const totalCustLYD=filteredCustody.reduce((a,c)=>a+(+c.lyd||0),0);
+    const totalExpUSD=filteredExpItems.reduce((a,e)=>a+(+e.usd||0),0);
+    const totalExpLYD=filteredExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
+    w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>المصروفات</title>
+      <style>body{font-family:Arial,sans-serif;direction:rtl;padding:20px;color:#222}
+      h1{margin:0 0 6px}h2{margin:18px 0 8px;color:#444;border-bottom:1px solid #ddd;padding-bottom:4px}
+      table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px}
+      th,td{border:1px solid #ccc;padding:6px 8px;text-align:right}
+      th{background:#f3f4f6;font-weight:700}
+      tfoot td{font-weight:700;background:#f9fafb}
+      .meta{color:#666;font-size:12px;margin-bottom:12px}
+      @media print{button{display:none}}
+      </style></head><body>
+      <h1>تقرير المصروفات والعهد</h1>
+      <div class="meta">طُبع في: ${today}</div>
+      <h2>العهدة الواردة (${filteredCustody.length})</h2>
+      <table><thead><tr><th>#</th><th>الوصف</th><th>المصدر</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>التاريخ</th></tr></thead>
+      <tbody>${filteredCustody.map((c,i)=>`<tr><td>${i+1}</td><td>${c.desc||''}</td><td>${c.source||'—'}</td><td>${(c.prov||'—').replace('محافظة ','')}</td><td>${fmt(c.usd)}</td><td>${fmt(c.lyd)}</td><td>${c.date||'—'}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="4">الإجمالي</td><td>${fmt(totalCustUSD)} $</td><td>${fmt(totalCustLYD)} د.ل</td><td></td></tr></tfoot></table>
+      <h2>المصروفات (${filteredExpItems.length})</h2>
+      <table><thead><tr><th>#</th><th>النوع</th><th>الوصف</th><th>التصنيف</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>التاريخ</th></tr></thead>
+      <tbody>${filteredExpItems.map((e,i)=>`<tr><td>${i+1}</td><td>${e.type||''}</td><td>${e.desc||''}</td><td>${e.category||'—'}</td><td>${(e.prov||'—').replace('محافظة ','')}</td><td>${fmt(e.usd)}</td><td>${fmt(e.lyd)}</td><td>${e.date||'—'}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="5">الإجمالي</td><td>${fmt(totalExpUSD)} $</td><td>${fmt(totalExpLYD)} د.ل</td><td></td></tr></tfoot></table>
+      <button onclick="window.print()">طباعة</button>
+      </body></html>`);
+    w.document.close();
+    setTimeout(()=>w.print(),300);
   };
 
   /* ── Nav items ────────────────────────────────────── */
@@ -3230,13 +3480,34 @@ function App(){
           h("button",{className:"btn blue",onClick:submitTransfer},trfForm.id?"حفظ التعديلات":"تسجيل التحويل")
         )
       ),
-      modal==="cust-form"&&h("div",{className:"modal",style:{width:440}},
+      modal==="cust-form"&&h("div",{className:"modal",style:{width:480}},
         h("div",{className:"modal-hdr"},
           h("h3",null,custForm.id?"تعديل عهدة":"إضافة عهدة جديدة"),
           h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
         ),
         h("div",{className:"modal-body"},
           h("div",{className:"fld"},h("label",null,"وصف العهدة *"),h("input",{placeholder:"مثال: عهدة مكتب درنة، عهدة سيارة...",value:custForm.desc,onChange:ev=>setCustForm(f=>({...f,desc:ev.target.value}))})),
+          h("div",{className:"g2"},
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"مصدر العهدة"),
+              h("select",{value:custForm.source,onChange:ev=>setCustForm(f=>({...f,source:ev.target.value}))},
+                h("option",{value:""},"— اختر —"),
+                SOURCES.map(s=>h("option",{key:s,value:s},s))
+              )
+            ),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المحافظة"),
+              h("select",{value:custForm.prov,onChange:ev=>setCustForm(f=>({...f,prov:ev.target.value}))},
+                h("option",{value:""},"— عام (بدون محافظة) —"),
+                PROVS.map(p=>h("option",{key:p,value:p},p.replace('محافظة ','')))
+              )
+            )
+          ),
+          custForm.source==='غيره'&&h("div",{className:"fld"},h("label",null,"حدد المصدر"),h("input",{placeholder:"حدد المصدر بالتفصيل",value:custForm.sourceOther||'',onChange:ev=>setCustForm(f=>({...f,sourceOther:ev.target.value}))})),
+          h("div",{className:"fld"},h("label",null,"المسؤول/المستلم"),
+            h("select",{value:custForm.responsibleId,onChange:ev=>setCustForm(f=>({...f,responsibleId:ev.target.value}))},
+              h("option",{value:""},"— غير محدد —"),
+              allEngineers.map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+e.prov.replace('محافظة ','')))
+            )
+          ),
           h("div",{className:"g2"},
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.usd,onChange:ev=>setCustForm(f=>({...f,usd:ev.target.value}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.lyd,onChange:ev=>setCustForm(f=>({...f,lyd:ev.target.value}))}))
@@ -3249,13 +3520,27 @@ function App(){
           h("button",{className:"btn blue",onClick:submitCust},custForm.id?"حفظ":"إضافة العهدة")
         )
       ),
-      modal==="exp-form"&&h("div",{className:"modal",style:{width:440}},
+      modal==="exp-form"&&h("div",{className:"modal",style:{width:480}},
         h("div",{className:"modal-hdr"},
           h("h3",null,expForm.id?"تعديل":"إضافة "+expForm.type),
           h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
         ),
         h("div",{className:"modal-body"},
           h("div",{className:"fld"},h("label",null,"الوصف / البيان *"),h("input",{placeholder:expForm.type==="إيجار"?"مثال: إيجار مكتب درنة – مارس 2026":"مثال: وقود، مستلزمات مكتب...",value:expForm.desc,onChange:ev=>setExpForm(f=>({...f,desc:ev.target.value}))})),
+          h("div",{className:"g2"},
+            expForm.type==="مصروف"&&h("div",{className:"fld",style:{margin:0}},h("label",null,"التصنيف"),
+              h("select",{value:expForm.category,onChange:ev=>setExpForm(f=>({...f,category:ev.target.value}))},
+                h("option",{value:""},"— اختر —"),
+                CATEGORIES.map(c=>h("option",{key:c,value:c},c))
+              )
+            ),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المحافظة"),
+              h("select",{value:expForm.prov,onChange:ev=>setExpForm(f=>({...f,prov:ev.target.value}))},
+                h("option",{value:""},"— عام —"),
+                PROVS.map(p=>h("option",{key:p,value:p},p.replace('محافظة ','')))
+              )
+            )
+          ),
           h("div",{className:"g2"},
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.usd,onChange:ev=>setExpForm(f=>({...f,usd:ev.target.value}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.lyd,onChange:ev=>setExpForm(f=>({...f,lyd:ev.target.value}))}))
@@ -3289,6 +3574,31 @@ function App(){
           h("button",{className:"btn",onClick:()=>{setModal(null);setImportPrev(null);}},"إلغاء"),
           h("button",{className:"btn green",onClick:()=>confirmImport("merge")},"دمج"),
           h("button",{className:"btn",style:{background:"#DC2626",color:"#fff",border:"none"},onClick:()=>confirmImport("replace")},"استبدال الكل")
+        )
+      )
+    ),
+
+    /* ── FIXED RENTS SETTINGS MODAL (admin) ───────────── */
+    editingRent&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingRent(null);}},
+      h("div",{className:"modal",style:{width:560}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"إعدادات الإيجارات الثابتة"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEditingRent(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:8}},
+          h("div",{className:"info blue"},h(Ic,{n:"info",sz:14}),"الإيجارات تظهر تلقائياً كل شهر في يوم الاستحقاق. التعديل هنا بيغير الأشهر القادمة."),
+          editingRent.rents.map((r,idx)=>h("div",{key:r.id,style:{display:"grid",gridTemplateColumns:"1.6fr .8fr 1fr 1fr auto",gap:8,alignItems:"end",padding:"10px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--bdr2)"}},
+            h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"الوصف"),h("input",{value:r.desc,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],desc:ev.target.value};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
+            h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"اليوم"),h("input",{type:"number",min:1,max:31,value:r.day,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],day:Math.max(1,Math.min(31,+ev.target.value||1))};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
+            h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",value:r.lyd,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],lyd:+ev.target.value||0};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--gold)",fontWeight:700,fontSize:11,fontFamily:"inherit"}})),
+            h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",value:r.usd||0,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],usd:+ev.target.value||0};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--blue)",fontWeight:700,fontSize:11,fontFamily:"inherit"}})),
+            h("button",{className:"btn-icon del",onClick:()=>{const nr=editingRent.rents.filter((_,i)=>i!==idx);setEditingRent({rents:nr});}},h(Ic,{n:"del",sz:12}))
+          )),
+          h("button",{className:"btn",style:{padding:"6px 12px",fontSize:11,gap:4,alignSelf:"flex-start"},onClick:()=>{const nr=[...editingRent.rents,{id:'r'+Date.now(),desc:'إيجار جديد',day:1,lyd:0,usd:0}];setEditingRent({rents:nr});}},h(Ic,{n:"plus",sz:12}),"إضافة إيجار ثابت")
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setEditingRent(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:()=>{saveFixedRents(editingRent.rents);setEditingRent(null);msg('تم حفظ إعدادات الإيجارات ✓');}},"حفظ")
         )
       )
     ),
@@ -3652,6 +3962,161 @@ function App(){
         /* ══ EXPENSES ══ */
         page==="expenses"&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
 
+          /* ─── 💰 الرصيد المجمع ─── */
+          h("div",{className:"card",style:{background:aggBalance.critical?"linear-gradient(135deg,rgba(248,113,113,.18),rgba(220,38,38,.05))":aggBalance.low?"linear-gradient(135deg,rgba(252,211,77,.16),rgba(217,119,6,.04))":"linear-gradient(135deg,rgba(96,165,250,.14),rgba(167,139,250,.06))",borderTop:`3px solid ${aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}`}},
+            h("div",{style:{padding:"16px 18px"}},
+              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:12}},
+                h("div",null,
+                  h("div",{style:{fontSize:13,fontWeight:700,color:"var(--sub)",letterSpacing:".3px",marginBottom:3}},"💰 الرصيد المجمع"),
+                  h("div",{style:{fontSize:11,color:"var(--sub)"}},"إجمالى العهدة عبر كل الشهور")
+                ),
+                aggBalance.low&&h("div",{style:{padding:"6px 12px",background:aggBalance.critical?"rgba(248,113,113,.2)":"rgba(252,211,77,.15)",border:`1px solid ${aggBalance.critical?"#F87171":"#FCD34D"}`,borderRadius:8,fontSize:11,fontWeight:800,color:aggBalance.critical?"#F87171":"#FCD34D"}},
+                  aggBalance.critical?"⚠️ الرصيد منخفض جداً (أقل من 10%)":"⚠️ الرصيد منخفض (أقل من 20%)"
+                )
+              ),
+              h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:14}},
+                h("div",{style:{padding:"12px 14px",background:"rgba(52,211,153,.08)",border:"1px solid rgba(52,211,153,.25)",borderRadius:10}},
+                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📥 إجمالى العهد الواردة"),
+                  h("div",{style:{fontSize:16,fontWeight:800,color:"#34D399"}},aggBalance.receivedUSD.toFixed(2)+" $"),
+                  h("div",{style:{fontSize:13,fontWeight:700,color:"#34D399",marginTop:2}},aggBalance.receivedLYD.toFixed(2)+" د.ل")
+                ),
+                h("div",{style:{padding:"12px 14px",background:"rgba(248,113,113,.08)",border:"1px solid rgba(248,113,113,.25)",borderRadius:10}},
+                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📤 إجمالى المصروفات"),
+                  h("div",{style:{fontSize:16,fontWeight:800,color:"#F87171"}},aggBalance.spentUSD.toFixed(2)+" $"),
+                  h("div",{style:{fontSize:13,fontWeight:700,color:"#F87171",marginTop:2}},aggBalance.spentLYD.toFixed(2)+" د.ل")
+                ),
+                h("div",{style:{padding:"12px 14px",background:aggBalance.critical?"rgba(248,113,113,.12)":aggBalance.low?"rgba(252,211,77,.1)":"rgba(96,165,250,.08)",border:`1px solid ${aggBalance.critical?"rgba(248,113,113,.4)":aggBalance.low?"rgba(252,211,77,.3)":"rgba(96,165,250,.25)"}`,borderRadius:10}},
+                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"💼 الرصيد المتبقى"),
+                  h("div",{style:{fontSize:16,fontWeight:800,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}},aggBalance.balanceUSD.toFixed(2)+" $"),
+                  h("div",{style:{fontSize:13,fontWeight:700,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA",marginTop:2}},aggBalance.balanceLYD.toFixed(2)+" د.ل")
+                )
+              ),
+              h("div",null,
+                h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5}},
+                  h("span",{style:{fontWeight:700,color:"var(--sub)"}},"شريط الاستهلاك"),
+                  h("span",{style:{fontWeight:800,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}},aggBalance.pct+"% مستخدم · "+aggBalance.remPct+"% متبقى")
+                ),
+                h("div",{style:{height:10,background:"rgba(255,255,255,.05)",borderRadius:5,overflow:"hidden",border:"1px solid var(--bdr)"}},
+                  h("div",{style:{height:"100%",width:aggBalance.pct+"%",background:aggBalance.critical?"linear-gradient(90deg,#DC2626,#F87171)":aggBalance.low?"linear-gradient(90deg,#D97706,#FCD34D)":"linear-gradient(90deg,#34D399,#60A5FA)",transition:"width .5s",borderRadius:5}})
+                )
+              )
+            )
+          ),
+
+          /* ─── 🏠 الإيجارات الثابتة ─── */
+          (()=>{const m=cfg.month||(now.getMonth()+1),y=cfg.year||now.getFullYear(),mn2=MONTHS[m-1]+" "+y;
+            return h("div",{className:"card"},
+              h("div",{className:"card-hdr"},
+                h("div",{className:"card-title"},
+                  h("div",{className:"card-title-icon",style:{background:"rgba(34,211,238,.1)"}},h(Ic,{n:"report",sz:13,c:"#22D3EE"})),
+                  "الإيجارات الثابتة — "+mn2,
+                  h("span",{className:"card-badge"},monthRents.filter(r=>r.paid).length+"/"+monthRents.length+" مدفوع")
+                ),
+                isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11},onClick:()=>setEditingRent({rents:[...fixedRents]})},h(Ic,{n:"edit",sz:12}),"إعدادات")
+              ),
+              h("div",{style:{padding:"10px 14px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}},
+                monthRents.map(r=>{
+                  const isDue=!r.paid;
+                  const today=new Date();
+                  const dueDate=new Date(r.dueDate+'T12:00');
+                  const daysUntil=Math.ceil((dueDate-today)/86400000);
+                  const isToday=daysUntil===0;
+                  const isOverdue=daysUntil<0&&!r.paid;
+                  return h("div",{key:r.id,style:{padding:"12px",background:r.paid?"rgba(52,211,153,.07)":isOverdue?"rgba(248,113,113,.08)":isToday?"rgba(252,211,77,.1)":"var(--bg3)",border:`1px solid ${r.paid?"rgba(52,211,153,.3)":isOverdue?"rgba(248,113,113,.35)":isToday?"rgba(252,211,77,.3)":"var(--bdr2)"}`,borderRadius:10}},
+                    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
+                      h("div",null,
+                        h("div",{style:{fontSize:13,fontWeight:800}},r.desc),
+                        h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},"يوم "+r.day+" من الشهر")
+                      ),
+                      r.paid?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:10,fontWeight:800}},"✅ مدفوع"):isOverdue?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(248,113,113,.15)",color:"#F87171",fontSize:10,fontWeight:800}},"⚠️ متأخر"):isToday?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(252,211,77,.15)",color:"#FCD34D",fontSize:10,fontWeight:800}},"📅 اليوم"):h("span",{style:{padding:"3px 8px",borderRadius:100,background:"var(--bdr)",color:"var(--sub)",fontSize:10,fontWeight:700}},"مستحق")
+                    ),
+                    h("div",{style:{fontSize:14,fontWeight:800,color:"var(--gold)",marginBottom:8}},(+r.lyd).toLocaleString('ar-EG')+" د.ل"+(r.usd>0?" + "+r.usd+" $":"")),
+                    isAdmin&&(r.paid
+                      ?h("button",{className:"btn",style:{width:"100%",fontSize:11,padding:"5px 0"},onClick:()=>unpayFixedRent(r)},"إلغاء الدفع")
+                      :h("button",{className:"btn green",style:{width:"100%",fontSize:11,padding:"5px 0",fontWeight:700},onClick:()=>payFixedRent(r)},"💵 تم الدفع")
+                    )
+                  );
+                })
+              )
+            );
+          })(),
+
+          /* ─── 🔍 الفلاتر + التصدير ─── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.1)"}},h(Ic,{n:"srch",sz:13,c:"#60A5FA"})),
+                "بحث وفلترة"
+              ),
+              h("div",{style:{display:"flex",gap:6}},
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,gap:4},onClick:exportExpExcel},h(Ic,{n:"xl",sz:12}),"Excel"),
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,gap:4},onClick:printExp},h(Ic,{n:"pdf",sz:12}),"PDF"),
+                (expFilters.dateFrom||expFilters.dateTo||expFilters.prov||expFilters.type||expFilters.category)&&h("button",{className:"btn red-outline",style:{padding:"5px 12px",fontSize:11},onClick:()=>setExpFilters({dateFrom:'',dateTo:'',prov:'',type:'',category:''})},h(Ic,{n:"del",sz:12}),"مسح الفلاتر")
+              )
+            ),
+            h("div",{style:{padding:"10px 14px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}},
+              h("div",null,h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:3}},"من تاريخ"),h("input",{type:"date",value:expFilters.dateFrom,onChange:ev=>setExpFilters(f=>({...f,dateFrom:ev.target.value})),style:{width:"100%",padding:"6px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
+              h("div",null,h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:3}},"إلى تاريخ"),h("input",{type:"date",value:expFilters.dateTo,onChange:ev=>setExpFilters(f=>({...f,dateTo:ev.target.value})),style:{width:"100%",padding:"6px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
+              !isProvince&&h("div",null,h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:3}},"المحافظة"),
+                h("select",{value:expFilters.prov,onChange:ev=>setExpFilters(f=>({...f,prov:ev.target.value})),style:{width:"100%",padding:"6px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}},
+                  h("option",{value:""},"الكل"),
+                  PROVS.map(p=>h("option",{key:p,value:p},p.replace('محافظة ','')))
+                )
+              ),
+              h("div",null,h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:3}},"النوع"),
+                h("select",{value:expFilters.type,onChange:ev=>setExpFilters(f=>({...f,type:ev.target.value})),style:{width:"100%",padding:"6px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}},
+                  h("option",{value:""},"الكل"),
+                  h("option",{value:"مصروف"},"مصروف"),
+                  h("option",{value:"إيجار"},"إيجار")
+                )
+              ),
+              h("div",null,h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:3}},"التصنيف"),
+                h("select",{value:expFilters.category,onChange:ev=>setExpFilters(f=>({...f,category:ev.target.value})),style:{width:"100%",padding:"6px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}},
+                  h("option",{value:""},"الكل"),
+                  CATEGORIES.map(c=>h("option",{key:c,value:c},c))
+                )
+              )
+            )
+          ),
+
+          /* ─── 📜 سجل العهد الواردة ─── */
+          h("div",{className:"card"},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.1)"}},h(Ic,{n:"hist",sz:13,c:"#A78BFA"})),
+                "سجل العهد الواردة",
+                h("span",{className:"card-badge"},filteredCustody.length+" عهدة")
+              )
+            ),
+            filteredCustody.length===0
+              ?h("div",{style:{padding:"18px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد عهد")
+              :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
+                  h("thead",null,h("tr",null,
+                    h("th",null,"#"),h("th",{className:"l"},"التاريخ"),h("th",{className:"l"},"الوصف"),h("th",{className:"l"},"المصدر"),h("th",{className:"l"},"المسؤول"),h("th",{className:"l"},"المحافظة"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)")
+                  )),
+                  h("tbody",null,
+                    filteredCustody.map((c,i)=>{
+                      const eng=allEngineers.find(e=>e.id===c.responsibleId);
+                      return h("tr",{key:c.id+'-log'},
+                        h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+                        h("td",{className:"l",style:{fontSize:11,color:"var(--sub)"}},c.date||"—"),
+                        h("td",{className:"l",style:{fontWeight:700}},c.desc),
+                        h("td",{className:"l",style:{fontSize:11}},c.source||"—"),
+                        h("td",{className:"l",style:{fontSize:11}},eng?.name||"—"),
+                        h("td",{className:"l",style:{fontSize:11}},c.prov?c.prov.replace('محافظة ',''):"—"),
+                        h("td",{style:{color:"#34D399",fontWeight:700}},(+c.usd||0).toFixed(2)),
+                        h("td",{style:{color:"var(--gold)",fontWeight:700}},(+c.lyd||0).toFixed(2))
+                      );
+                    }),
+                    h("tr",{className:"sub-row"},
+                      h("td",{colSpan:6,className:"l"},"الإجمالى"),
+                      h("td",{style:{color:"#34D399",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.usd||0),0).toFixed(2)+" $"),
+                      h("td",{style:{color:"var(--gold)",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.lyd||0),0).toFixed(2)+" د.ل")
+                    )
+                  )
+                ))
+          ),
+
           /* ─── قسم العهدة ─── */
           h("div",{className:"card"},
             h("div",{className:"card-hdr"},
@@ -3666,7 +4131,7 @@ function App(){
                   (expTotals.custTotalLYD>0?expTotals.custTotalLYD.toFixed(2)+" د.ل":"")
                 ),
                 isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--purple)",color:"var(--purple)"},
-                  onClick:()=>{setCustForm({id:null,desc:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}
+                  onClick:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}
                 },h(Ic,{n:"plus",sz:13}),"عهدة جديدة")
               )
             ),
@@ -3797,94 +4262,47 @@ function App(){
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--blue2)"}},h(Ic,{n:"coin",sz:13,c:"var(--blue)"})),"المصروفات"),
               h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
-                expItems.filter(e=>e.type==="مصروف").length>0&&h("span",{style:{fontSize:11,color:"var(--blue)",fontWeight:600}},
-                  expTotals.msrfUSD>0?expTotals.msrfUSD.toFixed(2)+" $ ":"",
-                  expTotals.msrfLYD>0?expTotals.msrfLYD.toFixed(2)+" د.ل":""
-                ),
+                (()=>{const m=filteredExpItems.filter(e=>e.type==="مصروف");const usd=m.reduce((a,e)=>a+(+e.usd||0),0),lyd=m.reduce((a,e)=>a+(+e.lyd||0),0);return m.length>0&&h("span",{style:{fontSize:11,color:"var(--blue)",fontWeight:600}},(usd>0?usd.toFixed(2)+" $ ":"")+(lyd>0?lyd.toFixed(2)+" د.ل":""))})(),
                 isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--blue)",color:"var(--blue)"},
-                  onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
+                  onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
                 },h(Ic,{n:"plus",sz:13}),"إضافة مصروف")
               )
             ),
-            expItems.filter(e=>e.type==="مصروف").length===0
-              ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد مصروفات — اضغط «إضافة مصروف»")
-              :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                  h("thead",null,h("tr",null,
-                    h("th",null,"م"),h("th",{className:"l"},"الوصف"),
-                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
-                    h("th",{className:"l"},"من عهدة"),h("th",{className:"l"},"ملاحظة"),h("th",null,"")
-                  )),
-                  h("tbody",null,
-                    expItems.filter(e=>e.type==="مصروف").map((e,i)=>{
-                      const cust=custody.find(c=>c.id===e.custodyId);
-                      return h("tr",{key:e.id},
-                        h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
-                        h("td",{className:"l",style:{fontWeight:600}},e.desc),
-                        h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
-                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
-                        h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
-                        h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
-                        h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
-                          h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
-                          h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
-                        ):"")
-                      );
-                    }),
-                    h("tr",{className:"sub-row"},
-                      h("td",{colSpan:3,className:"l"},"الإجمالى"),
-                      h("td",{style:{color:"var(--blue)",fontWeight:800}},expTotals.msrfUSD.toFixed(2)+" $"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:800}},expTotals.msrfLYD.toFixed(2)+" د.ل"),
-                      h("td",{colSpan:3})
-                    )
-                  )
-                ))
-          ),
-
-          /* ─── الإيجارات ─── */
-          h("div",{className:"card"},
-            h("div",{className:"card-hdr"},
-              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--green2)"}},h(Ic,{n:"report",sz:13,c:"var(--green)"})),"الإيجارات الشهرية"),
-              h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
-                expItems.filter(e=>e.type==="إيجار").length>0&&h("span",{style:{fontSize:11,color:"var(--green)",fontWeight:600}},
-                  expTotals.rentUSD>0?expTotals.rentUSD.toFixed(2)+" $ ":"",
-                  expTotals.rentLYD>0?expTotals.rentLYD.toFixed(2)+" د.ل":""
-                ),
-                isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--green)",color:"var(--green)"},
-                  onClick:()=>{setExpForm({id:null,desc:"",type:"إيجار",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
-                },h(Ic,{n:"plus",sz:13}),"إضافة إيجار")
-              )
-            ),
-            expItems.filter(e=>e.type==="إيجار").length===0
-              ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد إيجارات — اضغط «إضافة إيجار»")
-              :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                  h("thead",null,h("tr",null,
-                    h("th",null,"م"),h("th",{className:"l"},"الوصف"),
-                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
-                    h("th",{className:"l"},"ملاحظة"),h("th",null,"")
-                  )),
-                  h("tbody",null,
-                    expItems.filter(e=>e.type==="إيجار").map((e,i)=>h("tr",{key:e.id},
+            (()=>{const items=filteredExpItems.filter(e=>e.type==="مصروف");if(items.length===0)return h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد مصروفات — اضغط «إضافة مصروف»");
+              const totUsd=items.reduce((a,e)=>a+(+e.usd||0),0),totLyd=items.reduce((a,e)=>a+(+e.lyd||0),0);
+              return h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
+                h("thead",null,h("tr",null,
+                  h("th",null,"م"),h("th",{className:"l"},"الوصف"),h("th",{className:"l"},"التصنيف"),h("th",{className:"l"},"المحافظة"),
+                  h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
+                  h("th",{className:"l"},"من عهدة"),h("th",null,"")
+                )),
+                h("tbody",null,
+                  items.map((e,i)=>{
+                    const cust=aggCustody.find(c=>c.id===e.custodyId);
+                    return h("tr",{key:e.id},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600}},e.desc),
+                      h("td",{className:"l"},e.category?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"rgba(96,165,250,.1)",color:"#60A5FA",fontWeight:600}},e.category):h("span",{style:{color:"var(--sub)",fontSize:11}},"—")),
+                      h("td",{className:"l",style:{fontSize:11}},e.prov?e.prov.replace('محافظة ',''):"—"),
                       h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--green)",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
-                      h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpAcross(e.id,"usd",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpAcross(e.id,"lyd",ev.target.value)})),
+                      h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
                       h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
-                        h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
-                        h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
+                        h("button",{className:"btn-icon edit",onClick:()=>editExpAcross(e)},h(Ic,{n:"edit",sz:12})),
+                        h("button",{className:"btn-icon del",onClick:()=>delExpAcross(e.id)},h(Ic,{n:"del",sz:12}))
                       ):"")
-                    )),
-                    h("tr",{className:"sub-row"},
-                      h("td",{colSpan:2,className:"l"},"الإجمالى"),
-                      h("td"),
-                      h("td",{style:{color:"var(--green)",fontWeight:800}},expTotals.rentUSD.toFixed(2)+" $"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:800}},expTotals.rentLYD.toFixed(2)+" د.ل"),
-                      h("td",{colSpan:2})
-                    )
+                    );
+                  }),
+                  h("tr",{className:"sub-row"},
+                    h("td",{colSpan:5,className:"l"},"الإجمالى"),
+                    h("td",{style:{color:"var(--blue)",fontWeight:800}},totUsd.toFixed(2)+" $"),
+                    h("td",{style:{color:"var(--gold)",fontWeight:800}},totLyd.toFixed(2)+" د.ل"),
+                    h("td",{colSpan:2})
                   )
-                ))
+                )
+              ));
+            })()
           )
         ),
 

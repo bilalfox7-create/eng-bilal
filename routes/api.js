@@ -306,6 +306,33 @@ router.delete('/logo', adminOnly, (_req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Fixed rents config ──────────────────────────────── */
+
+const DEFAULT_FIXED_RENTS = [
+  { id: 'r1', desc: 'سكن رقم 1', day: 1,  lyd: 5000, usd: 0 },
+  { id: 'r2', desc: 'سكن رقم 2', day: 7,  lyd: 3500, usd: 0 },
+  { id: 'r3', desc: 'سكن رقم 3', day: 22, lyd: 5000, usd: 0 }
+];
+
+router.get('/fixed-rents', (_req, res) => {
+  const row = getDb().prepare("SELECT value FROM app_config WHERE key = 'fixed_rents'").get();
+  let rents;
+  try { rents = row ? JSON.parse(row.value) : DEFAULT_FIXED_RENTS; }
+  catch { rents = DEFAULT_FIXED_RENTS; }
+  if (!Array.isArray(rents) || rents.length === 0) rents = DEFAULT_FIXED_RENTS;
+  res.json({ rents });
+});
+
+router.put('/fixed-rents', adminOnly, (req, res) => {
+  const { rents } = req.body;
+  if (!Array.isArray(rents)) return res.status(400).json({ error: 'بيانات غير صالحة' });
+  getDb().prepare(`
+    INSERT INTO app_config (key, value) VALUES ('fixed_rents', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(JSON.stringify(rents));
+  res.json({ ok: true });
+});
+
 /* ── User management — admin only ───────────────────── */
 
 router.get('/users', adminOnly, (_req, res) => {
