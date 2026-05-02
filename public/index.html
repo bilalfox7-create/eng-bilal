@@ -1980,7 +1980,7 @@ function App(){
     const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
     const prevKey=mkKey(pm,py);
     const prevAtt=months[prevKey]?.attendance||{};
-    const attCount=Object.values(prevAtt).reduce((a,d)=>a+Object.keys(d).length,0);
+    const attCount=Object.values(prevAtt).reduce((a,d)=>a+Object.values(d).filter(v=>v?.s==='P').length,0);
     const attSt=attCount>5?'done':attCount>0?'progress':'none';
     const curData=months[expectedAk]?.data||{};
     const d1Sum=PROVS.reduce((a,p)=>a+(curData[p]||[]).reduce((b,e)=>b+(+e.d1||0),0),0);
@@ -2003,7 +2003,7 @@ function App(){
       const lastLog=[...saveLogs].reverse().find(l=>l.province===prov&&l.key===prevKey);
       const prevData=months[prevKey]?.data?.[prov]||[];
       const prevAtt=months[prevKey]?.attendance||{};
-      const attDone=prevData.some(e=>Object.keys(prevAtt[e.id]||{}).length>0);
+      const attDone=prevData.some(e=>Object.values(prevAtt[e.id]||{}).some(d=>d?.s==='P'));
       const curData=months[expectedAk]?.data?.[prov]||[];
       return{prov,color:PCOLS[pi],lastLog,attDone,d1Done:curData.some(e=>+e.d1>0),d2Done:curData.some(e=>+e.d2>0)};
     });
