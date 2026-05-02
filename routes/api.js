@@ -253,6 +253,22 @@ router.get('/save-logs', adminOnly, (req, res) => {
   res.json({ logs: recent, lastId: saveLogId });
 });
 
+/* ── Activity log ────────────────────────────────────── */
+
+router.post('/activity', (req, res) => {
+  const user = req.session.user;
+  const { action, detail } = req.body;
+  if (!action) return res.status(400).json({ error: 'action required' });
+  getDb().prepare('INSERT INTO activity_log (username, action, detail, ts) VALUES (?,?,?,?)')
+    .run(user.username, action, detail || '', Date.now());
+  res.json({ ok: true });
+});
+
+router.get('/activity', adminOnly, (req, res) => {
+  const rows = getDb().prepare('SELECT * FROM activity_log ORDER BY ts DESC LIMIT 100').all();
+  res.json({ logs: rows });
+});
+
 /* ── Server backups ──────────────────────────────────── */
 
 const BACKUP_DIR = process.env.DB_PATH

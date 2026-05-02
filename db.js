@@ -45,6 +45,14 @@ function initDb() {
       id   INTEGER PRIMARY KEY,
       data TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id       INTEGER PRIMARY KEY,
+      username TEXT NOT NULL,
+      action   TEXT NOT NULL,
+      detail   TEXT DEFAULT '',
+      ts       INTEGER NOT NULL
+    );
   `);
 
   // أضف أعمدة للقواعد القديمة
