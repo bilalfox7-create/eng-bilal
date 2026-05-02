@@ -4464,7 +4464,7 @@ ${PROVS.map(prov=>{
                     /* ── THEAD ── */
                     h("thead",null,h("tr",null,
                       h("th",{className:"att-th att-th-name"},"المهندس"),
-                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28,cursor:!isWknd(d)?"pointer":"default"},onClick:!isWknd(d)?e=>{const r=e.currentTarget.getBoundingClientRect();setDayPopup({day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}:undefined,title:!isWknd(d)?"اضغط لتسجيل اليوم كامل":""},
+                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28,cursor:!isWknd(d)?"pointer":"default"},onClick:(!isWknd(d)&&(isAdmin||isProvince))?e=>{const r=e.currentTarget.getBoundingClientRect();setDayPopup({day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}:undefined,title:!isWknd(d)?"اضغط لتسجيل اليوم كامل":""},
                         h("div",null,d),
                         h("div",{style:{fontSize:10,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
                       )),
@@ -4510,7 +4510,7 @@ ${PROVS.map(prov=>{
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
-                                onClick:(e)=>{if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
+                                onClick:(e)=>{if(!isAdmin&&!isProvince)return;if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
                                 title:effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
                                 style:{cursor:wk||isAuto?"default":"pointer"}
                               },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
