@@ -1714,7 +1714,7 @@ function App(){
       return Promise.all(fetches).then(([md,ld,od,ud])=>{
         const m=md.months||{};
         setMonths(m);
-        const keys=Object.keys(m).sort();
+        const keys=Object.keys(m).filter(k=>k!=='leaves').sort();
         if(keys.length>0)setAk(keys[keys.length-1]);
         setLogo(ld.logo||null);
         if(u.role==='admin'){setOrgData(od?.data||DEFAULT_ORG);setProvUsers(ud?.users||[]);}
@@ -1852,7 +1852,7 @@ function App(){
       const [md,ld,ud]=await Promise.all(fetches);
       const m=md.months||{};
       setMonths(m);
-      const keys=Object.keys(m).sort();
+      const keys=Object.keys(m).filter(k=>k!=='leaves').sort();
       if(keys.length>0)setAk(keys[keys.length-1]);
       setLogo(ld.logo||null);
       if(d.role==='admin')setProvUsers(ud?.users||[]);
@@ -3663,7 +3663,7 @@ function App(){
                   "إجمالى: "+(expTotals.custTotalUSD>0?expTotals.custTotalUSD.toFixed(2)+" $ ":"")+
                   (expTotals.custTotalLYD>0?expTotals.custTotalLYD.toFixed(2)+" د.ل":"")
                 ),
-                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--purple)",color:"var(--purple)"},
+                isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--purple)",color:"var(--purple)"},
                   onClick:()=>{setCustForm({id:null,desc:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}
                 },h(Ic,{n:"plus",sz:13}),"عهدة جديدة")
               )
@@ -3693,7 +3693,7 @@ function App(){
                           ),
                           c.note&&h("div",{style:{fontSize:10,color:"var(--sub)"}},c.note)
                         ),
-                        h("div",{style:{display:"flex",gap:4}},
+                        isAdmin&&h("div",{style:{display:"flex",gap:4}},
                           h("button",{className:"btn-icon edit",onClick:()=>{setCustForm({...c,usd:c.usd||"",lyd:c.lyd||""});setModal("cust-form");}},h(Ic,{n:"edit",sz:12})),
                           c.usd>0&&h("button",{className:"btn-icon",title:"تحويل إلى دينار",style:{color:"var(--gold)",borderColor:"rgba(234,179,8,.3)",background:"var(--gold2)"},onClick:()=>{setTrfForm({id:null,fromCustodyId:c.id,toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}},h(Ic,{n:"coin",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delCust(c.id)},h(Ic,{n:"del",sz:12}))
@@ -3704,13 +3704,13 @@ function App(){
                         h("div",{style:{padding:"6px 6px 4px",background:"var(--blue2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة ($)"),
                           h("input",{type:"number",className:"inline-inp",style:{color:"var(--blue)",fontWeight:700,fontSize:12},
-                            min:0,value:c.usd||"",placeholder:"0",
+                            min:0,value:c.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,
                             onChange:ev=>updCust(c.id,"usd",ev.target.value)})
                         ),
                         h("div",{style:{padding:"6px 6px 4px",background:"var(--gold2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة (د.ل)"),
                           h("input",{type:"number",className:"inline-inp",style:{color:"var(--gold)",fontWeight:700,fontSize:12},
-                            min:0,value:c.lyd||"",placeholder:"0",
+                            min:0,value:c.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,
                             onChange:ev=>updCust(c.id,"lyd",ev.target.value)})
                         )
                       ),
@@ -3749,7 +3749,7 @@ function App(){
                 "تحويل العملة",
                 transfers.length>0&&h("span",{className:"card-badge"},transfers.length+" تحويل")
               ),
-              h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--gold)",color:"var(--gold)"},
+              isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--gold)",color:"var(--gold)"},
                 onClick:()=>{setTrfForm({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}
               },h(Ic,{n:"plus",sz:13}),"تحويل جديد")
             ),
@@ -3773,10 +3773,10 @@ function App(){
                         h("td",{style:{color:"var(--sub)",fontSize:11}},t.rate+" د.ل/$"),
                         h("td",{style:{color:"var(--gold)",fontWeight:700}},(+t.lyd).toFixed(2)+" د.ل"),
                         h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},t.note||"—"),
-                        h("td",null,h("div",{style:{display:"flex",gap:4}},
+                        h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
                           h("button",{className:"btn-icon edit",onClick:()=>{setTrfForm({...t});setModal("trf-form");}},h(Ic,{n:"edit",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delTransfer(t.id)},h(Ic,{n:"del",sz:12}))
-                        ))
+                        ):"")
                       );
                     }),
                     h("tr",{className:"sub-row"},
@@ -3799,7 +3799,7 @@ function App(){
                   expTotals.msrfUSD>0?expTotals.msrfUSD.toFixed(2)+" $ ":"",
                   expTotals.msrfLYD>0?expTotals.msrfLYD.toFixed(2)+" د.ل":""
                 ),
-                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--blue)",color:"var(--blue)"},
+                isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--blue)",color:"var(--blue)"},
                   onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
                 },h(Ic,{n:"plus",sz:13}),"إضافة مصروف")
               )
@@ -3819,14 +3819,14 @@ function App(){
                         h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                         h("td",{className:"l",style:{fontWeight:600}},e.desc),
                         h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
-                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
+                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
+                        h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
                         h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
                         h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
-                        h("td",null,h("div",{style:{display:"flex",gap:4}},
+                        h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
                           h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
-                        ))
+                        ):"")
                       );
                     }),
                     h("tr",{className:"sub-row"},
@@ -3848,7 +3848,7 @@ function App(){
                   expTotals.rentUSD>0?expTotals.rentUSD.toFixed(2)+" $ ":"",
                   expTotals.rentLYD>0?expTotals.rentLYD.toFixed(2)+" د.ل":""
                 ),
-                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--green)",color:"var(--green)"},
+                isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--green)",color:"var(--green)"},
                   onClick:()=>{setExpForm({id:null,desc:"",type:"إيجار",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
                 },h(Ic,{n:"plus",sz:13}),"إضافة إيجار")
               )
@@ -3866,13 +3866,13 @@ function App(){
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600}},e.desc),
                       h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--green)",width:72},min:0,value:e.usd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--green)",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"usd",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpItem(e.id,"lyd",ev.target.value)})),
                       h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},e.note||"—"),
-                      h("td",null,h("div",{style:{display:"flex",gap:4}},
+                      h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setExpForm({...e,usd:e.usd||"",lyd:e.lyd||""});setModal("exp-form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delExp(e.id)},h(Ic,{n:"del",sz:12}))
-                      ))
+                      ):"")
                     )),
                     h("tr",{className:"sub-row"},
                       h("td",{colSpan:2,className:"l"},"الإجمالى"),
@@ -3894,7 +3894,7 @@ function App(){
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},rateAt?"آخر تحديث: "+new Date(rateAt).toLocaleTimeString("ar-EG"):""),
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"السعر المحفوظ: "+cfg.egp+" ج.م/$"),
-            h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
+            (isAdmin||isProvince)&&h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
           ),
           h("div",{className:"pay-strip"},
             h(Ic,{n:"paid",sz:15,c:"var(--green)"}),
@@ -3904,8 +3904,8 @@ function App(){
             h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaidN+" معلق"),
             h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaidUSD)),
             h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct+"%"),
-            paidStats.unpaidN>0&&h("button",{className:"btn green",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(true)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
-            paidStats.paidN>0&&h("button",{className:"btn",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(false)},"إلغاء الكل")
+            (isAdmin||isProvince)&&paidStats.unpaidN>0&&h("button",{className:"btn green",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(true)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+            (isAdmin||isProvince)&&paidStats.paidN>0&&h("button",{className:"btn",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(false)},"إلغاء الكل")
           ),
           search&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h(Ic,{n:"srch",sz:14,c:"var(--blue)"}),`نتائج البحث (${filtered.length})`),h("button",{className:"btn red-outline",style:{padding:"4px 10px",fontSize:11},onClick:()=>setSearch("")},"مسح")),
@@ -3937,14 +3937,14 @@ function App(){
                         (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})()
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
                       h("td",{style:{color:"#2563EB",fontWeight:700}},c.a1.toFixed(1)),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
                       h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
                       h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
                       h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
                       h("td",null,
-                        h("span",{className:`paid-badge ${e.paid?"yes":"no"}`,onClick:()=>togglePaid(prov,e.id),title:"اضغط للتغيير"},
+                        h("span",{className:`paid-badge ${e.paid?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
                           h(Ic,{n:e.paid?"paid":"clock",sz:11}),
                           e.paid?"مدفوع":"معلق"
                         )
