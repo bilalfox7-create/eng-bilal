@@ -101,12 +101,15 @@ router.put('/months/:key', (req, res) => {
       });
     }
 
-    // Only update attendance for engineers in their province
-    for (const [engId, attData] of Object.entries(inAtt)) {
-      if (provEngIds.has(engId)) {
-        existingAtt[engId] = attData;
+    // Replace (not merge) attendance for engineers in their province
+    // so deletions/clears propagate to DB
+    provEngIds.forEach(engId => {
+      if (inAtt[engId] !== undefined) {
+        existingAtt[engId] = inAtt[engId];
+      } else {
+        delete existingAtt[engId];
       }
-    }
+    });
 
     db.prepare('UPDATE months SET data = ?, attendance = ? WHERE key = ?')
       .run(JSON.stringify(existingData), JSON.stringify(existingAtt), key);
