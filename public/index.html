@@ -2764,7 +2764,7 @@ function App(){
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
     {id:"dash",n:"dash",lbl:"لوحة التحكم"},
-    {id:"eng",n:"eng",lbl:"المهندسون"},
+    {id:"eng",n:"eng",lbl:"كشف الإعاشة"},
     {id:"att",n:"att",lbl:"الحضور والانصراف"},
     {id:"expenses",n:"wallet",lbl:"العهدة والمصروفات"},
     {id:"stats",n:"stats",lbl:"الإحصائيات"},
@@ -2774,7 +2774,7 @@ function App(){
     {id:"report",n:"report",lbl:"التقارير"},
     {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",att:"الحضور والانصراف",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
+  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
   const mobileNavs=navs.slice(0,5);
 
   /* ── Force password change screen ────────────────── */
@@ -3158,7 +3158,7 @@ function App(){
           h("div",{className:"nav-item-icon"},h(Ic,{n:"dash",sz:15})),h("span",null,"لوحة التحكم")
         ),
         h("div",{key:"eng",className:`nav-item ${page==="eng"?"on":""}`,onClick:()=>{setPage("eng");setMobOpen(false);}},
-          h("div",{className:"nav-item-icon"},h(Ic,{n:"eng",sz:15})),h("span",null,"المهندسون")
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"eng",sz:15})),h("span",null,"كشف الإعاشة")
         ),
         h("div",{key:"att",className:`nav-item ${page==="att"?"on":""}`,onClick:()=>{setPage("att");setMobOpen(false);}},
           h("div",{className:"nav-item-icon"},h(Ic,{n:"att",sz:15})),h("span",null,"الحضور والانصراف")
@@ -4609,7 +4609,7 @@ ${PROVS.map(prov=>{
       /* ── BOTTOM NAV (mobile) ──────────────────────────── */
       h("div",{className:"bottom-nav"},
         h("div",{className:"bottom-nav-inner"},
-          (isAdmin?mobileNavs:[{id:"eng",n:"eng",lbl:"المهندسون"},{id:"att",n:"att",lbl:"الحضور"}])
+          (isAdmin?mobileNavs:[{id:"eng",n:"eng",lbl:"كشف الإعاشة"},{id:"att",n:"att",lbl:"الحضور"}])
             .map(({id,n,lbl})=>h("div",{key:id,className:`bn-item ${page===id?"on":""}`,onClick:()=>setPage(id)},h(Ic,{n,sz:20}),h("span",null,lbl.split(" ")[0]))),
           isAdmin&&h("div",{className:`bn-item ${["backup","report"].includes(page)?"on":""}`,onClick:()=>setPage("backup")},
             h(Ic,{n:"backup",sz:20}),h("span",null,"أدوات"),
