@@ -297,5 +297,32 @@ router.get('/backups/:file', adminOnly, (req, res) => {
   res.download(full, file);
 });
 
+router.post('/backups/:file/restore', adminOnly, (req, res) => {
+  const file = path.basename(req.params.file);
+  const full = path.join(BACKUP_DIR, file);
+  if (!fs.existsSync(full)) return res.status(404).json({ error: 'ملف غير موجود' });
+  let content;
+  try { content = JSON.parse(fs.readFileSync(full, 'utf8')); } catch (e) { return res.status(400).json({ error: 'ملف تالف' }); }
+  if (!content.months) return res.status(400).json({ error: 'صيغة غير صحيحة' });
+  const db = getDb();
+  const insert = db.prepare(`
+    INSERT INTO months (key, data, cfg, saved_at, expenses, attendance) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      data=excluded.data, cfg=excluded.cfg, saved_at=excluded.saved_at,
+      expenses=excluded.expenses, attendance=excluded.attendance
+  `);
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM months').run();
+    for (const [key, m] of Object.entries(content.months)) {
+      insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
+                 m.expenses ? JSON.stringify(m.expenses) : null,
+                 m.attendance ? JSON.stringify(m.attendance) : null);
+    }
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  res.json({ ok: true });
+});
+
 module.exports = router;
 module.exports.BACKUP_DIR = BACKUP_DIR;
