@@ -1889,8 +1889,9 @@ function App(){
   const isLocked=isMonthLocked(ak);
   const currentTasks=useMemo(()=>{
     const d=now.getDate(),m=now.getMonth()+1,y=now.getFullYear();
+    const pm=m===1?12:m-1,py=m===1?y-1:y;
     const tasks=[];
-    tasks.push({id:'att',icon:'✅',label:'تسجيل حضور',monthKey:mkKey(m,y),monthName:MONTHS[m-1]+' '+y,targetPage:'att'});
+    tasks.push({id:'att',icon:'✅',label:'تسجيل حضور',monthKey:mkKey(pm,py),monthName:MONTHS[pm-1]+' '+py,targetPage:'att'});
     if(d>=14)tasks.push({id:'eng-d2',icon:'📋',label:'إعاشة النصف الثاني',monthKey:mkKey(m,y),monthName:MONTHS[m-1]+' '+y,targetPage:'eng'});
     if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;tasks.push({id:'eng-d1',icon:'📋',label:'إعاشة النصف الأول',monthKey:mkKey(nm,ny),monthName:MONTHS[nm-1]+' '+ny,targetPage:'eng'});}
     return tasks;
@@ -2960,7 +2961,7 @@ function App(){
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 1–15"),h("input",{type:"number",min:0,max:15,value:form.d1,onChange:ev=>setForm(f=>({...f,d1:Math.max(0,Math.min(15,+ev.target.value||0))}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 16–30"),h("input",{type:"number",min:0,max:15,value:form.d2,onChange:ev=>setForm(f=>({...f,d2:Math.max(0,Math.min(15,+ev.target.value||0))}))}))
           ),
-          h("div",{className:"fld"},h("label",null,"تاريخ الوصول من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>setForm(f=>({...f,arrivalDate:ev.target.value||null})),style:{fontSize:13}})),
+          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>setForm(f=>({...f,arrivalDate:ev.target.value||null})),style:{fontSize:13}})),
           h("div",{className:"prev-box"},
             [{l:"إعاشة 1–15",v:f$(prevC.a1),c:"#2563EB"},{l:"إعاشة 16–30",v:f$(prevC.a2),c:"#16A34A"},{l:"إجمالى ($)",v:f$(prevC.tot)},{l:"إجمالى (ج.م)",v:fE(prevC.egp),c:"#D97706"}]
             .map((x,i)=>h("div",{key:i},h("div",{className:"prev-lbl"},x.l),h("div",{className:"prev-val",style:{color:x.c||"var(--text)"}},x.v)))
