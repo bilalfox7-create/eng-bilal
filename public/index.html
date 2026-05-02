@@ -2280,31 +2280,36 @@ function App(){
   };
 
   const approveLeave=(req)=>{
-    const start=new Date(req.leaveStartDate+'T12:00');const end=new Date(req.leaveEndDate+'T12:00');
-    const updMths={};
-    let cur=new Date(start);
-    while(cur<=end){
-      if(cur.getDay()!==5){
-        const key=mkKey(cur.getMonth()+1,cur.getFullYear());
-        if(!updMths[key])updMths[key]=JSON.parse(JSON.stringify(months[key]||{attendance:{}}));
-        if(!updMths[key].attendance)updMths[key].attendance={};
-        if(!updMths[key].attendance[req.engineerId])updMths[key].attendance[req.engineerId]={};
-        updMths[key].attendance[req.engineerId][cur.getDate()]={s:'AL'};
-        updMths[key].savedAt=null;
-      }
-      cur.setDate(cur.getDate()+1);
-    }
-    const newLeaves=leaves.map(l=>l.id===req.id?{...l,status:'approved',decidedAt:new Date().toISOString(),decidedBy:user?.username||''}:l);
-    setMonths(p=>({...p,...updMths,'leaves':{requests:newLeaves}}));
-    Object.entries(updMths).forEach(([k,v])=>fetch('/api/months/'+k,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)}).catch(()=>{}));
-    fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests:newLeaves})}).catch(()=>{});
-    msg('تمت الموافقة على الإجازة ✓');
+    fetch('/api/leaves/'+req.id,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'approved'})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      const nl=leaves.map(l=>l.id===req.id?d.request:l);
+      setMonths(p=>({...p,'leaves':{requests:nl}}));
+      fetch('/api/months').then(r=>r.json()).then(md=>setMonths(md.months));
+      msg('تمت الموافقة على الإجازة ✓');
+    }).catch(()=>{});
   };
 
   const rejectLeave=(req)=>{
-    const newLeaves=leaves.map(l=>l.id===req.id?{...l,status:'rejected',decidedAt:new Date().toISOString(),decidedBy:user?.username||''}:l);
-    saveLeaves(newLeaves);
-    msg('تم رفض طلب الإجازة');
+    fetch('/api/leaves/'+req.id,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'rejected'})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      const nl=leaves.map(l=>l.id===req.id?d.request:l);
+      setMonths(p=>({...p,'leaves':{requests:nl}}));
+      msg('تم رفض طلب الإجازة');
+    }).catch(()=>{});
+  };
+
+  const updateLeaveDates=(reqId,field,val)=>{
+    fetch('/api/leaves/'+reqId,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({[field]:val})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      const nl=leaves.map(l=>l.id===reqId?d.request:l);
+      setMonths(p=>({...p,'leaves':{requests:nl}}));
+    }).catch(()=>{});
   };
 
   const attSetTime=(engId,day,field,val)=>{
@@ -2935,6 +2940,10 @@ function App(){
   if(user?.role==='province'&&!["eng","att","leaves"].includes(page)){
     setTimeout(()=>setPage("att"),0);
   }
+  /* ── Viewer page guard ─────────────────────────────── */
+  if(user?.role==='viewer'&&["backup","report"].includes(page)){
+    setTimeout(()=>setPage("dash"),0);
+  }
 
   /* ── Login screen ─────────────────────────────────── */
   if(!user)return h("div",{className:"login-screen"},
@@ -3295,14 +3304,14 @@ function App(){
             {id:"hist",n:"hist",lbl:"السجل التاريخي"},
             {id:"compare",n:"compare",lbl:"المقارنة"},
             {id:"report",n:"report",lbl:"التقارير"},
-          ].map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
+          ].filter(({id})=>isAdmin||id!=="report").map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
             h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),h("span",null,lbl)
           )),
           h("div",{className:"sb-section"},"المشروعات"),
           h("div",{key:"org",className:"nav-item "+(page==="org"?"on":""),onClick:function(){setPage("org");setMobOpen(false);}},
             h("div",{className:"nav-item-icon"},h(Ic,{n:"org",sz:15})),h("span",null,"الهيكل التنظيمي")
           ),
-          h("div",{key:"backup",className:`nav-item ${page==="backup"?"on":""}`,onClick:()=>{setPage("backup");setMobOpen(false);}},
+          isAdmin&&h("div",{key:"backup",className:`nav-item ${page==="backup"?"on":""}`,onClick:()=>{setPage("backup");setMobOpen(false);}},
             h("div",{className:"nav-item-icon"},h(Ic,{n:"backup",sz:15})),h("span",null,"النسخ الاحتياطي"),
             unsaved>0&&h("div",{className:"nav-badge"},unsaved)
           ),
@@ -4661,7 +4670,7 @@ ${PROVS.map(prov=>{
                         h("div",{style:{fontSize:14,fontWeight:800,marginTop:6}},req.engineerName),
                         h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},req.prov," · طلبها: ",req.requestedBy)
                       ),
-                      req.status==='pending'&&isAdmin&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
+                      req.status==='pending'&&(isAdmin||user?.role==='viewer')&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
                         h("button",{className:"btn",style:{background:"rgba(29,158,117,.15)",borderColor:"rgba(29,158,117,.35)",color:"#1D9E75",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>approveLeave(req)},h(Ic,{n:"check",sz:12}),"موافقة"),
                         h("button",{className:"btn",style:{background:"rgba(226,75,74,.1)",borderColor:"rgba(226,75,74,.3)",color:"#E24B4A",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>rejectLeave(req)},h(Ic,{n:"del",sz:12}),"رفض")
                       )
@@ -4686,6 +4695,18 @@ ${PROVS.map(prov=>{
                     ),
                     req.decidedAt&&h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:6}},
                       "قرار بواسطة: ",req.decidedBy," · ",new Date(req.decidedAt).toLocaleDateString('ar-EG')
+                    ),
+                    req.status==='approved'&&(isAdmin||user?.role==='viewer')&&h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10,padding:"10px 12px",background:"rgba(96,165,250,.06)",borderRadius:"var(--r)",border:"1px solid rgba(96,165,250,.15)"}},
+                      h("div",null,
+                        h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:4,letterSpacing:".3px"}},"✈ تاريخ السفر الفعلي"),
+                        h("input",{type:"date",value:req.travelDate||"",onChange:e=>updateLeaveDates(req.id,"travelDate",e.target.value),
+                          style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
+                      ),
+                      h("div",null,
+                        h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:4,letterSpacing:".3px"}},"🏠 تاريخ العودة الفعلي"),
+                        h("input",{type:"date",value:req.returnDate||"",onChange:e=>updateLeaveDates(req.id,"returnDate",e.target.value),
+                          style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
+                      )
                     )
                   );
                 })

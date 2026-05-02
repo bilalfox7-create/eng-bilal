@@ -149,6 +149,68 @@ router.delete('/months/:key', adminOnly, (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Leave request management — admin + viewer ─────────── */
+router.patch('/leaves/:id', (req, res) => {
+  const user = req.session.user;
+  if (user.role !== 'admin' && user.role !== 'viewer') {
+    return res.status(403).json({ error: 'للأدمن والمشرفين فقط' });
+  }
+  const { status, travelDate, returnDate } = req.body;
+  const { id } = req.params;
+  const db = getDb();
+
+  const row = db.prepare("SELECT data FROM months WHERE key = 'leaves'").get();
+  if (!row) return res.status(404).json({ error: 'لا توجد بيانات' });
+
+  const requests = JSON.parse(row.data).requests || [];
+  const idx = requests.findIndex(r => r.id === id);
+  if (idx === -1) return res.status(404).json({ error: 'الطلب غير موجود' });
+
+  const item = { ...requests[idx] };
+
+  if (status && ['approved', 'rejected'].includes(status) && item.status === 'pending') {
+    item.status    = status;
+    item.decidedBy = user.username;
+    item.decidedAt = new Date().toISOString();
+
+    if (status === 'approved' && item.leaveStartDate && item.leaveEndDate && item.engineerId) {
+      const start = new Date(item.leaveStartDate + 'T12:00');
+      const end   = new Date(item.leaveEndDate   + 'T12:00');
+      let cur = new Date(start);
+      const attMap = {};
+
+      while (cur <= end) {
+        if (cur.getDay() !== 5) {
+          const mKey = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
+          if (!(mKey in attMap)) {
+            const mRow = db.prepare('SELECT attendance FROM months WHERE key = ?').get(mKey);
+            attMap[mKey] = mRow ? (mRow.attendance ? JSON.parse(mRow.attendance) : {}) : null;
+          }
+          if (attMap[mKey] !== null) {
+            if (!attMap[mKey][item.engineerId]) attMap[mKey][item.engineerId] = {};
+            attMap[mKey][item.engineerId][cur.getDate()] = { s: 'AL' };
+          }
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      for (const [mKey, att] of Object.entries(attMap)) {
+        if (att !== null)
+          db.prepare('UPDATE months SET attendance = ? WHERE key = ?').run(JSON.stringify(att), mKey);
+      }
+    }
+  }
+
+  if (travelDate  !== undefined) item.travelDate  = travelDate  || null;
+  if (returnDate  !== undefined) item.returnDate  = returnDate  || null;
+
+  requests[idx] = item;
+  db.prepare("UPDATE months SET data = ? WHERE key = 'leaves'")
+    .run(JSON.stringify({ requests }));
+
+  res.json({ ok: true, request: item });
+});
+
 /* Replace ALL months (import → replace mode) — admin only */
 router.put('/data', adminOnly, (req, res) => {
   const { months } = req.body;
