@@ -1223,6 +1223,12 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .content>*{animation:pageIn .2s ease}
 .month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
 .warn-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#D97706;font-size:12px;font-weight:600;margin-bottom:8px}
+.att-popup{position:fixed;background:var(--bg2);border:1px solid var(--bdr2);border-radius:10px;padding:6px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:9999;display:flex;flex-direction:column;gap:3px;min-width:130px}
+.att-popup-hdr{padding:3px 8px 5px;font-size:10px;color:var(--sub);font-weight:700;border-bottom:1px solid var(--bdr);margin-bottom:2px}
+.att-popup-btn{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;text-align:right;transition:opacity .15s;width:100%}
+.att-popup-btn:hover{filter:brightness(1.15)}
+.att-popup-clr{margin-top:2px;background:rgba(239,68,68,.1)!important;color:#F87171!important;border:1px solid rgba(239,68,68,.25)!important}
+.att-cell-EG{background:rgba(59,130,246,.18)!important;color:#60A5FA!important;opacity:.7}
 </style>
 </head>
 <body>
@@ -1601,7 +1607,7 @@ function App(){
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
   const [cmpKey,setCmpKey]=useState(null);
   const [modal,setModal]=useState(null);
-  const [form,setForm]=useState({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});
+  const [form,setForm]=useState({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});
   const [nmForm,setNmForm]=useState({month:now.getMonth()+1,year:now.getFullYear()});
   const [search,setSearch]=useState("");
   const [toast,setToast]=useState(null);
@@ -1637,6 +1643,8 @@ function App(){
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
   const [attSelected,setAttSelected]=useState(()=>new Set());
   const [attHovEng,setAttHovEng]=useState(null);
+  const [attPopup,setAttPopup]=useState(null);   // {engId,day,x,y}
+  const [dayPopup,setDayPopup]=useState(null);   // {day,x,y}
   const [leaveTab,setLeaveTab]=useState('pending');
   const [leaveView,setLeaveView]=useState('list');
   const [leaveForm,setLeaveForm]=useState({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});
@@ -1746,6 +1754,13 @@ function App(){
     const t=setInterval(fetchLiveRate,300000);
     return()=>clearInterval(t);
   },[user,fetchLiveRate]);
+
+  useEffect(()=>{
+    if(!attPopup&&!dayPopup)return;
+    const close=()=>{setAttPopup(null);setDayPopup(null);};
+    document.addEventListener('click',close);
+    return()=>document.removeEventListener('click',close);
+  },[attPopup,dayPopup]);
 
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
@@ -1938,7 +1953,7 @@ function App(){
   };
 
   const mkMonthBase=()=>({...(months[ak]||{data,cfg})});
-  const lockGuard=()=>{if(isMonthLocked(ak)){msg('🔒 هذا الشهر مقفول — لا يمكن التعديل','err');return true;}return false;};
+  const lockGuard=()=>{if(!isAdmin&&isMonthLocked(ak)){msg('🔒 هذا الشهر مقفول — لا يمكن التعديل','err');return true;}return false;};
 
   const updData=(p,id,f,v)=>{
     if(lockGuard())return;
@@ -1961,7 +1976,7 @@ function App(){
     if(lockGuard())return;
     const nd=dc(data);
     if(form.id){
-      nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}:e);
+      nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,arrivalDate:form.arrivalDate||null}:e);
       // Update org chart for edited engineer
       if(orgData){
         const cityId=CITY_CFG.find(c=>c.prov===form.prov)?.id;
@@ -1983,7 +1998,7 @@ function App(){
       }
       msg("تم الحفظ");
     } else {
-      const newEng={id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,addedAt:new Date().toISOString().split('T')[0]};
+      const newEng={id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,arrivalDate:form.arrivalDate||null,addedAt:new Date().toISOString().split('T')[0]};
       nd[form.prov]=[...(nd[form.prov]||[]),newEng];
       // Update org chart
       if(orgData){
@@ -2038,11 +2053,11 @@ function App(){
   };
 
   /* ── Attendance helpers ─────────────────────────────── */
-  const ATT_CYCLE=[null,'P','A','AL','SL','EL','H'];
-  const ATT_LABEL={P:'حاضر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة رسمية'};
-  const ATT_SHORT={P:'ح',A:'غ',AL:'س',SL:'م',EL:'ط',H:'ع'};
-  const ATT_COL={P:'#10B981',A:'#EF4444',AL:'#60A5FA',SL:'#FCD34D',EL:'#FB923C',H:'#94A3B8'};
-  const ATT_BG={P:'rgba(16,185,129,.2)',A:'rgba(239,68,68,.15)',AL:'rgba(96,165,250,.15)',SL:'rgba(252,211,77,.15)',EL:'rgba(249,115,22,.15)',H:'rgba(148,163,184,.1)'};
+  const ATT_CYCLE=[null,'P','EG','A','AL','SL','EL','H'];
+  const ATT_LABEL={P:'حاضر',EG:'مصر',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة'};
+  const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع'};
+  const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8'};
+  const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)'};
 
   const attCycleStatus=(engId,day)=>{
     if(lockGuard())return;
@@ -2097,6 +2112,15 @@ function App(){
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
     msg("تم إلغاء تحضير "+mn2+" ✓");
+  };
+
+  const attClearCell=(engId,day)=>{
+    if(lockGuard())return;
+    const existing=mkMonthBase();
+    const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+    if(na[engId])delete na[engId][day];
+    const upd={...existing,attendance:na};
+    setMonths(p=>({...p,[ak]:upd}));queueSave(ak,upd);
   };
 
   const saveLeaves=(list)=>{
@@ -2936,6 +2960,7 @@ function App(){
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 1–15"),h("input",{type:"number",min:0,max:15,value:form.d1,onChange:ev=>setForm(f=>({...f,d1:Math.max(0,Math.min(15,+ev.target.value||0))}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 16–30"),h("input",{type:"number",min:0,max:15,value:form.d2,onChange:ev=>setForm(f=>({...f,d2:Math.max(0,Math.min(15,+ev.target.value||0))}))}))
           ),
+          h("div",{className:"fld"},h("label",null,"تاريخ الوصول من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>setForm(f=>({...f,arrivalDate:ev.target.value||null})),style:{fontSize:13}})),
           h("div",{className:"prev-box"},
             [{l:"إعاشة 1–15",v:f$(prevC.a1),c:"#2563EB"},{l:"إعاشة 16–30",v:f$(prevC.a2),c:"#16A34A"},{l:"إجمالى ($)",v:f$(prevC.tot)},{l:"إجمالى (ج.م)",v:fE(prevC.egp),c:"#D97706"}]
             .map((x,i)=>h("div",{key:i},h("div",{className:"prev-lbl"},x.l),h("div",{className:"prev-val",style:{color:x.c||"var(--text)"}},x.v)))
@@ -3232,7 +3257,7 @@ function App(){
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
-          isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
+          isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("button",{
             className:"btn",
             onClick:()=>setDark(d=>!d),
@@ -3317,7 +3342,7 @@ function App(){
               h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
                 h("span",{className:"card-badge"},G.n+" مهندس"),
                 h("button",{className:"btn blue",style:{padding:"4px 12px",fontSize:11},
-                  onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}
+                  onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}
                 },h(Ic,{n:"plus",sz:11})," إضافة مهندس")
               )
             ),
@@ -3337,7 +3362,7 @@ function App(){
                         "✓ حفظ "+lastSaveTime)
                     ),
                     h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,borderColor:"rgba(96,165,250,.3)",color:"var(--blue)"},
-                      onClick:()=>{setForm({prov:p,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}
+                      onClick:()=>{setForm({prov:p,name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}
                     },h(Ic,{n:"plus",sz:10})," إضافة")
                   ),
                   engs.length===0
@@ -3635,7 +3660,7 @@ function App(){
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
                 h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
                   h("span",{style:{fontSize:11,fontWeight:600,color:"var(--sub)"}},f$(T.tot)),
-                  isAdmin&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة")
+                  isAdmin&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة")
                 )
               ),
               h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxTv*100).toFixed(1)}%`,background:color}})),
@@ -3848,13 +3873,19 @@ function App(){
             return{used,remaining:Math.max(0,VAC_ALLOW-used),exceeded:used>VAC_ALLOW,pct:Math.min(100,Math.round(used/VAC_ALLOW*100))};
           };
           const vacColor=v=>v.exceeded?"#EF4444":v.remaining<=3?"#F97316":v.remaining<=7?"#FCD34D":"#10B981";
+          const getAutoState=(eng,d)=>{
+            if(!eng.arrivalDate)return null;
+            const arr=new Date(eng.arrivalDate);arr.setHours(0,0,0,0);
+            const cell=new Date(cfg.year,cfg.month-1,d);
+            return cell<arr?'EG':null;
+          };
 
           /* ── Print / PDF function ── */
           const printAtt=()=>{
             const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
-            const S_FULL={P:'حاضر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة'};
-            const S_COL={P:'#059669',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
-            const S_BG={P:'#D1FAE5',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
+            const S_FULL={P:'حاضر',EG:'مصر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة'};
+            const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#1D4ED8',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
+            const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#EFF6FF',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
             const thStyle='padding:5px 3px;text-align:center;font-size:10px;font-weight:800;color:#475569;border-bottom:2px solid #E2E8F0;background:#F8FAFC;white-space:nowrap;border:1px solid #E2E8F0';
             const tdStyle='padding:3px 2px;text-align:center;border:1px solid #F1F5F9';
             const nameThStyle='padding:6px 10px;text-align:right;font-size:10px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;min-width:130px';
@@ -4118,42 +4149,6 @@ ${PROVS.map(prov=>{
             /* ── Table view content ── */
             attView==="table"&&h(React.Fragment,null,
 
-            /* ── Vacation balance card ── */
-            h("div",{className:"card"},
-              h("div",{className:"att-vac-card"},
-                h("div",{className:"att-vac-period"},
-                  h("div",{className:"card-title"},
-                    h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.1)"}},h(Ic,{n:"hist",sz:13,c:"#60A5FA"})),
-                    "رصيد الإجازات السنوية"
-                  ),
-                  h("div",{className:"att-vac-period-badge"},halfLabel),
-                  h("div",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)",fontWeight:700}},
-                    h("span",{style:{color:"#60A5FA",fontWeight:900}},VAC_ALLOW)," يوم لكل مهندس"
-                  )
-                ),
-                provEngs.length===0
-                  ?h("div",{style:{color:"var(--sub)",fontSize:12,textAlign:"center",padding:"10px 0"}},"لا يوجد مهندسون")
-                  :h("div",{className:"att-vac-grid"},
-                    provEngs.map(eng=>{
-                      const vb=getVac(eng.id);
-                      const col=vacColor(vb);
-                      return h("div",{key:eng.id,className:"att-vac-row",style:{borderColor:vb.exceeded?"rgba(239,68,68,.3)":vb.remaining<=3?"rgba(249,115,22,.25)":"var(--bdr2)"}},
-                        h("div",{className:"att-vac-name"},eng.name),
-                        h("div",{className:"att-vac-spec"},eng.spec),
-                        h("div",{className:"att-vac-bar-wrap"},
-                          h("div",{className:"att-vac-bar-fill",style:{width:vb.pct+"%",background:col}})
-                        ),
-                        h("div",{className:"att-vac-nums"},
-                          h("span",{style:{color:col}},vb.used," مستخدم"),
-                          h("span",{style:{color:vb.remaining===0?"#EF4444":"var(--sub)"}},vb.remaining," متبقي / ",VAC_ALLOW)
-                        ),
-                        vb.exceeded&&h("div",{className:"att-vac-exceeded"},"⚠ تجاوز الرصيد بـ "+(vb.used-VAC_ALLOW)+" أيام")
-                      );
-                    })
-                  )
-              )
-            ),
-
             /* ── Province summary stats ── */
             h("div",{className:"att-sum-grid"},
               [{v:allStats.P,l:"إجمالي أيام الحضور",c:"#10B981",bg:"rgba(16,185,129,.1)"},
@@ -4188,7 +4183,7 @@ ${PROVS.map(prov=>{
                     /* ── THEAD ── */
                     h("thead",null,h("tr",null,
                       h("th",{className:"att-th att-th-name"},"المهندس"),
-                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28}},
+                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28,cursor:!isWknd(d)?"pointer":"default"},onClick:!isWknd(d)?e=>{const r=e.currentTarget.getBoundingClientRect();setDayPopup({day:d,x:r.left,y:r.bottom});e.stopPropagation();}:undefined,title:!isWknd(d)?"اضغط لتسجيل اليوم كامل":""},
                         h("div",null,d),
                         h("div",{style:{fontSize:10,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
                       )),
@@ -4227,15 +4222,18 @@ ${PROVS.map(prov=>{
                           ...days.map(d=>{
                             const dd=eAtt[d];
                             const st=dd?.s||null;
+                            const autoSt=getAutoState(eng,d);
+                            const effectiveSt=st||autoSt;
+                            const isAuto=!st&&!!autoSt;
                             const wk=isWknd(d);
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
-                                className:"att-cell att-cell-"+(wk&&!st?"H":st||"e"),
-                                onClick:()=>{if(!wk)attCycleStatus(eng.id,d);},
-                                title:st?ATT_LABEL[st]:wk?"عطلة رسمية":"",
-                                style:{cursor:wk&&!st?"default":"pointer"}
-                              },st?ATT_SHORT[st]:wk?"ع":""),
-                              st==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
+                                className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
+                                onClick:(e)=>{if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom});e.stopPropagation();}},
+                                title:effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
+                                style:{cursor:wk||isAuto?"default":"pointer"}
+                              },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
+                              effectiveSt==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
                                 (dd.in||"?"),"→",(dd.out||"?")
                               )
                             );
@@ -4271,7 +4269,7 @@ ${PROVS.map(prov=>{
               h("div",{style:{padding:"12px 16px"}},
                 h("div",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",marginBottom:10,letterSpacing:".5px"}},"دليل الرموز"),
                 h("div",{className:"att-legend"},
-                  [['P','ح'],['A','غ'],['AL','س'],['SL','م'],['EL','ط'],['H','ع']].map(([s,sh])=>
+                  [['P','ح'],['EG','م'],['A','غ'],['AL','س'],['SL','مر'],['EL','ط'],['H','ع']].map(([s,sh])=>
                     h("div",{key:s,className:"att-leg-item"},
                       h("div",{className:"att-leg-box",style:{background:ATT_BG[s],borderColor:ATT_COL[s],color:ATT_COL[s]}},sh),
                       h("span",{style:{color:ATT_COL[s],fontWeight:700,fontSize:10}},ATT_LABEL[s])
@@ -4282,7 +4280,7 @@ ${PROVS.map(prov=>{
                     h("span",{style:{color:"var(--sub)",fontSize:10}},"عطلة رسمية (الجمعة)")
                   )
                 ),
-                h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:10}},"← اضغط على خلية يوم لتغيير الحالة (ح ← غ ← إجازة سنوية ← مرضية ← طارئة ← عطلة) | اضغط ⏰ لإدخال أوقات الحضور والانصراف")
+                h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:10}},"← اضغط على خلية لفتح قائمة الحالات | اضغط على رقم اليوم لتسجيل المحافظة كاملة | 🔵 م = مصر (تلقائي قبل تاريخ الوصول)")
               )
             )
 
@@ -4570,6 +4568,41 @@ ${PROVS.map(prov=>{
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
         h(OcOrgChart,{data:data,att:att,orgData:orgData,onPrintReady:fn=>{orgPrintRef.current=fn;}})
+      ),
+
+      /* ── ATT CELL POPUP ─────────────────────────────────── */
+      attPopup&&h("div",{className:"att-popup",style:{top:Math.min(attPopup.y+4,window.innerHeight-260),left:Math.max(4,Math.min(attPopup.x,window.innerWidth-145))},onClick:e=>e.stopPropagation()},
+        h("div",{className:"att-popup-hdr"},"تسجيل الحالة"),
+        ATT_CYCLE.filter(s=>s!==null).map(s=>
+          h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
+            onClick:()=>{attSetStatus(attPopup.engId,attPopup.day,s);setAttPopup(null);}
+          },
+            h("span",{style:{fontWeight:900,minWidth:16}},ATT_SHORT[s]),
+            h("span",null,ATT_LABEL[s])
+          )
+        ),
+        h("button",{className:"att-popup-btn att-popup-clr",
+          onClick:()=>{attClearCell(attPopup.engId,attPopup.day);setAttPopup(null);}
+        },"✕  مسح")
+      ),
+
+      /* ── DAY POPUP ───────────────────────────────────────── */
+      dayPopup&&h("div",{className:"att-popup",style:{top:Math.min(dayPopup.y+4,window.innerHeight-260),left:Math.max(4,Math.min(dayPopup.x,window.innerWidth-145))},onClick:e=>e.stopPropagation()},
+        h("div",{className:"att-popup-hdr"},"اليوم "+dayPopup.day+" — تسجيل الكل"),
+        ATT_CYCLE.filter(s=>s!==null).map(s=>
+          h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
+            onClick:()=>{
+              (data[attProv]||[]).forEach(eng=>{attSetStatus(eng.id,dayPopup.day,s);});
+              setDayPopup(null);
+            }
+          },
+            h("span",{style:{fontWeight:900,minWidth:16}},ATT_SHORT[s]),
+            h("span",null,ATT_LABEL[s])
+          )
+        ),
+        h("button",{className:"att-popup-btn",style:{background:"var(--bg)",color:"var(--sub)",marginTop:2},
+          onClick:()=>setDayPopup(null)
+        },"إلغاء")
       ),
 
       /* ── BOTTOM NAV (mobile) ──────────────────────────── */
