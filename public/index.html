@@ -4463,7 +4463,7 @@ ${PROVS.map(prov=>{
                     /* ── THEAD ── */
                     h("thead",null,h("tr",null,
                       h("th",{className:"att-th att-th-name"},"المهندس"),
-                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28,cursor:!isWknd(d)?"pointer":"default"},onClick:!isWknd(d)?e=>{const r=e.currentTarget.getBoundingClientRect();setDayPopup({day:d,x:r.left,y:r.bottom});e.stopPropagation();}:undefined,title:!isWknd(d)?"اضغط لتسجيل اليوم كامل":""},
+                      ...days.map(d=>h("th",{key:d,className:"att-th"+(isWknd(d)?" att-th-wknd":isToday(d)?" att-th-today":""),style:{padding:"5px 1px",minWidth:28,cursor:!isWknd(d)?"pointer":"default"},onClick:!isWknd(d)?e=>{const r=e.currentTarget.getBoundingClientRect();setDayPopup({day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}:undefined,title:!isWknd(d)?"اضغط لتسجيل اليوم كامل":""},
                         h("div",null,d),
                         h("div",{style:{fontSize:10,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
                       )),
@@ -4509,7 +4509,7 @@ ${PROVS.map(prov=>{
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
-                                onClick:(e)=>{if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom});e.stopPropagation();}},
+                                onClick:(e)=>{if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
                                 title:effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
                                 style:{cursor:wk||isAuto?"default":"pointer"}
                               },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
@@ -4978,7 +4978,7 @@ ${PROVS.map(prov=>{
       ),
 
       /* ── ATT CELL POPUP ─────────────────────────────────── */
-      attPopup&&h("div",{className:"att-popup",style:{top:Math.min(attPopup.y+4,window.innerHeight-260),left:Math.max(4,Math.min(attPopup.x,window.innerWidth-145))},onClick:e=>e.stopPropagation()},
+      attPopup&&(()=>{const PH=290,PW=145;const showAbove=attPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,attPopup.cellTop-4-PH):attPopup.y+4;const left=Math.max(4,Math.min(attPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
         h("div",{className:"att-popup-hdr"},"تسجيل الحالة"),
         ATT_CYCLE.filter(s=>s!==null).map(s=>
           h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
@@ -4991,10 +4991,10 @@ ${PROVS.map(prov=>{
         h("button",{className:"att-popup-btn att-popup-clr",
           onClick:()=>{attClearCell(attPopup.engId,attPopup.day);setAttPopup(null);}
         },"✕  مسح")
-      ),
+      );})(),
 
       /* ── DAY POPUP ───────────────────────────────────────── */
-      dayPopup&&h("div",{className:"att-popup",style:{top:Math.min(dayPopup.y+4,window.innerHeight-260),left:Math.max(4,Math.min(dayPopup.x,window.innerWidth-145))},onClick:e=>e.stopPropagation()},
+      dayPopup&&(()=>{const PH=320,PW=145;const showAbove=dayPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,dayPopup.cellTop-4-PH):dayPopup.y+4;const left=Math.max(4,Math.min(dayPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
         h("div",{className:"att-popup-hdr"},"اليوم "+dayPopup.day+" — تسجيل الكل"),
         ATT_CYCLE.filter(s=>s!==null).map(s=>
           h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
@@ -5010,7 +5010,7 @@ ${PROVS.map(prov=>{
         h("button",{className:"att-popup-btn",style:{background:"var(--bg)",color:"var(--sub)",marginTop:2},
           onClick:()=>setDayPopup(null)
         },"إلغاء")
-      ),
+      );})(),
 
       /* ── BOTTOM NAV (mobile) ──────────────────────────── */
       h("div",{className:"bottom-nav"},
