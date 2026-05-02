@@ -2929,7 +2929,7 @@ function App(){
   );
 
   /* ── Province page guard ──────────────────────────── */
-  if(user?.role==='province'&&!["eng","att"].includes(page)){
+  if(user?.role==='province'&&!["eng","att","leaves"].includes(page)){
     setTimeout(()=>setPage("att"),0);
   }
 
@@ -4542,11 +4542,11 @@ ${PROVS.map(prov=>{
                 "طلبات الإجازة",
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
-              isAdmin&&(leaveView==='list'
+              leaveView==='list'
                 ?h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
-                :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة"))
+                :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
-            isAdmin&&leaveView==='form'&&h("div",{className:"card"},
+            leaveView==='form'&&h("div",{className:"card"},
               h("div",{className:"modal-hdr"},h("h3",null,"✈ طلب إجازة جديد")),
               h("div",{style:{padding:"16px",display:"flex",flexDirection:"column",gap:12}},
                 h("div",{className:"fld"},

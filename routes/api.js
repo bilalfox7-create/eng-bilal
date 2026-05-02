@@ -39,13 +39,18 @@ router.get('/months', (_req, res) => {
   const rows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
   const months = {};
   for (const row of rows) {
-    months[row.key] = {
-      data:       JSON.parse(row.data),
-      cfg:        JSON.parse(row.cfg),
-      savedAt:    row.saved_at || null,
-      expenses:   row.expenses   ? JSON.parse(row.expenses)   : null,
-      attendance: row.attendance ? JSON.parse(row.attendance) : null,
-    };
+    if (row.key === 'leaves') {
+      // leaves stored as {requests:[...]} directly in data column
+      months['leaves'] = JSON.parse(row.data);
+    } else {
+      months[row.key] = {
+        data:       JSON.parse(row.data),
+        cfg:        JSON.parse(row.cfg),
+        savedAt:    row.saved_at || null,
+        expenses:   row.expenses   ? JSON.parse(row.expenses)   : null,
+        attendance: row.attendance ? JSON.parse(row.attendance) : null,
+      };
+    }
   }
   res.json({ months });
 });
@@ -57,6 +62,21 @@ router.put('/months/:key', (req, res) => {
 
   /* ── Province user: merge-only update ── */
   if (user.role === 'province') {
+    /* ── leaves: province can add/update their own province's requests ── */
+    if (key === 'leaves') {
+      const prov = user.province;
+      const existing = db.prepare("SELECT data FROM months WHERE key = 'leaves'").get();
+      const existingReqs = existing ? (JSON.parse(existing.data).requests || []) : [];
+      const inReqs = req.body.requests || [];
+      const otherReqs = existingReqs.filter(r => r.prov !== prov);
+      const myReqs    = inReqs.filter(r => r.prov === prov);
+      const merged = [...otherReqs, ...myReqs];
+      db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
+        ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
+        .run(JSON.stringify({ requests: merged }));
+      return res.json({ ok: true });
+    }
+
     const existing = db.prepare('SELECT * FROM months WHERE key = ?').get(key);
     if (!existing) return res.status(403).json({ error: 'الشهر غير موجود، تواصل مع الأدمن لإنشائه أولاً' });
 
@@ -94,6 +114,15 @@ router.put('/months/:key', (req, res) => {
   }
 
   /* ── Admin: full update ── */
+  /* leaves special format: {requests:[...]} */
+  if (key === 'leaves') {
+    const requests = req.body.requests || [];
+    db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
+      ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
+      .run(JSON.stringify({ requests }));
+    return res.json({ ok: true });
+  }
+
   const { data, cfg, savedAt, expenses, attendance } = req.body;
   if (!data || !cfg) return res.status(400).json({ error: 'بيانات ناقصة' });
 
