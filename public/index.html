@@ -4185,7 +4185,6 @@ function App(){
     <span class="chip" style="background:#FEE2E2;color:#DC2626">${allStats.A} غياب</span>
     <span class="chip" style="background:#DBEAFE;color:#2563EB">${allStats.vac} إجازة</span>
     <span class="chip" style="background:#FEF9C3;color:#92400E">${allStats.hrs}h عمل</span>
-    <span class="chip" style="background:#F5F3FF;color:#7C3AED">${halfLabel}</span>
   </div>
 </div>
 <table>
@@ -4532,11 +4531,11 @@ ${PROVS.map(prov=>{
                 "طلبات الإجازة",
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
-              leaveView==='list'
+              isAdmin&&(leaveView==='list'
                 ?h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
-                :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
+                :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة"))
             ),
-            leaveView==='form'&&h("div",{className:"card"},
+            isAdmin&&leaveView==='form'&&h("div",{className:"card"},
               h("div",{className:"modal-hdr"},h("h3",null,"✈ طلب إجازة جديد")),
               h("div",{style:{padding:"16px",display:"flex",flexDirection:"column",gap:12}},
                 h("div",{className:"fld"},
