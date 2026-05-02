@@ -202,8 +202,31 @@ router.put('/users/:id/password', adminOnly, (req, res) => {
   if (!password || password.length < 6) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
   const hash = bcrypt.hashSync(password, 10);
   const result = getDb()
-    .prepare("UPDATE users SET password = ? WHERE id = ? AND role = 'province'")
+    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role = 'province'")
     .run(hash, req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
+  res.json({ ok: true });
+});
+
+router.post('/users', adminOnly, (req, res) => {
+  const { username, password, province } = req.body;
+  if (!username || !username.trim()) return res.status(400).json({ error: 'أدخل اسم المستخدم' });
+  if (!password || password.length < 6)  return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
+  if (!province || !province.trim())      return res.status(400).json({ error: 'اختر المحافظة' });
+  const db = getDb();
+  const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim());
+  if (exists) return res.status(409).json({ error: 'اسم المستخدم موجود مسبقاً' });
+  const hash = bcrypt.hashSync(password, 10);
+  const result = db.prepare(
+    "INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, 'province', ?, 1)"
+  ).run(username.trim(), hash, province.trim());
+  res.json({ ok: true, id: result.lastInsertRowid, username: username.trim(), province: province.trim() });
+});
+
+router.delete('/users/:id', adminOnly, (req, res) => {
+  const result = getDb()
+    .prepare("DELETE FROM users WHERE id = ? AND role = 'province'")
+    .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
 });

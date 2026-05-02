@@ -1600,6 +1600,11 @@ function App(){
   const [provUsers,setProvUsers]=useState([]);
   const [pwdModal,setPwdModal]=useState(null);
   const [activeUsers,setActiveUsers]=useState([]);
+  const [mustChangePwd,setMustChangePwd]=useState(false);
+  const [forcePwdForm,setForcePwdForm]=useState({old:"",n1:"",n2:""});
+  const [forcePwdErr,setForcePwdErr]=useState("");
+  const [newUserForm,setNewUserForm]=useState({username:"",password:"",province:PROVS[0]});
+  const [autoSaving,setAutoSaving]=useState(false);
   const isAdmin=useMemo(()=>user?.role!=='province',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
@@ -1614,7 +1619,6 @@ function App(){
   const [gQ,setGQ]=useState("");
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
-  const [attLogMonth,setAttLogMonth]=useState(null);
   const [attSelected,setAttSelected]=useState(()=>new Set());
   const [attHovEng,setAttHovEng]=useState(null);
   const [leaveTab,setLeaveTab]=useState('pending');
@@ -1730,6 +1734,7 @@ function App(){
   /* ── Save queue (debounced) ───────────────────────── */
   const queueSave=useCallback((key,val)=>{
     pendingRef.current[key]=val;
+    setAutoSaving(true);
     clearTimeout(timerRef.current);
     timerRef.current=setTimeout(async()=>{
       const q={...pendingRef.current};pendingRef.current={};
@@ -1742,6 +1747,7 @@ function App(){
           }).catch(()=>{});
         }
       }
+      setAutoSaving(false);
     },800);
   },[]);
 
@@ -1755,6 +1761,7 @@ function App(){
       const d=await r.json();
       if(!r.ok){setLoginError(d.error||"خطأ في تسجيل الدخول");return;}
       setUser(d);
+      if(d.mustChangePwd)setMustChangePwd(true);
       if(d.province)setAttProv(d.province);
       if(d.role==='province')setPage("att");
       const fetches=[
@@ -1776,7 +1783,22 @@ function App(){
 
   const doLogout=async()=>{
     await fetch("/auth/logout",{method:"POST"});
-    setUser(null);setMonths({});setLogo(null);
+    setUser(null);setMonths({});setLogo(null);setMustChangePwd(false);
+  };
+
+  const doForceChangePwd=async()=>{
+    setForcePwdErr("");
+    if(!forcePwdForm.old){setForcePwdErr("أدخل كلمة المرور الحالية");return;}
+    if(forcePwdForm.n1.length<6){setForcePwdErr("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل");return;}
+    if(forcePwdForm.n1!==forcePwdForm.n2){setForcePwdErr("كلمتا المرور غير متطابقتين");return;}
+    try{
+      const r=await fetch("/auth/change-password",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({oldPassword:forcePwdForm.old,newPassword:forcePwdForm.n1})});
+      const d=await r.json();
+      if(!r.ok){setForcePwdErr(d.error||"خطأ");return;}
+      setMustChangePwd(false);setForcePwdForm({old:"",n1:"",n2:""});
+      msg("تم تغيير كلمة المرور بنجاح ✓");
+    }catch(e){setForcePwdErr("خطأ في الاتصال بالخادم");}
   };
 
   /* ── Computed ─────────────────────────────────────── */
@@ -2589,6 +2611,31 @@ function App(){
     msg("تم فتح نافذة الطباعة ✓");
   };
 
+  const exportAttXLSX=()=>{
+    const wb=XLSX.utils.book_new();
+    const dIM=new Date(cfg.year,cfg.month,0).getDate();
+    const days=Array.from({length:dIM},(_,i)=>i+1);
+    const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
+    const provsToDo=isAdmin?PROVS:[userProv].filter(Boolean);
+    provsToDo.forEach(prov=>{
+      const engs=data[prov]||[];
+      if(!engs.length)return;
+      const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة","ساعات"];
+      const rows=[header];
+      engs.forEach(e=>{
+        const s=attGetStats(e.id,att,cfg.year,cfg.month);
+        const eAtt=att[e.id]||{};
+        const cells=days.map(d=>{const st=eAtt[d]?.s;return st?ATT_SHORT[st]:(new Date(cfg.year,cfg.month-1,d).getDay()===5?"ع":"");});
+        rows.push([e.name,e.spec,...cells,s.P,s.A,s.vac,s.hrs+"h"]);
+      });
+      const ws=XLSX.utils.aoa_to_sheet(rows);
+      ws["!cols"]=[{wch:24},{wch:16},...days.map(()=>({wch:4})),{wch:6},{wch:6},{wch:6},{wch:7}];
+      XLSX.utils.book_append_sheet(wb,ws,prov.replace("محافظة ",""));
+    });
+    XLSX.writeFile(wb,`حضور_${mn}_${cfg.year}.xlsx`);
+    msg("تم تصدير كشف الحضور Excel ✓");
+  };
+
   const saveExpData=(newData)=>{
     const updated={...mkMonthBase(),expenses:newData,savedAt:null};
     setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
@@ -2662,6 +2709,36 @@ function App(){
   ];
   const pageTitle={dash:"لوحة التحكم",eng:"المهندسون",att:"الحضور والانصراف",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي"};
   const mobileNavs=navs.slice(0,5);
+
+  /* ── Force password change screen ────────────────── */
+  if(user&&mustChangePwd)return h("div",{className:"login-screen"},
+    h("div",{className:"login-box"},
+      h("img",{className:"login-logo",src:"/logo.jpg",alt:""}),
+      h("div",{className:"login-title"},"تغيير كلمة المرور"),
+      h("div",{className:"login-sub"},"كلمة المرور الافتراضية يجب تغييرها قبل المتابعة"),
+      forcePwdErr&&h("div",{className:"info",style:{background:"#FEF2F2",borderColor:"#FECACA",color:"#DC2626",marginBottom:14}},
+        h(Ic,{n:"warn",sz:16}),forcePwdErr
+      ),
+      h("div",{className:"fld"},
+        h("label",null,"كلمة المرور الحالية"),
+        h("input",{type:"password",placeholder:"••••••",value:forcePwdForm.old,
+          onChange:ev=>setForcePwdForm(f=>({...f,old:ev.target.value}))})
+      ),
+      h("div",{className:"fld"},
+        h("label",null,"كلمة المرور الجديدة (6 أحرف على الأقل)"),
+        h("input",{type:"password",placeholder:"••••••••",value:forcePwdForm.n1,
+          onChange:ev=>setForcePwdForm(f=>({...f,n1:ev.target.value}))})
+      ),
+      h("div",{className:"fld"},
+        h("label",null,"تأكيد كلمة المرور الجديدة"),
+        h("input",{type:"password",placeholder:"••••••••",value:forcePwdForm.n2,
+          onKeyDown:async ev=>{if(ev.key==="Enter")await doForceChangePwd();},
+          onChange:ev=>setForcePwdForm(f=>({...f,n2:ev.target.value}))})
+      ),
+      h("button",{className:"btn blue",style:{width:"100%",padding:"10px",fontSize:14,justifyContent:"center"},
+        onClick:async()=>await doForceChangePwd()},"حفظ كلمة المرور الجديدة")
+    )
+  );
 
   /* ── Loading screen ───────────────────────────────── */
   if(!loaded)return h("div",{className:"loading-screen"},
@@ -2774,7 +2851,7 @@ function App(){
             for(const[prov,engs]of Object.entries(m.data)){
               for(const e of(engs||[])){
                 if((e.name||"").toLowerCase().includes(q)||(e.spec||"").toLowerCase().includes(q)){
-                  const c=calc(e.d1,e.d2,m.cfg?.rate||300);
+                  const c=calc(e,m.cfg?.rate||300,m.cfg?.egp||52.5);
                   results.push({k,mn2,prov,e,c});
                 }
               }
@@ -3097,7 +3174,11 @@ function App(){
         h("div",{className:"topbar-left"},
           h("span",{className:"page-title"},pageTitle[page]||page),
           h("span",{className:"sep"}),
-          h("span",{className:"page-sub"},`${mn} ${cfg.year} · ${G.n} مهندس · ${isSaved?"محفوظ ✓":"لم يُحفظ"}`)
+          h("span",{className:"page-sub"},`${mn} ${cfg.year} · ${G.n} مهندس · ${isSaved?"محفوظ ✓":"لم يُحفظ"}`),
+          autoSaving&&h("span",{style:{fontSize:10,color:"var(--blue)",fontWeight:700,display:"flex",alignItems:"center",gap:4,marginRight:8,opacity:.8}},
+            h("span",{style:{width:6,height:6,borderRadius:"50%",background:"var(--blue)",display:"inline-block",animation:"pulse 1s infinite"}}),
+            "جارٍ الحفظ..."
+          )
         ),
         h("div",{className:"topbar-right"},
           page==="eng"&&isAdmin&&h("div",{className:"search-wrap"},
@@ -3107,6 +3188,7 @@ function App(){
           isAdmin&&h("button",{className:"btn",onClick:()=>setGOpen(true),title:"بحث شامل (Ctrl+K)"},h(Ic,{n:"srch",sz:14}),h("span",null,"بحث")),
           (page==="eng")&&isAdmin&&h("button",{className:"btn",onClick:exportXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           isAdmin&&h("button",{className:"btn",onClick:handlePdfClick,title:"طباعة PDF"},h(Ic,{n:"pdf",sz:14}),h("span",null,"PDF")),
+          page==="att"&&h("button",{className:"btn",onClick:exportAttXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
@@ -4348,8 +4430,43 @@ ${PROVS.map(prov=>{
               ),
               h("span",{className:"card-badge"},provUsers.length+" مستخدم")
             ),
+            /* ── Add new province user form ── */
+            h("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}},
+              h("div",{style:{flex:"1 1 120px"}},
+                h("label",{style:{fontSize:10,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:4}},"اسم المستخدم"),
+                h("input",{placeholder:"username",value:newUserForm.username,
+                  onChange:ev=>setNewUserForm(f=>({...f,username:ev.target.value})),
+                  style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})
+              ),
+              h("div",{style:{flex:"1 1 120px"}},
+                h("label",{style:{fontSize:10,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:4}},"كلمة المرور"),
+                h("input",{type:"password",placeholder:"6 أحرف على الأقل",value:newUserForm.password,
+                  onChange:ev=>setNewUserForm(f=>({...f,password:ev.target.value})),
+                  style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})
+              ),
+              h("div",{style:{flex:"1 1 140px"}},
+                h("label",{style:{fontSize:10,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:4}},"المحافظة"),
+                h("select",{value:newUserForm.province,onChange:ev=>setNewUserForm(f=>({...f,province:ev.target.value})),
+                  style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},
+                  PROVS.map(p=>h("option",{key:p,value:p},p))
+                )
+              ),
+              h("button",{className:"btn blue",style:{padding:"7px 14px",fontSize:12,flexShrink:0},
+                onClick:async()=>{
+                  if(!newUserForm.username.trim()){msg("أدخل اسم المستخدم","err");return;}
+                  if(newUserForm.password.length<6){msg("كلمة المرور 6 أحرف على الأقل","err");return;}
+                  const r=await fetch("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify(newUserForm)});
+                  const d=await r.json();
+                  if(!r.ok){msg(d.error||"خطأ","err");return;}
+                  setProvUsers(p=>[...p,{id:d.id,username:d.username,province:d.province,role:"province"}]);
+                  setNewUserForm({username:"",password:"",province:PROVS[0]});
+                  msg("تم إضافة المستخدم ✓");
+                }
+              },h(Ic,{n:"plus",sz:12}),"إضافة مستخدم")
+            ),
             provUsers.length===0
-              ?h("div",{style:{padding:"20px 16px",textAlign:"center",color:"var(--sub)",fontSize:12}},"يتطلب إعادة تشغيل الخادم لتفعيل المستخدمين — راجع لوحة التحكم")
+              ?h("div",{style:{padding:"20px 16px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا يوجد مستخدمون — أضف مستخدماً من النموذج أعلاه")
               :h("div",{style:{padding:"8px 16px 14px"}},
                 provUsers.map(u=>{
                   const isOnline=activeUsers.some(a=>a.username===u.username);
@@ -4371,7 +4488,15 @@ ${PROVS.map(prov=>{
                         h("rect",{x:3,y:9,width:14,height:9,rx:1.5}),h("path",{d:"M7 9V6a3 3 0 016 0v3"})
                       ),
                       " كلمة المرور"
-                    )
+                    ),
+                    h("button",{className:"btn-icon del",title:"حذف المستخدم",
+                      onClick:async()=>{
+                        if(!confirm(`حذف مستخدم "${u.username}"؟`))return;
+                        const r=await fetch(`/api/users/${u.id}`,{method:"DELETE"});
+                        if(r.ok){setProvUsers(p=>p.filter(x=>x.id!==u.id));msg("تم حذف المستخدم ✓");}
+                        else{const d=await r.json();msg(d.error||"خطأ","err");}
+                      }
+                    },h(Ic,{n:"del",sz:12}))
                   );
                 })
               )

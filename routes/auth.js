@@ -4,6 +4,32 @@ const { getDb } = require('../db');
 
 const router = express.Router();
 
+/* ── Simple in-memory rate limiter (10 attempts / 15 min per IP) ── */
+const loginAttempts = new Map();
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const WINDOW = 15 * 60 * 1000; // 15 minutes
+  const MAX    = 10;
+  let entry = loginAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + WINDOW };
+    loginAttempts.set(ip, entry);
+  }
+  if (entry.count >= MAX) return false;
+  entry.count++;
+  return true;
+}
+function resetRateLimit(ip) {
+  loginAttempts.delete(ip);
+}
+// Clean up old entries every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of loginAttempts.entries()) {
+    if (now > e.resetAt) loginAttempts.delete(ip);
+  }
+}, 30 * 60 * 1000);
+
 router.get('/me', (req, res) => {
   if (req.session.user) {
     res.json({
@@ -17,6 +43,11 @@ router.get('/me', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(ip)) {
+    return res.status(429).json({ error: 'عدد محاولات تسجيل الدخول تجاوز الحد — انتظر 15 دقيقة' });
+  }
+
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'أدخل اسم المستخدم وكلمة المرور' });
@@ -29,8 +60,14 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   }
 
+  resetRateLimit(ip);
   req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null };
-  res.json({ username: user.username, role: user.role || 'admin', province: user.province || null });
+  res.json({
+    username: user.username,
+    role:     user.role || 'admin',
+    province: user.province || null,
+    mustChangePwd: !!user.must_change_password,
+  });
 });
 
 router.post('/logout', (req, res) => {
@@ -52,7 +89,7 @@ router.post('/change-password', (req, res) => {
   }
 
   const hash = bcrypt.hashSync(newPassword, 10);
-  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+  db.prepare('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?').run(hash, user.id);
   res.json({ ok: true });
 });
 
