@@ -28,8 +28,13 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 app.use(express.json({ limit: '5mb' }));
 
+const SESSION_SECRET = process.env.SESSION_SECRET || 'eng-ieshat-secret-key-2025';
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️  SESSION_SECRET غير مضبوط — استخدم متغير بيئة SESSION_SECRET في الإنتاج');
+}
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'eng-ieshat-secret-key-2025',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {

@@ -52,6 +52,7 @@ function initDb() {
   try { db.exec('ALTER TABLE months ADD COLUMN attendance TEXT'); } catch(e) {}
   try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'"); } catch(e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN province TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0'); } catch(e) {}
 
   // تأكد أن جميع المستخدمين بدون role يحصلون على 'admin' (صفوف قديمة)
   db.exec("UPDATE users SET role = 'admin' WHERE role IS NULL AND province IS NULL");
@@ -60,7 +61,7 @@ function initDb() {
   const count = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get();
   if (Number(count.c) === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
-    db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'admin')").run('admin', hash);
+    db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'admin', 1)").run('admin', hash);
     console.log('✅ تم إنشاء المستخدم الافتراضي: admin / admin123');
     console.log('⚠️  غيّر كلمة المرور من صفحة الإعدادات بعد أول تسجيل دخول.');
   }
@@ -76,7 +77,7 @@ function initDb() {
     const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
     if (!exists) {
       const hash = bcrypt.hashSync(u.password, 10);
-      db.prepare("INSERT INTO users (username, password, role, province) VALUES (?, ?, 'province', ?)").run(u.username, hash, u.province);
+      db.prepare("INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, 'province', ?, 1)").run(u.username, hash, u.province);
       console.log(`✅ مستخدم المحافظة: ${u.username} / ${u.password} (${u.province})`);
     }
   }
