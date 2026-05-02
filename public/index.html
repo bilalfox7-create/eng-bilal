@@ -2196,10 +2196,11 @@ function App(){
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
-  const attFillMonth=()=>{
+  const attFillMonth=(provFilter)=>{
     if(attLockGuard())return;
     const dIM=new Date(attCfg.year,attCfg.month,0).getDate();
-    const allEngs=PROVS.flatMap(p=>attData[p]||[]);
+    const provs=provFilter?[provFilter]:PROVS;
+    const allEngs=provs.flatMap(p=>attData[p]||[]);
     const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(attCfg.year,attCfg.month-1,d).getDay()!==5);
     const mn2=MONTHS[attCfg.month-1]+" "+attCfg.year;
     const existing=mkAttMonthBase();
@@ -2207,13 +2208,14 @@ function App(){
     wDays.forEach(d=>{allEngs.forEach(eng=>{if(!na[eng.id])na[eng.id]={};if(!na[eng.id][d]?.s)na[eng.id][d]={...(na[eng.id][d]||{}),s:"P"};});});
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
-    logActivity('تحضير حضور',mn2);
+    logActivity('تحضير حضور',mn2+(provFilter?' — '+provFilter.replace('محافظة ',''):''));
     msg("تم تحضير "+mn2+" كاملاً ✓");
   };
 
-  const attClearMonth=()=>{
+  const attClearMonth=(provFilter)=>{
     if(attLockGuard())return;
-    const allEngs=PROVS.flatMap(p=>attData[p]||[]);
+    const provs=provFilter?[provFilter]:PROVS;
+    const allEngs=provs.flatMap(p=>attData[p]||[]);
     const mn2=MONTHS[attCfg.month-1]+" "+attCfg.year;
     const existing=mkAttMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
@@ -2224,7 +2226,7 @@ function App(){
     });
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
-    logActivity('إلغاء تحضير حضور',mn2);
+    logActivity('إلغاء تحضير حضور',mn2+(provFilter?' — '+provFilter.replace('محافظة ',''):''));
     msg("تم إلغاء تحضير "+mn2+" ✓");
   };
 
@@ -3373,6 +3375,8 @@ function App(){
           page==="att"&&h("button",{className:"btn",onClick:exportAttXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
+          page==="att"&&!isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{if(confirm("تحضير كل أيام الشهر حاضر لمهندسي محافظتك؟\nسيتم تسجيل الحضور لكل أيام العمل (غير الجمع)."))attFillMonth(userProv);},title:"تحضير الشهر كامل لمحافظتك"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر كله")),
+          page==="att"&&!isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:()=>{if(confirm("إلغاء تحضير الشهر؟\nسيتم حذف كل تسجيلات الحضور لمهندسي محافظتك في هذا الشهر."))attClearMonth(userProv);},title:"إلغاء تحضير الشهر لمحافظتك"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء تحضير الشهر")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
           isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("button",{
