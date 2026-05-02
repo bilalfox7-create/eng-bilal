@@ -2340,10 +2340,12 @@ function App(){
     let eng=null,engProv='';
     PROVS.forEach(p=>{const f=(leaveEngs[p]||[]).find(e=>e.id===leaveForm.engId);if(f){eng=f;engProv=p;}});
     if(!eng){msg('المهندس غير موجود','err');return;}
-    const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketStatus:leaveForm.ticketBooked?'booked':'notBooked',ticketDetails:leaveForm.ticketDetails,status:'pending',notes:leaveForm.notes,createdAt:new Date().toISOString(),decidedAt:null,decidedBy:null};
+    const autoApprove=isAdmin&&leaveForm.autoApprove;
+    const nowIso=new Date().toISOString();
+    const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketStatus:leaveForm.ticketBooked?'booked':'notBooked',ticketDetails:leaveForm.ticketDetails,status:autoApprove?'approved':'pending',notes:leaveForm.notes,createdAt:nowIso,decidedAt:autoApprove?nowIso:null,decidedBy:autoApprove?(user?.username||'admin'):null,travelDate:autoApprove?leaveForm.startDate:null,returnDate:autoApprove?leaveForm.endDate:null};
     saveLeaves([...leaves,newReq]);
     setLeaveView('list');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
-    msg('تم إرسال طلب الإجازة ✓');
+    msg(autoApprove?'تمت إضافة الإجازة والموافقة عليها ✓':'تم إرسال طلب الإجازة ✓');
   };
 
   const approveLeave=(req)=>{
@@ -4663,7 +4665,7 @@ ${PROVS.map(prov=>{
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
               leaveView==='list'
-                ?(isProvince&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد")))
+                ?((isProvince||isAdmin)&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,isAdmin?"إضافة إجازة":"طلب إجازة جديد")))
                 :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
             returnAlerts.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
@@ -4725,11 +4727,15 @@ ${PROVS.map(prov=>{
                 ),
                 leaveForm.ticketBooked&&h("div",{className:"fld"},h("label",null,"تفاصيل الحجز"),h("input",{type:"text",placeholder:"رقم التذكرة أو تفاصيل الحجز...",value:leaveForm.ticketDetails,onChange:ev=>setLeaveForm(p=>({...p,ticketDetails:ev.target.value}))})),
                 !leaveElig?.eligible&&leaveElig&&h("div",{className:"info",style:{borderColor:"rgba(226,75,74,.3)",background:"rgba(226,75,74,.05)"}},h(Ic,{n:"warn",sz:14,c:"#E24B4A"}),"المهندس لم يكمل 6 شهور — يمكن إرسال الطلب مع ملاحظة"),
-                h("div",{className:"fld",style:{marginBottom:0}},h("label",null,"ملاحظات"),h("textarea",{rows:2,placeholder:"ملاحظات إضافية...",style:{resize:"vertical"},value:leaveForm.notes,onChange:ev=>setLeaveForm(p=>({...p,notes:ev.target.value}))}))
+                h("div",{className:"fld",style:{marginBottom:isAdmin?12:0}},h("label",null,"ملاحظات"),h("textarea",{rows:2,placeholder:"ملاحظات إضافية...",style:{resize:"vertical"},value:leaveForm.notes,onChange:ev=>setLeaveForm(p=>({...p,notes:ev.target.value}))})),
+                isAdmin&&h("label",{style:{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:"var(--r)",background:"rgba(29,158,117,.08)",border:"1px solid rgba(29,158,117,.25)",cursor:"pointer",fontSize:12,fontWeight:600,color:"#1D9E75"}},
+                  h("input",{type:"checkbox",checked:!!leaveForm.autoApprove,onChange:ev=>setLeaveForm(p=>({...p,autoApprove:ev.target.checked}))}),
+                  "✅ موافقة مباشرة (تسجيل الإجازة كمعتمدة فوراً مع تواريخ سفر/عودة)"
+                )
               ),
               h("div",{className:"modal-ftr"},
                 h("button",{className:"btn",onClick:()=>setLeaveView('list')},"إلغاء"),
-                h("button",{className:"btn green",style:{gap:5},onClick:submitLeave},h(Ic,{n:"plane",sz:13}),"إرسال الطلب")
+                h("button",{className:"btn green",style:{gap:5},onClick:submitLeave},h(Ic,{n:"plane",sz:13}),isAdmin&&leaveForm.autoApprove?"إضافة وموافقة":"إرسال الطلب")
               )
             ),
             leaveView==='list'&&h("div",{style:{display:"flex",flexDirection:"column",gap:10}},

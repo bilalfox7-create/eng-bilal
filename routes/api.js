@@ -119,12 +119,13 @@ router.put('/months/:key', (req, res) => {
   }
 
   /* ── Admin: full update ── */
-  /* leaves special format: {requests:[...]} */
+  /* leaves special format: {requests:[...], engineerStatuses:{}} */
   if (key === 'leaves') {
     const requests = req.body.requests || [];
+    const engineerStatuses = req.body.engineerStatuses || {};
     db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
       ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
-      .run(JSON.stringify({ requests }));
+      .run(JSON.stringify({ requests, engineerStatuses }));
     return res.json({ ok: true });
   }
 
