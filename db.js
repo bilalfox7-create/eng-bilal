@@ -89,6 +89,20 @@ function initDb() {
       console.log(`✅ مستخدم المحافظة: ${u.username} / ${u.password} (${u.province})`);
     }
   }
+
+  // إنشاء مستخدمي المشاهدة إذا لم يكونوا موجودين
+  const viewerUsers = [
+    { username: 'mohamed_basyouni', password: '123456' },
+    { username: 'diaa_eldin',       password: '123456' },
+  ];
+  for (const u of viewerUsers) {
+    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    if (!exists) {
+      const hash = bcrypt.hashSync(u.password, 10);
+      db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'viewer', 1)").run(u.username, hash);
+      console.log(`✅ مستخدم مشاهد: ${u.username} / ${u.password}`);
+    }
+  }
 }
 
 module.exports = { getDb, initDb };

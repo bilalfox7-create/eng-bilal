@@ -60,6 +60,9 @@ router.put('/months/:key', (req, res) => {
   const user = req.session.user;
   const db   = getDb();
 
+  /* ── Viewer: read-only ── */
+  if (user.role === 'viewer') return res.status(403).json({ error: 'للمشاهدة فقط' });
+
   /* ── Province user: merge-only update ── */
   if (user.role === 'province') {
     /* ── leaves: province can add/update their own province's requests ── */
@@ -221,7 +224,7 @@ router.delete('/logo', adminOnly, (_req, res) => {
 
 router.get('/users', adminOnly, (_req, res) => {
   const users = getDb()
-    .prepare("SELECT id, username, role, province FROM users WHERE role = 'province' ORDER BY province")
+    .prepare("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer') ORDER BY role, username")
     .all();
   res.json({ users });
 });
@@ -231,30 +234,32 @@ router.put('/users/:id/password', adminOnly, (req, res) => {
   if (!password || password.length < 6) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
   const hash = bcrypt.hashSync(password, 10);
   const result = getDb()
-    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role = 'province'")
+    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role IN ('province','viewer')")
     .run(hash, req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
 });
 
 router.post('/users', adminOnly, (req, res) => {
-  const { username, password, province } = req.body;
+  const { username, password, province, role } = req.body;
+  const userRole = role === 'viewer' ? 'viewer' : 'province';
   if (!username || !username.trim()) return res.status(400).json({ error: 'أدخل اسم المستخدم' });
   if (!password || password.length < 6)  return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
-  if (!province || !province.trim())      return res.status(400).json({ error: 'اختر المحافظة' });
+  if (userRole === 'province' && (!province || !province.trim())) return res.status(400).json({ error: 'اختر المحافظة' });
   const db = getDb();
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim());
   if (exists) return res.status(409).json({ error: 'اسم المستخدم موجود مسبقاً' });
   const hash = bcrypt.hashSync(password, 10);
+  const provVal = userRole === 'province' ? province.trim() : null;
   const result = db.prepare(
-    "INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, 'province', ?, 1)"
-  ).run(username.trim(), hash, province.trim());
-  res.json({ ok: true, id: result.lastInsertRowid, username: username.trim(), province: province.trim() });
+    'INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, ?, ?, 1)'
+  ).run(username.trim(), hash, userRole, provVal);
+  res.json({ ok: true, id: result.lastInsertRowid, username: username.trim(), role: userRole, province: provVal });
 });
 
 router.delete('/users/:id', adminOnly, (req, res) => {
   const result = getDb()
-    .prepare("DELETE FROM users WHERE id = ? AND role = 'province'")
+    .prepare("DELETE FROM users WHERE id = ? AND role IN ('province','viewer')")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });

@@ -1644,7 +1644,8 @@ function App(){
   const [forcePwdErr,setForcePwdErr]=useState("");
   const [newUserForm,setNewUserForm]=useState({username:"",password:"",province:PROVS[0]});
   const [autoSaving,setAutoSaving]=useState(false);
-  const isAdmin=useMemo(()=>user?.role!=='province',[user]);
+  const isAdmin=useMemo(()=>user?.role==='admin',[user]);
+  const isProvince=useMemo(()=>user?.role==='province',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",usd:"",lyd:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",usd:"",lyd:"",date:"",note:""});
@@ -1969,7 +1970,7 @@ function App(){
     const d=now.getDate(),m=now.getMonth()+1,y=now.getFullYear();
     const pm=m===1?12:m-1,py=m===1?y-1:y;
     const notes=[];
-    if(!isAdmin){
+    if(isProvince){
       const ps=provTaskStatus.find(s=>s.prov===userProv);
       if(ps){
         if(!ps.attDone)notes.push({id:'att',lvl:'red',msg:`⚠️ لم يتم تسجيل حضور ${MONTHS[pm-1]} ${py} لمحافظتك`});
@@ -1982,7 +1983,7 @@ function App(){
     if(d>=14&&monthStatus.d2.st==='none')notes.push({id:'d2',lvl:'yellow',msg:`لم يتم إعاشة النصف الثاني لـ${mn} ${cfg.year} بعد`});
     if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;if(monthStatus.d1.st==='none')notes.push({id:'d1',lvl:'yellow',msg:`لم يتم إعاشة النصف الأول لـ${MONTHS[nm-1]} ${ny} بعد`});}
     return notes;
-  },[isAdmin,userProv,monthStatus,provTaskStatus,mn,cfg.year]);
+  },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year]);
 
   const engProfileData=useMemo(()=>{
     if(!engProfile)return null;
@@ -2797,7 +2798,7 @@ function App(){
     const dIM=new Date(cfg.year,cfg.month,0).getDate();
     const days=Array.from({length:dIM},(_,i)=>i+1);
     const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
-    const provsToDo=isAdmin?PROVS:[userProv].filter(Boolean);
+    const provsToDo=!isProvince?PROVS:[userProv].filter(Boolean);
     provsToDo.forEach(prov=>{
       const engs=data[prov]||[];
       if(!engs.length)return;
@@ -3262,14 +3263,14 @@ function App(){
       /* ── navigation ── */
       h("div",{className:"sb-nav"},
 
-        h("div",{className:"sb-section"},isAdmin?"الرئيسية":"المحافظة"),
+        h("div",{className:"sb-section"},isProvince?"المحافظة":"الرئيسية"),
 
         /* Province user badge */
-        !isAdmin&&h("div",{style:{margin:"0 12px 8px",padding:"8px 12px",borderRadius:"var(--r)",background:"rgba(96,165,250,.1)",border:"1px solid rgba(96,165,250,.2)",fontSize:11,color:"#93C5FD",fontWeight:700,textAlign:"center"}},
+        isProvince&&h("div",{style:{margin:"0 12px 8px",padding:"8px 12px",borderRadius:"var(--r)",background:"rgba(96,165,250,.1)",border:"1px solid rgba(96,165,250,.2)",fontSize:11,color:"#93C5FD",fontWeight:700,textAlign:"center"}},
           userProv||"مستخدم محافظة"
         ),
 
-        isAdmin&&h("div",{key:"dash",className:`nav-item ${page==="dash"?"on":""}`,onClick:()=>{setPage("dash");setMobOpen(false);}},
+        (isAdmin||!isProvince)&&h("div",{key:"dash",className:`nav-item ${page==="dash"?"on":""}`,onClick:()=>{setPage("dash");setMobOpen(false);}},
           h("div",{className:"nav-item-icon"},h(Ic,{n:"dash",sz:15})),h("span",null,"لوحة التحكم")
         ),
         h("div",{key:"eng",className:`nav-item ${page==="eng"?"on":""}`,onClick:()=>{setPage("eng");setMobOpen(false);}},
@@ -3283,7 +3284,7 @@ function App(){
           pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)
         ),
 
-        isAdmin&&h(React.Fragment,{key:"admin-nav"},
+        (isAdmin||!isProvince)&&h(React.Fragment,{key:"admin-nav"},
           h("div",{className:"sb-section"},"المالية"),
           h("div",{className:`nav-item ${page==="expenses"?"on":""}`,onClick:()=>{setPage("expenses");setMobOpen(false);}},
             h("div",{className:"nav-item-icon"},h(Ic,{n:"wallet",sz:15})),h("span",null,"العهدة والمصروفات")
@@ -3313,16 +3314,16 @@ function App(){
 
       /* ── footer ── */
       h("div",{className:"sb-footer"},
-        isAdmin
+        isProvince
           ?h("div",{className:"sb-month-info"},
-              h("div",{className:"sb-month-dot"}),
-              h("div",{className:"sb-month-text"},mn+" "+cfg.year),
-              h("div",{className:"sb-month-count"},G.n," مهندس")
-            )
-          :h("div",{className:"sb-month-info"},
               h("div",{className:"sb-month-dot",style:{background:"#60A5FA",boxShadow:"0 0 8px #60A5FA"}}),
               h("div",{className:"sb-month-text"},userProv||"مستخدم محافظة"),
               h("div",{className:"sb-month-count",style:{color:"#60A5FA"}},"محدود الصلاحيات")
+            )
+          :h("div",{className:"sb-month-info"},
+              h("div",{className:"sb-month-dot"}),
+              h("div",{className:"sb-month-text"},mn+" "+cfg.year),
+              h("div",{className:"sb-month-count"},G.n," مهندس")
             ),
 
         /* active users strip — admin only */
@@ -3375,8 +3376,8 @@ function App(){
           page==="att"&&h("button",{className:"btn",onClick:exportAttXLSX},h(Ic,{n:"xl",sz:14}),h("span",null,"Excel")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:attFillMonth,title:"تحضير الشهر كامل"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر")),
           page==="att"&&isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:attClearMonth,title:"إلغاء تحضير الشهر (حذف أيام الحضور فقط)"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء التحضير")),
-          page==="att"&&!isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{if(confirm("تحضير كل أيام الشهر حاضر لمهندسي محافظتك؟\nسيتم تسجيل الحضور لكل أيام العمل (غير الجمع)."))attFillMonth(userProv);},title:"تحضير الشهر كامل لمحافظتك"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر كله")),
-          page==="att"&&!isAdmin&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:()=>{if(confirm("إلغاء تحضير الشهر؟\nسيتم حذف كل تسجيلات الحضور لمهندسي محافظتك في هذا الشهر."))attClearMonth(userProv);},title:"إلغاء تحضير الشهر لمحافظتك"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء تحضير الشهر")),
+          page==="att"&&isProvince&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{if(confirm("تحضير كل أيام الشهر حاضر لمهندسي محافظتك؟\nسيتم تسجيل الحضور لكل أيام العمل (غير الجمع)."))attFillMonth(userProv);},title:"تحضير الشهر كامل لمحافظتك"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر كله")),
+          page==="att"&&isProvince&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:()=>{if(confirm("إلغاء تحضير الشهر؟\nسيتم حذف كل تسجيلات الحضور لمهندسي محافظتك في هذا الشهر."))attClearMonth(userProv);},title:"إلغاء تحضير الشهر لمحافظتك"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء تحضير الشهر")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
           isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("button",{
@@ -3837,8 +3838,8 @@ function App(){
               h("tbody",null,filtered.map((e,i)=>{const c=calc(e,cfg.rate,cfg.egp);return h("tr",{key:e.id},h("td",{style:{color:"var(--sub)"}},i+1),h("td",{className:"l",style:{fontWeight:600}},e.name),h("td",{className:"l",style:{color:"var(--sub)"}},e.spec),h("td",{className:"l",style:{fontSize:11}},e.prov.replace("محافظة ","")),h("td",{style:{fontWeight:700,color:"#2563EB"}},f$(c.tot)));})  )
             ))
           ),
-          !search&&PROVS.filter(p=>isAdmin||p===userProv).map((prov,_,arr)=>{
-            const pi=PROVS.indexOf(prov),engs=data[prov]||[],T=totals[pi],color=PCOLS[pi],maxTv=isAdmin?maxT:T.tot||1;
+          !search&&PROVS.filter(p=>!isProvince||p===userProv).map((prov,_,arr)=>{
+            const pi=PROVS.indexOf(prov),engs=data[prov]||[],T=totals[pi],color=PCOLS[pi],maxTv=!isProvince?maxT:T.tot||1;
             return h("div",{key:prov,className:"card",style:{borderTop:`2.5px solid ${color}`}},
               h("div",{className:"prov-hdr"},
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
@@ -4229,7 +4230,7 @@ function App(){
           return h("div",{className:"att-page"},
 
             /* ── Province tasks banner ── */
-            !isAdmin&&(()=>{
+            isProvince&&(()=>{
               const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
               const prevKey=mkKey(pm,py);
               const ps=provTaskStatus.find(s=>s.prov===userProv);
@@ -4279,14 +4280,14 @@ function App(){
                   h("div",{className:"att-view-btn"+(attView==="log"?" on":""),onClick:()=>setAttView("log")},h(Ic,{n:"hist",sz:12})," السجل")
                 ),
                 attView==="table"&&h("div",{style:{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}},
-                  isAdmin&&PROVS.map(p=>{
+                  (isAdmin||!isProvince)&&PROVS.map(p=>{
                     const cc=CITY_CFG.find(c=>c.prov===p);
                     const col=cc?.color||"#60A5FA";
                     return h("div",{key:p,className:"att-tab"+(attProv===p?" on":""),
                       style:attProv===p?{background:col}:{},
                       onClick:()=>setAttProv(p)},p.replace("محافظة ",""));
                   }),
-                  !isAdmin&&h("div",{className:"att-tab on",style:{background:CITY_CFG.find(c=>c.prov===userProv)?.color||"#60A5FA",cursor:"default"}},
+                  isProvince&&h("div",{className:"att-tab on",style:{background:CITY_CFG.find(c=>c.prov===userProv)?.color||"#60A5FA",cursor:"default"}},
                     (userProv||"").replace("محافظة ","")
                   ),
                   h("button",{className:"btn",
@@ -4304,7 +4305,7 @@ function App(){
                 const mData=months[k]?.data||{};
                 const mCfg=months[k]?.cfg||{};
                 const [y,m]=k.split('-');
-                const provRows=PROVS.filter(p=>isAdmin||p===userProv).map(p=>{
+                const provRows=PROVS.filter(p=>!isProvince||p===userProv).map(p=>{
                   const engs=mData[p]||[];
                   let P=0,A=0,vac=0,hrs=0;
                   engs.forEach(e=>{const s=attGetStats(e.id,mAtt,+y,+m);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
@@ -4570,7 +4571,7 @@ ${PROVS.map(prov=>{
 
         /* ══ LEAVES ══ */
         page==="leaves"&&(()=>{
-          const myLvs=isAdmin?leaves:leaves.filter(l=>l.prov===userProv||l.requestedBy===(user?.username||''));
+          const myLvs=!isProvince?leaves:leaves.filter(l=>l.prov===userProv||l.requestedBy===(user?.username||''));
           const tabLvs=leaveTab==='all'?myLvs:myLvs.filter(l=>l.status===leaveTab);
           const cnts={all:myLvs.length,pending:myLvs.filter(l=>l.status==='pending').length,approved:myLvs.filter(l=>l.status==='approved').length,rejected:myLvs.filter(l=>l.status==='rejected').length};
           const SL={pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض'};
@@ -4583,7 +4584,7 @@ ${PROVS.map(prov=>{
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
               leaveView==='list'
-                ?h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد"))
+                ?(isProvince&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد")))
                 :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
             leaveView==='form'&&h("div",{className:"card"},
@@ -4593,7 +4594,7 @@ ${PROVS.map(prov=>{
                   h("label",null,"المهندس *"),
                   h("select",{value:leaveForm.engId,onChange:ev=>{const id=ev.target.value;setLeaveForm(p=>({...p,engId:id}));setLeaveElig(id?calcEligibility(id):null);}},
                     h("option",{value:""},"اختر المهندس..."),
-                    PROVS.filter(p=>isAdmin||p===userProv).flatMap(p=>(leaveEngs[p]||[]).map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+p.replace("محافظة ",""))))
+                    PROVS.filter(p=>!isProvince||p===userProv).flatMap(p=>(leaveEngs[p]||[]).map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+p.replace("محافظة ",""))))
                   )
                 ),
                 leaveElig?h("div",{className:"leave-info-box"},
