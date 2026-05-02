@@ -4224,6 +4224,42 @@ function App(){
 
           return h("div",{className:"att-page"},
 
+            /* ── Province tasks banner ── */
+            !isAdmin&&(()=>{
+              const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+              const prevKey=mkKey(pm,py);
+              const ps=provTaskStatus.find(s=>s.prov===userProv);
+              const attDone=ps?.attDone||false;
+              const prevMonLabel=MONTHS[pm-1]+' '+py;
+              const myPendingLeaves=leaves.filter(l=>l.prov===userProv&&l.status==='pending').length;
+              const tasks=[
+                {id:'att',icon:attDone?'✅':'📋',label:'تسجيل حضور '+prevMonLabel,done:attDone,
+                  action:()=>{setAttKey(prevKey);setAttView('table');}},
+                {id:'leaves',icon:'✈️',label:myPendingLeaves>0?'طلبات إجازة معلقة ('+myPendingLeaves+')':'تقديم طلبات الإجازة',done:false,
+                  action:()=>setPage('leaves')},
+              ];
+              return h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
+                h("div",{className:"card-hdr"},
+                  h("div",{className:"card-title"},
+                    h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"att",sz:13,c:"#2563EB"})),
+                    "المهام المطلوبة الآن"
+                  ),
+                  h("span",{className:"card-badge"},now.toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"}))
+                ),
+                h("div",{style:{display:"flex",flexDirection:"column",gap:6,padding:"8px 12px"}},
+                  tasks.map(t=>h("div",{key:t.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"var(--bg2)",borderRadius:8,border:"1px solid var(--bdr)"}},
+                    h("span",{style:{fontSize:20,lineHeight:1}},t.icon),
+                    h("div",{style:{flex:1}},
+                      h("div",{style:{fontWeight:700,fontSize:13}},t.label)
+                    ),
+                    t.done
+                      ?h("span",{style:{color:"#10B981",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",gap:4}},h(Ic,{n:"save",sz:12,c:"#10B981"}),"مكتمل")
+                      :h("button",{className:"btn blue",style:{padding:"5px 16px",fontSize:11},onClick:t.action},"ابدأ")
+                  ))
+                )
+              );
+            })(),
+
             /* ── Header + tabs ── */
             h("div",{className:"card"},
               h("div",{className:"card-hdr",style:{flexWrap:"wrap",gap:10}},
