@@ -1207,6 +1207,20 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
   .page-sub{display:none}
   .sep{display:none}
 }
+@media(max-width:860px) and (min-width:769px){.sg{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:769px){.sc-val{font-size:26px}}
+@keyframes loginIn{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.login-box{animation:loginIn .45s cubic-bezier(.34,1.4,.64,1)}
+@keyframes badgePulse{0%,100%{box-shadow:0 2px 6px rgba(239,68,68,.4)}50%{box-shadow:0 2px 12px rgba(239,68,68,.7),0 0 0 3px rgba(239,68,68,.15)}}
+.nav-badge{animation:badgePulse 2.5s ease-in-out infinite}
+.leave-card-pending{border-right:3px solid #FCD34D!important;background:linear-gradient(90deg,rgba(252,211,77,.04),transparent 60%)!important}
+.leave-card-approved{border-right:3px solid #34D399!important;background:linear-gradient(90deg,rgba(52,211,153,.04),transparent 60%)!important}
+.leave-card-rejected{border-right:3px solid #F87171!important;background:linear-gradient(90deg,rgba(248,113,113,.04),transparent 60%)!important}
+.att-cell{border-radius:6px!important;font-weight:800}
+.bn-item.on::before{content:'';display:block;width:20px;height:3px;border-radius:2px;background:var(--blue);margin:-4px auto 3px;box-shadow:0 0 8px var(--blue)}
+.nav-item.on{background:linear-gradient(90deg,rgba(96,165,250,.22),rgba(99,102,241,.1))!important;box-shadow:0 2px 16px rgba(96,165,250,.15)!important}
+@keyframes pageIn{from{opacity:.7}to{opacity:1}}
+.content>*{animation:pageIn .2s ease}
 </style>
 </head>
 <body>
@@ -3264,7 +3278,7 @@ function App(){
                 const c=PCOLS[pi];
                 const lastSave=[...saveLogs].reverse().find(l=>l.province===p&&l.key===ak);
                 const lastSaveTime=lastSave?new Date(lastSave.time).toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"}):null;
-                return h("div",{key:p,style:{borderRadius:8,border:"1px solid var(--bdr)",overflow:"hidden"}},
+                return h("div",{key:p,style:{borderRadius:8,border:"1px solid var(--bdr)",overflow:"hidden",borderTop:`2px solid ${c}`}},
                   h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)"}},
                     h("div",{style:{display:"flex",alignItems:"center",gap:8}},
                       h("div",{style:{width:9,height:9,borderRadius:"50%",background:c,flexShrink:0}}),
@@ -3567,7 +3581,7 @@ function App(){
           ),
           !search&&PROVS.filter(p=>isAdmin||p===userProv).map((prov,_,arr)=>{
             const pi=PROVS.indexOf(prov),engs=data[prov]||[],T=totals[pi],color=PCOLS[pi],maxTv=isAdmin?maxT:T.tot||1;
-            return h("div",{key:prov,className:"card"},
+            return h("div",{key:prov,className:"card",style:{borderTop:`2.5px solid ${color}`}},
               h("div",{className:"prov-hdr"},
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
                 h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
@@ -3581,7 +3595,7 @@ function App(){
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const c=calc(e,cfg.rate,cfg.egp);
-                    return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"":"var(--bg2)"}},
+                    return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"rgba(255,255,255,.015)":""}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},e.name),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
@@ -4312,7 +4326,7 @@ ${PROVS.map(prov=>{
               :h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
                 tabLvs.map(req=>{
                   const ep=Math.min(100,Math.round(req.daysInLibya/180*100));
-                  return h("div",{key:req.id,className:"leave-card"},
+                  return h("div",{key:req.id,className:`leave-card leave-card-${req.status}`},
                     h("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10,gap:8}},
                       h("div",null,
                         h("span",{className:"leave-status "+SC[req.status]},{pending:"⏳",approved:"✅",rejected:"❌"}[req.status]," ",SL[req.status]),
