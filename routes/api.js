@@ -69,14 +69,16 @@ router.put('/months/:key', (req, res) => {
     if (key === 'leaves') {
       const prov = user.province;
       const existing = db.prepare("SELECT data FROM months WHERE key = 'leaves'").get();
-      const existingReqs = existing ? (JSON.parse(existing.data).requests || []) : [];
+      const existingData = existing ? JSON.parse(existing.data) : {};
+      const existingReqs = existingData.requests || [];
+      const existingStatuses = existingData.engineerStatuses || {};
       const inReqs = req.body.requests || [];
       const otherReqs = existingReqs.filter(r => r.prov !== prov);
       const myReqs    = inReqs.filter(r => r.prov === prov);
       const merged = [...otherReqs, ...myReqs];
       db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
         ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
-        .run(JSON.stringify({ requests: merged }));
+        .run(JSON.stringify({ requests: merged, engineerStatuses: existingStatuses }));
       return res.json({ ok: true });
     }
 
@@ -172,6 +174,7 @@ router.patch('/leaves/:id', (req, res) => {
     item.status    = status;
     item.decidedBy = user.username;
     item.decidedAt = new Date().toISOString();
+    if (!item.ticketStatus) item.ticketStatus = item.ticketBooked ? 'booked' : 'notBooked';
 
     if (status === 'approved' && item.leaveStartDate && item.leaveEndDate && item.engineerId) {
       const start = new Date(item.leaveStartDate + 'T12:00');
@@ -203,6 +206,23 @@ router.patch('/leaves/:id', (req, res) => {
 
   if (travelDate  !== undefined) item.travelDate  = travelDate  || null;
   if (returnDate  !== undefined) item.returnDate  = returnDate  || null;
+
+  /* ── Postpone ticket ── */
+  const { postpone, cancelTicket: cancelTkt } = req.body;
+  if (postpone && item.status === 'approved') {
+    const hist = item.postponeHistory || [];
+    hist.push({ date: new Date().toISOString(), reason: postpone.reason || '', oldDate: item.travelDate || '', newDate: postpone.newDate || '' });
+    item.travelDate      = postpone.newDate || item.travelDate;
+    item.ticketStatus    = 'postponed';
+    item.postponeHistory = hist;
+  }
+
+  /* ── Cancel ticket ── */
+  if (cancelTkt !== undefined) {
+    item.ticketStatus  = 'cancelled';
+    item.cancelReason  = cancelTkt.reason || '';
+    item.cancelledAt   = new Date().toISOString();
+  }
 
   requests[idx] = item;
   db.prepare("UPDATE months SET data = ? WHERE key = 'leaves'")

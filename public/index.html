@@ -1230,6 +1230,20 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .leave-card-pending{border-right:3px solid #FCD34D!important;background:linear-gradient(90deg,rgba(252,211,77,.04),transparent 60%)!important}
 .leave-card-approved{border-right:3px solid #34D399!important;background:linear-gradient(90deg,rgba(52,211,153,.04),transparent 60%)!important}
 .leave-card-rejected{border-right:3px solid #F87171!important;background:linear-gradient(90deg,rgba(248,113,113,.04),transparent 60%)!important}
+.eng-status{display:inline-flex;align-items:center;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:800;margin-right:6px;vertical-align:middle}
+.eng-status-active{background:rgba(52,211,153,.15);color:#34D399;border:1px solid rgba(52,211,153,.3)}
+.eng-status-on_leave{background:rgba(96,165,250,.15);color:#60A5FA;border:1px solid rgba(96,165,250,.3)}
+.eng-status-ended{background:rgba(156,163,175,.12);color:#9CA3AF;border:1px solid rgba(156,163,175,.3)}
+.leave-action-box{background:var(--bg3);border:1px solid var(--bdr2);border-radius:8px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.leave-history-item{padding:8px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--bdr2);font-size:11px}
+.leave-report-table{width:100%;border-collapse:collapse;font-size:12px}
+.leave-report-table th{background:var(--bg3);padding:8px 10px;text-align:right;font-weight:700;font-size:11px;color:var(--sub);border-bottom:1px solid var(--bdr2)}
+.leave-report-table td{padding:7px 10px;border-bottom:1px solid var(--bdr2)}
+.leave-report-table tr:last-child td{border-bottom:none}
+.ticket-booked{color:#1D9E75;font-weight:700}
+.ticket-postponed{color:#EF9F27;font-weight:700}
+.ticket-cancelled{color:#E24B4A;font-weight:700}
+.ticket-notBooked{color:#9CA3AF;font-weight:600}
 .att-cell{border-radius:6px!important;font-weight:800}
 .bn-item.on::before{content:'';display:block;width:20px;height:3px;border-radius:2px;background:var(--blue);margin:-4px auto 3px;box-shadow:0 0 8px var(--blue)}
 .nav-item.on{background:linear-gradient(90deg,rgba(96,165,250,.22),rgba(99,102,241,.1))!important;box-shadow:0 2px 16px rgba(96,165,250,.15)!important}
@@ -1667,7 +1681,10 @@ function App(){
   const [leaveTab,setLeaveTab]=useState('pending');
   const [leaveView,setLeaveView]=useState('list');
   const [leaveForm,setLeaveForm]=useState({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});
-  const [leaveElig,setLeaveElig]=useState(null); // key when viewing a past month from log
+  const [leaveElig,setLeaveElig]=useState(null);
+  const [leaveActionForm,setLeaveActionForm]=useState(null); // {type:'postpone'|'cancel',reqId,newDate:'',reason:''}
+  const [engHistoryId,setEngHistoryId]=useState(null);
+  const [leaveReportMonth,setLeaveReportMonth]=useState(()=>mkKey(now.getMonth()+1,now.getFullYear())); // key when viewing a past month from log
   const [liveRate,setLiveRate]=useState(null);
   const [rateAt,setRateAt]=useState(null);
   const [rateFetching,setRateFetching]=useState(false);
@@ -1899,7 +1916,33 @@ function App(){
   const attAtt=useMemo(()=>attAm?.attendance||{},[attAm]);
   const attMn=MONTHS[attCfg.month-1];
   const leaves=useMemo(()=>months['leaves']?.requests||[],[months]);
-  const pendingLeaves=useMemo(()=>leaves.filter(l=>l.status==='pending').length,[leaves]);
+  const engineerStatuses=useMemo(()=>months['leaves']?.engineerStatuses||{},[months]);
+  const getEngStatus=useCallback((engId)=>{
+    if(engineerStatuses[engId]==='ended')return 'ended';
+    const today=new Date();today.setHours(12,0,0,0);
+    const onLeave=leaves.some(l=>{
+      if(l.engineerId!==engId||l.status!=='approved')return false;
+      const t=l.travelDate||l.leaveStartDate,r=l.returnDate||l.leaveEndDate;
+      if(!t||!r)return false;
+      return new Date(t+'T12:00')<=today&&today<=new Date(r+'T12:00');
+    });
+    return onLeave?'on_leave':'active';
+  },[engineerStatuses,leaves]);
+  const ENG_ST_LABEL={'active':'نشط','on_leave':'في إجازة','ended':'انتهى عقده'};
+  const pendingLeaves=useMemo(()=>{
+    const base=isProvince?leaves.filter(l=>l.prov===userProv):leaves;
+    return base.filter(l=>l.status==='pending').length;
+  },[leaves,isProvince,userProv]);
+  const returnAlerts=useMemo(()=>{
+    const today=new Date();today.setHours(0,0,0,0);
+    const soon=new Date(today);soon.setDate(today.getDate()+3);
+    return leaves.filter(l=>{
+      if(l.status!=='approved'||!l.returnDate)return false;
+      if(isProvince&&l.prov!==userProv)return false;
+      const ret=new Date(l.returnDate+'T12:00');
+      return ret>=today&&ret<=soon;
+    });
+  },[leaves,isProvince,userProv]);
   const custody=expData.custody;
   const expItems=expData.items;
   const transfers=expData.transfers;
@@ -2240,10 +2283,34 @@ function App(){
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
-  const saveLeaves=(list)=>{
-    const upd={requests:list};
+  const saveLeaves=(list,statuses)=>{
+    const sts=statuses!==undefined?statuses:engineerStatuses;
+    const upd={requests:list,engineerStatuses:sts};
     setMonths(p=>({...p,'leaves':upd}));
     fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)}).catch(()=>{});
+  };
+  const setEngStatus=(engId,status)=>{
+    const ns={...engineerStatuses};
+    if(status==='active')delete ns[engId];else ns[engId]=status;
+    saveLeaves(leaves,ns);
+  };
+  const postponeLeave=(reqId,newDate,reason)=>{
+    fetch('/api/leaves/'+reqId,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({postpone:{newDate,reason}})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      setMonths(p=>({...p,'leaves':{...p['leaves'],requests:leaves.map(l=>l.id===reqId?d.request:l)}}));
+      setLeaveActionForm(null);msg('تم تأجيل التذكرة ✓');
+    }).catch(()=>{});
+  };
+  const cancelTicket=(reqId,reason)=>{
+    fetch('/api/leaves/'+reqId,{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cancelTicket:{reason}})})
+    .then(r=>r.json()).then(d=>{
+      if(!d.ok)return;
+      setMonths(p=>({...p,'leaves':{...p['leaves'],requests:leaves.map(l=>l.id===reqId?d.request:l)}}));
+      setLeaveActionForm(null);msg('تم إلغاء التذكرة');
+    }).catch(()=>{});
   };
 
   const calcEligibility=(engId)=>{
@@ -2273,7 +2340,7 @@ function App(){
     let eng=null,engProv='';
     PROVS.forEach(p=>{const f=(leaveEngs[p]||[]).find(e=>e.id===leaveForm.engId);if(f){eng=f;engProv=p;}});
     if(!eng){msg('المهندس غير موجود','err');return;}
-    const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketDetails:leaveForm.ticketDetails,status:'pending',notes:leaveForm.notes,createdAt:new Date().toISOString(),decidedAt:null,decidedBy:null};
+    const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketStatus:leaveForm.ticketBooked?'booked':'notBooked',ticketDetails:leaveForm.ticketDetails,status:'pending',notes:leaveForm.notes,createdAt:new Date().toISOString(),decidedAt:null,decidedBy:null};
     saveLeaves([...leaves,newReq]);
     setLeaveView('list');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
     msg('تم إرسال طلب الإجازة ✓');
@@ -3865,7 +3932,10 @@ function App(){
                     const c=calc(e,cfg.rate,cfg.egp);
                     return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"rgba(255,255,255,.015)":""}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
-                      h("td",{className:"l",style:{fontWeight:600,minWidth:110}},h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name)),
+                      h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
+                        h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
+                        (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})()
+                      ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
                       h("td",{style:{color:"#2563EB",fontWeight:700}},c.a1.toFixed(1)),
@@ -4596,6 +4666,17 @@ ${PROVS.map(prov=>{
                 ?(isProvince&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,"طلب إجازة جديد")))
                 :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
+            returnAlerts.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+              returnAlerts.map(l=>{
+                const daysLeft=Math.ceil((new Date(l.returnDate+'T12:00')-new Date())/(86400000));
+                return h("div",{key:l.id,className:"info",style:{borderColor:"rgba(252,211,77,.4)",background:"rgba(252,211,77,.05)",padding:"8px 12px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}},
+                  h(Ic,{n:"warn",sz:15,c:"#FCD34D"}),
+                  h("span",{style:{fontWeight:700,color:"#FCD34D",fontSize:12}},l.engineerName),
+                  h("span",{style:{fontSize:11}},"موعد عودته خلال "+(daysLeft<=0?"اليوم":daysLeft+" يوم")+" · "+l.returnDate),
+                  h("span",{style:{fontSize:11,color:"var(--sub)"}},l.prov)
+                );
+              })
+            ),
             leaveView==='form'&&h("div",{className:"card"},
               h("div",{className:"modal-hdr"},h("h3",null,"✈ طلب إجازة جديد")),
               h("div",{style:{padding:"16px",display:"flex",flexDirection:"column",gap:12}},
@@ -4652,22 +4733,104 @@ ${PROVS.map(prov=>{
               )
             ),
             leaveView==='list'&&h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-              h("div",{className:"leave-tabs"},
-              ['all','pending','approved','rejected'].map(tab=>h("div",{key:tab,className:"leave-tab "+(leaveTab===tab?'on':''),onClick:()=>setLeaveTab(tab)},
-                {all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض'}[tab],
-                cnts[tab]>0&&h("div",{className:"nav-badge",style:{position:"static",marginRight:0}},cnts[tab])
-              ))
-            ),
-            tabLvs.length===0
+              h("div",{style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}},
+                h("div",{className:"leave-tabs",style:{flex:1}},
+                  ['all','pending','approved','rejected','report'].map(tab=>h("div",{key:tab,className:"leave-tab "+(leaveTab===tab?'on':''),onClick:()=>setLeaveTab(tab)},
+                    {all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض',report:'📊 تقرير شهري'}[tab],
+                    cnts[tab]>0&&h("div",{className:"nav-badge",style:{position:"static",marginRight:0}},cnts[tab])
+                  ))
+                ),
+                engHistoryId&&h("button",{className:"btn",style:{fontSize:11,gap:4,padding:"5px 10px"},onClick:()=>setEngHistoryId(null)},h(Ic,{n:"del",sz:11}),"إلغاء فلتر المهندس")
+              ),
+              leaveTab==='report'&&(()=>{
+                const months2=Object.keys(months).filter(k=>k!=='leaves').sort().reverse().slice(0,24);
+                const rMonth=leaveReportMonth;
+                const [rY,rM]=rMonth.split('-').map(Number);
+                const inMonth=(dateStr)=>{if(!dateStr)return false;const d=new Date(dateStr+'T12:00');return d.getFullYear()===rY&&(d.getMonth()+1)===rM;};
+                const traveled=leaves.filter(l=>l.status==='approved'&&inMonth(l.travelDate));
+                const returned=leaves.filter(l=>l.status==='approved'&&inMonth(l.returnDate));
+                const today2=new Date();today2.setHours(12,0,0,0);
+                const onLeaveNow=leaves.filter(l=>{
+                  if(l.status!=='approved'||!l.travelDate)return false;
+                  const t=new Date(l.travelDate+'T12:00');
+                  const r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
+                  return t<=today2&&(!r||today2<=r);
+                });
+                const MONTH_NAMES=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+                const secRow=(l,i)=>h("tr",{key:l.id},
+                  h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+                  h("td",{className:"l",style:{fontWeight:600}},l.engineerName),
+                  h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},l.prov),
+                  h("td",null,l.travelDate||"—"),
+                  h("td",null,l.returnDate||"—"),
+                  h("td",null,l.durationDays," يوم")
+                );
+                return h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+                  h("div",{style:{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}},
+                    h("select",{value:rMonth,onChange:e=>setLeaveReportMonth(e.target.value),
+                      style:{padding:"6px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},
+                      Array.from({length:24},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);const k=mkKey(d.getMonth()+1,d.getFullYear());return h("option",{key:k,value:k},MONTH_NAMES[d.getMonth()]+" "+d.getFullYear());})
+                    ),
+                    h("button",{className:"btn",style:{gap:4,fontSize:11},onClick:()=>window.print()},h(Ic,{n:"pdf",sz:12}),"طباعة")
+                  ),
+                  h("div",{className:"card"},
+                    h("div",{className:"card-hdr"},h("div",{className:"card-title"},"✈ سافروا في "+MONTH_NAMES[rM-1]+" "+rY),h("span",{className:"card-badge"},traveled.length)),
+                    traveled.length===0?h("div",{style:{padding:"10px 16px",color:"var(--sub)",fontSize:12}},"لا يوجد"):
+                    h("div",{className:"tbl-wrap"},h("table",{className:"tbl leave-report-table"},
+                      h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"المحافظة"),h("th",null,"تاريخ السفر"),h("th",null,"تاريخ العودة"),h("th",null,"المدة"))),
+                      h("tbody",null,traveled.map(secRow))
+                    ))
+                  ),
+                  h("div",{className:"card"},
+                    h("div",{className:"card-hdr"},h("div",{className:"card-title"},"🏠 عادوا في "+MONTH_NAMES[rM-1]+" "+rY),h("span",{className:"card-badge"},returned.length)),
+                    returned.length===0?h("div",{style:{padding:"10px 16px",color:"var(--sub)",fontSize:12}},"لا يوجد"):
+                    h("div",{className:"tbl-wrap"},h("table",{className:"tbl leave-report-table"},
+                      h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"المحافظة"),h("th",null,"تاريخ السفر"),h("th",null,"تاريخ العودة"),h("th",null,"المدة"))),
+                      h("tbody",null,returned.map(secRow))
+                    ))
+                  ),
+                  h("div",{className:"card"},
+                    h("div",{className:"card-hdr"},h("div",{className:"card-title"},"🗓 في إجازة الآن"),h("span",{className:"card-badge",style:{background:"rgba(96,165,250,.15)",color:"#60A5FA",border:"1px solid rgba(96,165,250,.3)"}},onLeaveNow.length)),
+                    onLeaveNow.length===0?h("div",{style:{padding:"10px 16px",color:"var(--sub)",fontSize:12}},"لا يوجد"):
+                    h("div",{className:"tbl-wrap"},h("table",{className:"tbl leave-report-table"},
+                      h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"المحافظة"),h("th",null,"تاريخ السفر"),h("th",null,"تاريخ العودة"),h("th",null,"المدة"))),
+                      h("tbody",null,onLeaveNow.map(secRow))
+                    ))
+                  )
+                );
+              })(),
+              leaveTab!=='report'&&(engHistoryId
+                ?(()=>{
+                    const hEng=leaves.filter(l=>l.engineerId===engHistoryId);
+                    const hName=hEng[0]?.engineerName||engHistoryId;
+                    return hEng.length===0
+                      ?h("div",{className:"info"},h(Ic,{n:"info",sz:16}),"لا يوجد سجل إجازات لهذا المهندس")
+                      :h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+                          h("div",{style:{fontSize:11,fontWeight:700,marginBottom:2,color:"var(--sub)"}},hName," · سجل الإجازات (",hEng.length,")"),
+                          hEng.map(l=>h("div",{key:l.id,className:"leave-history-item"},
+                            h("span",{className:`leave-status ${SC[l.status]}`,style:{fontSize:9}},{pending:"⏳",approved:"✅",rejected:"❌"}[l.status]," ",SL[l.status]),
+                            h("span",{style:{fontWeight:700,fontSize:12}},l.leaveStartDate," → ",l.leaveEndDate),
+                            h("span",{style:{color:"var(--sub)",fontSize:11}},l.durationDays," يوم"),
+                            l.travelDate&&h("span",{style:{fontSize:10,color:"#60A5FA"}},"✈ ",l.travelDate),
+                            l.returnDate&&h("span",{style:{fontSize:10,color:"#34D399"}},"🏠 ",l.returnDate)
+                          ))
+                        );
+                  })()
+                :null
+              ),
+              leaveTab!=='report'&&(tabLvs.length===0
               ?h("div",{className:"info"},h(Ic,{n:"info",sz:16}),"لا توجد طلبات في هذا التصنيف")
               :h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-                tabLvs.map(req=>{
+                (engHistoryId?tabLvs.filter(l=>l.engineerId===engHistoryId):tabLvs).map(req=>{
                   const ep=Math.min(100,Math.round(req.daysInLibya/180*100));
                   return h("div",{key:req.id,className:`leave-card leave-card-${req.status}`},
                     h("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10,gap:8}},
                       h("div",null,
                         h("span",{className:"leave-status "+SC[req.status]},{pending:"⏳",approved:"✅",rejected:"❌"}[req.status]," ",SL[req.status]),
-                        h("div",{style:{fontSize:14,fontWeight:800,marginTop:6}},req.engineerName),
+                        h("div",{style:{fontSize:14,fontWeight:800,marginTop:6,display:"flex",alignItems:"center",gap:8}},
+                          req.engineerName,
+                          h("span",{style:{fontSize:10,cursor:"pointer",color:"var(--blue)",fontWeight:600,opacity:.75},title:"عرض سجل إجازاته",onClick:()=>setEngHistoryId(engHistoryId===req.engineerId?null:req.engineerId)},"سجل ↗")
+                        ),
                         h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},req.prov," · طلبها: ",req.requestedBy)
                       ),
                       req.status==='pending'&&(isAdmin||user?.role==='viewer')&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
@@ -4689,9 +4852,13 @@ ${PROVS.map(prov=>{
                       h("div",null,h("div",{style:{color:"var(--sub)",fontSize:9,fontWeight:700,marginBottom:2}},"المدة"),h("div",{style:{fontWeight:800}},req.durationDays," يوم"))
                     ),
                     h("div",{style:{display:"flex",alignItems:"center",gap:10,marginTop:8,fontSize:11,flexWrap:"wrap"}},
-                      h("span",{style:{fontWeight:700,color:req.ticketBooked?"#1D9E75":"#EF9F27"}},req.ticketBooked?"✈ تذكرة محجوزة":"⚠ التذكرة غير محجوزة"),
+                      (()=>{const ts=req.ticketStatus||(req.ticketBooked?'booked':'notBooked');const TL={booked:'✈ محجوزة',notBooked:'⚠ غير محجوزة',postponed:'🔄 مؤجلة',cancelled:'❌ ملغاة'};return h("span",{className:`ticket-${ts}`},TL[ts]||TL.notBooked);})(),
                       req.ticketDetails&&h("span",{style:{color:"var(--sub)"}},req.ticketDetails),
-                      req.notes&&h("span",{style:{color:"var(--sub)",borderRight:"1px solid var(--bdr2)",paddingRight:8,marginRight:8}},req.notes)
+                      req.notes&&h("span",{style:{color:"var(--sub)",borderRight:"1px solid var(--bdr2)",paddingRight:8,marginRight:8}},req.notes),
+                      req.cancelReason&&h("span",{style:{color:"#E24B4A",fontSize:10}},"سبب الإلغاء: ",req.cancelReason)
+                    ),
+                    req.postponeHistory?.length>0&&h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:4}},
+                      "تأجيلات: ",req.postponeHistory.map((ph,i)=>h("span",{key:i,style:{marginLeft:8}},"(",new Date(ph.date).toLocaleDateString('ar-EG')," ← ",ph.newDate,(ph.reason?" | "+ph.reason:""),")"))
                     ),
                     req.decidedAt&&h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:6}},
                       "قرار بواسطة: ",req.decidedBy," · ",new Date(req.decidedAt).toLocaleDateString('ar-EG')
@@ -4707,11 +4874,67 @@ ${PROVS.map(prov=>{
                         h("input",{type:"date",value:req.returnDate||"",onChange:e=>updateLeaveDates(req.id,"returnDate",e.target.value),
                           style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
                       )
-                    )
+                    ),
+                    req.status==='approved'&&(isAdmin||user?.role==='viewer')&&(()=>{
+                      const ts=req.ticketStatus||(req.ticketBooked?'booked':'notBooked');
+                      const af=leaveActionForm&&leaveActionForm.reqId===req.id?leaveActionForm:null;
+                      return h("div",{style:{marginTop:8,display:"flex",flexDirection:"column",gap:6}},
+                        ts!=='cancelled'&&h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+                          ts!=='postponed'&&h("button",{className:"btn",style:{fontSize:11,gap:4,padding:"5px 11px",borderColor:"rgba(96,165,250,.4)",color:"#60A5FA"},
+                            onClick:()=>setLeaveActionForm(af&&af.type==='postpone'?null:{type:'postpone',reqId:req.id,newDate:'',reason:''})},
+                            "🔄 تأجيل التذكرة"
+                          ),
+                          h("button",{className:"btn",style:{fontSize:11,gap:4,padding:"5px 11px",borderColor:"rgba(226,75,74,.35)",color:"#E24B4A"},
+                            onClick:()=>setLeaveActionForm(af&&af.type==='cancel'?null:{type:'cancel',reqId:req.id,reason:''})},
+                            "❌ إلغاء التذكرة"
+                          )
+                        ),
+                        af&&h("div",{className:"leave-action-box"},
+                          af.type==='postpone'&&h("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+                            h("div",{style:{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:2}},"🔄 تأجيل التذكرة إلى تاريخ جديد"),
+                            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},
+                              h("div",null,
+                                h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:4}},"التاريخ الجديد *"),
+                                h("input",{type:"date",value:af.newDate,onChange:e=>setLeaveActionForm(p=>({...p,newDate:e.target.value})),
+                                  style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
+                              ),
+                              h("div",null,
+                                h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:4}},"سبب التأجيل"),
+                                h("input",{type:"text",placeholder:"سبب...",value:af.reason,onChange:e=>setLeaveActionForm(p=>({...p,reason:e.target.value})),
+                                  style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
+                              )
+                            ),
+                            h("div",{style:{display:"flex",gap:6,justifyContent:"flex-end"}},
+                              h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},onClick:()=>setLeaveActionForm(null)},"إلغاء"),
+                              h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px",background:"rgba(96,165,250,.15)",borderColor:"rgba(96,165,250,.4)",color:"#60A5FA"},
+                                onClick:()=>{if(!af.newDate){msg('أدخل التاريخ الجديد','warn');return;}postponeLeave(req.id,af.newDate,af.reason);}},
+                                "تأكيد التأجيل"
+                              )
+                            )
+                          ),
+                          af.type==='cancel'&&h("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+                            h("div",{style:{fontSize:11,fontWeight:700,color:"#E24B4A",marginBottom:2}},"❌ إلغاء التذكرة"),
+                            h("div",null,
+                              h("div",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",marginBottom:4}},"سبب الإلغاء"),
+                              h("input",{type:"text",placeholder:"سبب الإلغاء...",value:af.reason,onChange:e=>setLeaveActionForm(p=>({...p,reason:e.target.value})),
+                                style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})
+                            ),
+                            h("div",{style:{display:"flex",gap:6,justifyContent:"flex-end"}},
+                              h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},onClick:()=>setLeaveActionForm(null)},"إلغاء"),
+                              h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px",background:"rgba(226,75,74,.1)",borderColor:"rgba(226,75,74,.35)",color:"#E24B4A"},
+                                onClick:()=>cancelTicket(req.id,af.reason)},
+                                "تأكيد الإلغاء"
+                              )
+                            )
+                          )
+                        )
+                      );
+                    })()
                   );
                 })
               )
             )
+          )
           );
         })(),
 
