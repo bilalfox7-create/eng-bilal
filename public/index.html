@@ -1221,6 +1221,8 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .nav-item.on{background:linear-gradient(90deg,rgba(96,165,250,.22),rgba(99,102,241,.1))!important;box-shadow:0 2px 16px rgba(96,165,250,.15)!important}
 @keyframes pageIn{from{opacity:.7}to{opacity:1}}
 .content>*{animation:pageIn .2s ease}
+.month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
+.warn-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#D97706;font-size:12px;font-weight:600;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -1865,6 +1867,20 @@ function App(){
   const mn=MONTHS[cfg.month-1];
   const unsaved=Object.entries(months).filter(([k,m])=>k!=='leaves'&&!m?.savedAt).length;
 
+  /* ── Month lock & smart tasks ──────────────────────── */
+  const prevMonthKey=useMemo(()=>{const m=now.getMonth(),y=now.getFullYear();return m===0?mkKey(12,y-1):mkKey(m,y);},[]);
+  const expectedAk=useMemo(()=>mkKey(now.getMonth()+1,now.getFullYear()),[]);
+  const isMonthLocked=useCallback(k=>k!=='leaves'&&k<prevMonthKey,[prevMonthKey]);
+  const isLocked=isMonthLocked(ak);
+  const currentTasks=useMemo(()=>{
+    const d=now.getDate(),m=now.getMonth()+1,y=now.getFullYear();
+    const tasks=[];
+    tasks.push({id:'att',icon:'✅',label:'تسجيل حضور',monthKey:mkKey(m,y),monthName:MONTHS[m-1]+' '+y,targetPage:'att'});
+    if(d>=14)tasks.push({id:'eng-d2',icon:'📋',label:'إعاشة النصف الثاني',monthKey:mkKey(m,y),monthName:MONTHS[m-1]+' '+y,targetPage:'eng'});
+    if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;tasks.push({id:'eng-d1',icon:'📋',label:'إعاشة النصف الأول',monthKey:mkKey(nm,ny),monthName:MONTHS[nm-1]+' '+ny,targetPage:'eng'});}
+    return tasks;
+  },[]);
+
   const histStats=useMemo(()=>sortedKeys.filter(k=>months[k]?.savedAt).map(k=>{
     const m=months[k],[y,mo]=k.split("-");
     const tot=PROVS.reduce((a,p)=>(m.data?.[p]||[]).reduce((b,e)=>{const c=calc(e,m.cfg?.rate||300,m.cfg?.egp||52.5);return b+c.tot;},a),0);
@@ -1922,8 +1938,10 @@ function App(){
   };
 
   const mkMonthBase=()=>({...(months[ak]||{data,cfg})});
+  const lockGuard=()=>{if(isMonthLocked(ak)){msg('🔒 هذا الشهر مقفول — لا يمكن التعديل','err');return true;}return false;};
 
   const updData=(p,id,f,v)=>{
+    if(lockGuard())return;
     const nd=dc(data);nd[p]=nd[p].map(e=>e.id===id?{...e,[f]:Math.max(0,Math.min(15,+v||0))}:e);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
@@ -1931,6 +1949,7 @@ function App(){
   };
 
   const updCfg=(k,v)=>{
+    if(lockGuard())return;
     const nc={...cfg,[k]:['month','year','rate','egp'].includes(k)?+v||0:v};
     const updated={...mkMonthBase(),cfg:nc,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
@@ -1939,6 +1958,7 @@ function App(){
 
   const submitEng=()=>{
     if(!form.name.trim()){msg("أدخل اسم المهندس","err");return;}
+    if(lockGuard())return;
     const nd=dc(data);
     if(form.id){
       nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2}:e);
@@ -1990,6 +2010,7 @@ function App(){
 
   const delEng=(p,id,name)=>{
     if(!confirm("حذف "+name+"؟"))return;
+    if(lockGuard())return;
     const nd=dc(data);nd[p]=nd[p].filter(e=>e.id!==id);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
@@ -1998,6 +2019,7 @@ function App(){
   };
 
   const togglePaid=(p,id)=>{
+    if(lockGuard())return;
     const nd=dc(data);
     nd[p]=nd[p].map(e=>e.id===id?{...e,paid:!e.paid}:e);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
@@ -2006,6 +2028,7 @@ function App(){
   };
 
   const markAllPaid=(paid)=>{
+    if(lockGuard())return;
     const nd=dc(data);
     PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>({...e,paid}));});
     const updated={...mkMonthBase(),data:nd,savedAt:null};
@@ -2022,6 +2045,7 @@ function App(){
   const ATT_BG={P:'rgba(16,185,129,.2)',A:'rgba(239,68,68,.15)',AL:'rgba(96,165,250,.15)',SL:'rgba(252,211,77,.15)',EL:'rgba(249,115,22,.15)',H:'rgba(148,163,184,.1)'};
 
   const attCycleStatus=(engId,day)=>{
+    if(lockGuard())return;
     const existing=mkMonthBase();
     const att=existing.attendance||{};
     const cur=att[engId]?.[day]?.s||null;
@@ -2035,6 +2059,7 @@ function App(){
   };
 
   const attSetStatus=(engId,day,status)=>{
+    if(lockGuard())return;
     const existing=mkMonthBase();
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     if(!na[engId])na[engId]={};
@@ -2045,6 +2070,7 @@ function App(){
   };
 
   const attFillMonth=()=>{
+    if(lockGuard())return;
     const dIM=new Date(cfg.year,cfg.month,0).getDate();
     const allEngs=PROVS.flatMap(p=>data[p]||[]);
     const wDays=Array.from({length:dIM},(_,i)=>i+1).filter(d=>new Date(cfg.year,cfg.month-1,d).getDay()!==5);
@@ -2058,6 +2084,7 @@ function App(){
   };
 
   const attClearMonth=()=>{
+    if(lockGuard())return;
     const allEngs=PROVS.flatMap(p=>data[p]||[]);
     const mn2=MONTHS[cfg.month-1]+" "+cfg.year;
     const existing=mkMonthBase();
@@ -2651,6 +2678,7 @@ function App(){
   };
 
   const saveExpData=(newData)=>{
+    if(lockGuard())return;
     const updated={...mkMonthBase(),expenses:newData,savedAt:null};
     setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
   };
@@ -3174,14 +3202,12 @@ function App(){
     h("div",{className:"main"},
       h("div",{className:"mstrip"},
         h("button",{className:"menu-btn",onClick:()=>setMobOpen(v=>!v)},h(Ic,{n:"menu",sz:16})),
-        [...sortedKeys].reverse().map(k=>{
-          const[y,mo]=k.split("-");const isCur=k===ak,isSav=!!months[k]?.savedAt;
-          return h("div",{key:k,className:`mchip ${isCur?"cur":""} ${isSav&&!isCur?"saved":""} ${isAdmin?"mchip-del":""}`,onClick:()=>switchMonth(k)},
-            isSav&&h("span",{className:"mdot",style:{background:isCur?"#fff":"currentColor"}}),
-            MONTHS[+mo-1]+" "+y,
-            isAdmin&&h("span",{className:"mchip-x",onClick:ev=>{ev.stopPropagation();delMonth(k);}},h(Ic,{n:"del",sz:10}))
-          );
-        }),
+        h("div",{className:"month-cur-btn"},
+          isSaved&&h("span",{className:"mdot"}),
+          isLocked&&h("span",{style:{fontSize:13,lineHeight:1}},"🔒"),
+          h("span",null,mn+" "+cfg.year)
+        ),
+        h("div",{className:"mchip",style:{gap:5,cursor:"pointer"},onClick:()=>setPage("hist")},h(Ic,{n:"report",sz:12}),"السجلات"),
         isAdmin&&h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
       ),
       h("div",{className:"topbar"},
@@ -3217,9 +3243,32 @@ function App(){
       ),
 
       h("div",{className:"content",style:page==="org"?{display:"none"}:undefined},
+        ak!==expectedAk&&h("div",{className:"warn-banner"},
+          h("span",{style:{fontSize:16,lineHeight:1}},"⚠️"),
+          h("span",null,`أنت تعمل على ${mn} ${cfg.year} — `+(isLocked?"هذا الشهر مقفول 🔒":"هذا ليس الشهر النشط")),
+          h("button",{className:"btn",style:{padding:"3px 10px",fontSize:10,marginRight:"auto"},onClick:()=>switchMonth(expectedAk)},"الرجوع للشهر الحالي")
+        ),
 
         /* ══ DASHBOARD ══ */
         page==="dash"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+          h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"att",sz:13,c:"#2563EB"})),"المهام المطلوبة الآن"),
+              h("span",{className:"card-badge"},now.toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"}))
+            ),
+            h("div",{style:{display:"flex",flexDirection:"column",gap:6,padding:"8px 12px"}},
+              currentTasks.map(t=>h("div",{key:t.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"var(--bg2)",borderRadius:8,border:"1px solid var(--bdr)"}},
+                h("span",{style:{fontSize:20,lineHeight:1}},t.icon),
+                h("div",{style:{flex:1}},
+                  h("div",{style:{fontWeight:700,fontSize:13}},t.label),
+                  h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},t.monthName)
+                ),
+                h("button",{className:"btn blue",style:{padding:"5px 16px",fontSize:11},
+                  onClick:()=>{switchMonth(t.monthKey);setPage(t.targetPage);}
+                },"ابدأ ←")
+              ))
+            )
+          ),
           h("div",{className:"sg"},
             [{l:"إجمالى المهندسين",v:G.n,sub:"مهندس نشط",c:"#2563EB",ic:"eng",bg:"#EFF6FF",pct:100},
              {l:"النصف الأول",v:G.a1.toFixed(0)+"$",sub:fE(G.a1*(liveRate||cfg.egp)),c:"#16A34A",ic:"stats",bg:"#F0FDF4",pct:G.a1/G.tot*100||0},
