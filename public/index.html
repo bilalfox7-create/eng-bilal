@@ -1946,6 +1946,19 @@ function App(){
     };
   },[months,expectedAk,prevMonthKey]);
 
+  const provTaskStatus=useMemo(()=>{
+    const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+    const prevKey=mkKey(pm,py);
+    return PROVS.map((prov,pi)=>{
+      const lastLog=[...saveLogs].reverse().find(l=>l.province===prov&&l.key===prevKey);
+      const prevData=months[prevKey]?.data?.[prov]||[];
+      const prevAtt=months[prevKey]?.attendance||{};
+      const attDone=prevData.some(e=>Object.keys(prevAtt[e.id]||{}).length>0);
+      const curData=months[expectedAk]?.data?.[prov]||[];
+      return{prov,color:PCOLS[pi],lastLog,attDone,d1Done:curData.some(e=>+e.d1>0),d2Done:curData.some(e=>+e.d2>0)};
+    });
+  },[months,saveLogs,prevMonthKey,expectedAk]);
+
   const dashNotifs=useMemo(()=>{
     const d=now.getDate(),m=now.getMonth()+1,y=now.getFullYear();
     const pm=m===1?12:m-1,py=m===1?y-1:y;
@@ -1964,19 +1977,6 @@ function App(){
     if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;if(monthStatus.d1.st==='none')notes.push({id:'d1',lvl:'yellow',msg:`لم يتم إعاشة النصف الأول لـ${MONTHS[nm-1]} ${ny} بعد`});}
     return notes;
   },[isAdmin,userProv,monthStatus,provTaskStatus,mn,cfg.year]);
-
-  const provTaskStatus=useMemo(()=>{
-    const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
-    const prevKey=mkKey(pm,py);
-    return PROVS.map((prov,pi)=>{
-      const lastLog=[...saveLogs].reverse().find(l=>l.province===prov&&l.key===prevKey);
-      const prevData=months[prevKey]?.data?.[prov]||[];
-      const prevAtt=months[prevKey]?.attendance||{};
-      const attDone=prevData.some(e=>Object.keys(prevAtt[e.id]||{}).length>0);
-      const curData=months[expectedAk]?.data?.[prov]||[];
-      return{prov,color:PCOLS[pi],lastLog,attDone,d1Done:curData.some(e=>+e.d1>0),d2Done:curData.some(e=>+e.d2>0)};
-    });
-  },[months,saveLogs,prevMonthKey,expectedAk]);
 
   const engProfileData=useMemo(()=>{
     if(!engProfile)return null;
