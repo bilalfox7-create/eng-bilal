@@ -4420,8 +4420,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             [
               {l:"اسم المستخدم",v:user?.username||'—',c:"var(--blue)"},
               {l:"الدور",v:user?.role==='admin'?'أدمن':user?.role==='province'?'مستخدم محافظة':user?.role==='viewer'?'مدير مكتب (مشاهدة)':user?.role||'—',c:"var(--green)"},
-              user?.province?{l:"المحافظة",v:user.province,c:"var(--purple)"}:null,
-              {l:"معرّف المستخدم",v:user?.id||'—',c:"var(--sub)"}
+              user?.province?{l:"المحافظة",v:user.province,c:"var(--purple)"}:null
             ].filter(Boolean).map((row,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--bdr2)"}},
               h("span",{style:{fontSize:11,fontWeight:700,color:"var(--sub)"}},row.l),
               h("span",{style:{fontSize:13,fontWeight:800,color:row.c}},row.v)
