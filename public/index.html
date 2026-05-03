@@ -1045,11 +1045,70 @@ html.dark .oc-proj-head{color:#94a3b8}
 .oc-proj-item{background:#fff;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;color:#1e293b;border:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;margin-bottom:6px}
 html.dark .oc-proj-item{background:#1e293b;border-color:#334155;color:#f1f5f9}
 .oc-proj-dot{width:8px;height:8px;border-radius:50%;background:var(--cc,#3b82f6);flex-shrink:0}
+/* ── Org Chart V2 ── */
+.oc-page-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px;padding:18px 20px;background:linear-gradient(135deg,#1A365D,#2C5282);border-radius:14px;color:#fff;box-shadow:0 4px 16px rgba(26,54,93,.25)}
+.oc-page-title{font-size:22px;font-weight:900;letter-spacing:-.3px;margin-bottom:2px}
+.oc-page-sub{font-size:12px;opacity:.85;font-weight:600}
+.oc-stats-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);padding:8px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);font-size:12px;font-weight:700;backdrop-filter:blur(6px)}
+.oc-stats-pill strong{font-size:14px;font-weight:900;margin-left:3px}
+.oc-stats-sep{opacity:.5}
+.oc-root-dark{background:#1A365D;color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:18px 26px;text-align:center;min-width:240px;box-shadow:0 8px 30px rgba(26,54,93,.35)}
+.oc-root-dark-av{width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin:0 auto 10px;border:1.5px solid rgba(255,255,255,.25)}
+.oc-root-dark-name{font-size:17px;font-weight:900}
+.oc-root-dark-role{font-size:11px;opacity:.85;margin-top:4px;font-weight:600}
+.oc-root-dark-badge{display:inline-block;margin-top:10px;background:rgba(255,255,255,.15);color:#fff;font-size:10px;font-weight:800;padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2)}
+.oc-city-v2{background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:240px;flex-shrink:0;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;display:flex;flex-direction:column}
+.oc-city-v2:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.oc-city-v2-head{padding:14px 16px 12px;background:linear-gradient(180deg,rgba(0,0,0,.02),transparent)}
+html.dark .oc-city-v2-head{background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
+.oc-city-v2-label{font-size:9px;color:var(--sub);letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.oc-city-v2-name{font-size:20px;font-weight:900;color:var(--text);letter-spacing:-.4px;margin-bottom:8px}
+.oc-city-v2-att{display:inline-flex;font-size:11px;font-weight:800;padding:3px 10px;border-radius:100px}
+.oc-city-v2-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px}
+.oc-city-v2-stat{padding:10px 12px;background:var(--bg2);border-radius:10px;text-align:center;border:1px solid var(--bdr)}
+.oc-city-v2-stat-val{font-size:20px;font-weight:900;color:var(--text);line-height:1}
+.oc-city-v2-stat-lbl{font-size:10px;color:var(--sub);margin-top:3px;font-weight:600}
+.oc-city-v2-avs{display:flex;align-items:center;padding:14px 16px 10px;direction:ltr;justify-content:flex-start}
+.oc-city-v2-btn{margin:4px 16px 16px;padding:9px 12px;border-radius:10px;border:0;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .15s}
+.oc-city-v2-btn:hover{opacity:.88}
+/* Team page (selected city) */
+.oc-team-page{display:flex;flex-direction:column;gap:14px;padding:6px 0}
+.oc-breadcrumb{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;color:var(--sub);padding:4px 4px}
+.oc-breadcrumb-link{cursor:pointer;color:var(--blue);text-decoration:none}
+.oc-breadcrumb-link:hover{text-decoration:underline}
+.oc-breadcrumb-sep{opacity:.5}
+.oc-breadcrumb-cur{color:var(--text)}
+.oc-team-hdr{background:var(--bg);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.oc-team-hdr-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.oc-team-hdr-icon{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.oc-team-hdr-label{font-size:9px;color:var(--sub);letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:2px}
+.oc-team-hdr-name{font-size:22px;font-weight:900;color:var(--text);letter-spacing:-.3px}
+.oc-team-hdr-mgr{font-size:12px;color:var(--sub);margin-top:4px;font-weight:600}
+.oc-team-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;border-top:1px solid var(--bdr);padding-top:14px}
+.oc-team-stat{padding:8px;text-align:center}
+.oc-team-stat-val{font-size:22px;font-weight:900;color:var(--text);line-height:1}
+.oc-team-stat-lbl{font-size:10px;color:var(--sub);margin-top:3px;font-weight:700;letter-spacing:.5px}
+.oc-spec-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.oc-spec-tab{padding:8px 14px;border-radius:10px;border:1px solid var(--bdr);background:var(--bg2);color:var(--text);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.oc-spec-tab:hover{border-color:var(--blue)}
+.oc-spec-count{display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.08);min-width:20px;height:18px;border-radius:9px;font-size:10px;padding:0 5px}
+html.dark .oc-spec-count{background:rgba(255,255,255,.1)}
+.oc-spec-tab.on .oc-spec-count{background:rgba(255,255,255,.25)}
+.oc-team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.oc-team-card{background:var(--bg);border:1px solid var(--bdr);border-radius:14px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;transition:transform .2s,box-shadow .2s}
+.oc-team-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.oc-team-av-wrap{position:relative}
+.oc-team-av{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900}
+.oc-team-status-dot{position:absolute;bottom:0;right:-2px;width:18px;height:18px;border-radius:50%;border:3px solid var(--bg);box-shadow:0 0 0 1px rgba(0,0,0,.05)}
+.oc-team-card-name{font-size:13px;font-weight:800;color:var(--text);line-height:1.3}
+.oc-team-card-spec{font-size:11px;color:var(--sub);font-weight:600}
 @media(max-width:600px){
   .oc-canvas{padding:12px}
   .oc-branch{gap:10px}
   .oc-city{width:calc(50% - 5px);min-width:140px}
+  .oc-city-v2{width:calc(50% - 6px);min-width:160px}
   .oc-eng-grid{grid-template-columns:1fr}
+  .oc-team-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:480px){.dash-2col{grid-template-columns:1fr}.att-cell{width:22px;height:22px;font-size:7.5px}.att-th-name,.att-td-name{min-width:96px}.att-td-sum,.att-th-sum{min-width:116px}.att-vac-period{flex-wrap:wrap}.att-vac-grid{grid-template-columns:1fr}}
 /* ══════════════════════════════════════════════
@@ -1614,26 +1673,62 @@ function ocEngStatus(engId,att){
   if(onLeave>0)return{l:'إجازة',cls:'oc-sl'};
   return{l:'غائب',cls:'oc-sab'};
 }
+/* Hash-based avatar color picker for variety */
+const OC_AV_PALETTE=[
+  {bg:'#DBEAFE',color:'#1E40AF'},
+  {bg:'#FCE7F3',color:'#9D174D'},
+  {bg:'#DCFCE7',color:'#166534'},
+  {bg:'#FEF3C7',color:'#92400E'},
+  {bg:'#EDE9FE',color:'#5B21B6'},
+  {bg:'#FEE2E2',color:'#991B1B'},
+  {bg:'#CFFAFE',color:'#155E75'},
+  {bg:'#FFE4E6',color:'#9F1239'},
+  {bg:'#E0E7FF',color:'#3730A3'},
+];
+function ocAvColor(name){
+  let hash=0;for(const c of(name||''))hash=((hash<<5)-hash+c.charCodeAt(0))|0;
+  return OC_AV_PALETTE[Math.abs(hash)%OC_AV_PALETTE.length];
+}
+function ocAttPct(engId,att,month,year){
+  if(!att||!month||!year)return 0;
+  const ea=att[engId]||{};
+  const dim=new Date(year,month,0).getDate();
+  let work=0,present=0;
+  for(let d=1;d<=dim;d++){
+    if(new Date(year,month-1,d).getDay()===5)continue;
+    work++;
+    if(ea[d]?.s==='P')present++;
+  }
+  return work>0?Math.round(present/work*100):0;
+}
+
 function OcOrgChart(props){
   const data=props.data,att=props.att,orgData=props.orgData;
+  const cfg=props.cfg;const cfgMonth=cfg?.month||(new Date().getMonth()+1);const cfgYear=cfg?.year||new Date().getFullYear();
   const od=orgData||DEFAULT_ORG;
   const cs=useState(null);const city=cs[0],setCity=cs[1];
-  const ss=useState('');const srch=ss[0],setSrch=ss[1];
+  const fs=useState('all');const specF=fs[0],setSpecF=fs[1];
   const dirName=(od.director&&od.director.name)||'ضياء الدين محمود';
   const dirTitle=(od.director&&od.director.title)||'مدير مشروعات ليبيا';
   const company=od.company||'شركة الرائد';
-  const cities=CITY_CFG.map(function(cfg){
-    const pal=OC_PALETTE[cfg.id]||OC_PALETTE.derna;
-    const cityOrg=((od.cities||[]).find(function(c){return c.id===cfg.id;})||{managers:[],team:[],projects:[]});
-    const engs=(data[cfg.prov]||[]).filter(function(e){return e.name!==dirName;});
+  const cities=CITY_CFG.map(function(cfgC){
+    const pal=OC_PALETTE[cfgC.id]||OC_PALETTE.derna;
+    const cityOrg=((od.cities||[]).find(function(c){return c.id===cfgC.id;})||{managers:[],team:[],projects:[]});
+    const engs=(data[cfgC.prov]||[]).filter(function(e){return e.name!==dirName;});
     const mgrEng=engs.find(function(e){return e.spec&&e.spec.includes('مدير');});
     const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
-    const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfg.name;
+    const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
     const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
-    const projs=cityOrg.projects||PROJ_DATA[cfg.id]||[];
-    return{id:cfg.id,name:cfg.name,color:cfg.color,prov:cfg.prov,pal:pal,engs:engs,mgrName:mgrName,mgrRole:mgrRole,projs:projs};
+    const projs=cityOrg.projects||PROJ_DATA[cfgC.id]||[];
+    /* attendance % across all engineers in city */
+    const pcts=engs.map(function(e){return ocAttPct(e.id,att,cfgMonth,cfgYear);});
+    const avgAtt=pcts.length>0?Math.round(pcts.reduce(function(a,b){return a+b;},0)/pcts.length):0;
+    return{id:cfgC.id,name:cfgC.name,color:cfgC.color,prov:cfgC.prov,pal:pal,engs:engs,mgrName:mgrName,mgrRole:mgrRole,projs:projs,avgAtt:avgAtt};
   });
   const selectedCity=city?cities.find(function(c){return c.id===city;}):null;
+  const totalEng=cities.reduce(function(a,c){return a+c.engs.length;},0);
+  const totalProj=cities.reduce(function(a,c){return a+c.projs.length;},0);
+  const activeCities=cities.filter(function(c){return c.engs.length>0;});
   function doPrint(scope){
     const w=window.open('','_blank','width=900,height=700');
     if(!w)return;
@@ -1659,83 +1754,143 @@ function OcOrgChart(props){
   if(props.onPrintReady)props.onPrintReady(doPrint);
   const svgPrint=h('svg',{viewBox:'0 0 20 20',fill:'none',stroke:'currentColor',strokeWidth:'1.8',width:13,height:13},h('path',{d:'M5 7V3h10v4'}),h('rect',{x:'2',y:'7',width:'16',height:'8',rx:'1.5'}),h('path',{d:'M5 11h10M7 15h6'}));
   const svgChevron=h('svg',{viewBox:'0 0 20 20',fill:'none',stroke:'currentColor',strokeWidth:'2',width:12,height:12},h('path',{d:'M9 5l7 7-7 7'}));
+  /* ── TEAM VIEW (one province) ── */
   if(selectedCity){
     const c=selectedCity,pal=c.pal;
-    return h('div',{className:'oc-canvas'},
-      h('div',{className:'oc-topbar'},
-        h('button',{className:'oc-back show',onClick:function(){setCity(null);}},
-          h('svg',{viewBox:'0 0 20 20',fill:'none',stroke:'currentColor',strokeWidth:'2',width:14,height:14},h('path',{d:'M11 15L4 8l7-7'})),
-          ' رجوع'
-        ),
-        h('span',{style:{fontSize:13,fontWeight:900,color:'var(--fg)',marginRight:4}},c.name),
-        h('span',{className:'oc-spacer'}),
-        h('button',{className:'oc-btn green',onClick:function(){doPrint('city');}},svgPrint,' طباعة')
+    /* unique specs for filter */
+    const specSet=new Set();
+    c.engs.forEach(function(e){if(e.spec)specSet.add(e.spec);});
+    const specs=['all',...Array.from(specSet)];
+    const filteredEngs=specF==='all'?c.engs:c.engs.filter(function(e){return e.spec===specF;});
+    const presentN=c.engs.filter(function(e){return ocEngStatus(e.id,att).cls==='oc-sa';}).length;
+    const leaveN=c.engs.filter(function(e){return ocEngStatus(e.id,att).l==='إجازة';}).length;
+    return h('div',{className:'oc-team-page',style:{fontFamily:"'Cairo',sans-serif"}},
+      /* Breadcrumb */
+      h('div',{className:'oc-breadcrumb'},
+        h('span',{className:'oc-breadcrumb-link',onClick:function(){setCity(null);}},'🏛️ الهيكل التنظيمي'),
+        h('span',{className:'oc-breadcrumb-sep'},'›'),
+        h('span',{className:'oc-breadcrumb-cur'},'محافظة '+c.name)
       ),
-      h('div',{className:'oc-detail-head',style:{'--avBg':pal.avBg,'--avColor':pal.avColor}},
-        h('div',{className:'oc-detail-av'},ocInitials(c.mgrName)),
-        h('div',{className:'oc-detail-info'},
-          h('div',{className:'oc-detail-name'},c.mgrName),
-          h('div',{className:'oc-detail-sub'},c.mgrRole+' • '+c.name+' • '+c.engs.length+' مهندس')
+      /* Province header */
+      h('div',{className:'oc-team-hdr',style:{borderTop:'6px solid '+pal.cc}},
+        h('div',{className:'oc-team-hdr-top'},
+          h('div',{className:'oc-team-hdr-icon',style:{background:pal.avBg,color:pal.avColor}},'🏛️'),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{className:'oc-team-hdr-label'},'المحافظة'),
+            h('div',{className:'oc-team-hdr-name'},'محافظة '+c.name),
+            h('div',{className:'oc-team-hdr-mgr'},'المسؤول: '+c.mgrName+' · '+c.mgrRole)
+          ),
+          h('button',{className:'oc-btn green',onClick:function(){doPrint('city');}},svgPrint,' طباعة')
+        ),
+        h('div',{className:'oc-team-stats'},
+          h('div',{className:'oc-team-stat'},
+            h('div',{className:'oc-team-stat-val'},c.engs.length),
+            h('div',{className:'oc-team-stat-lbl'},'مهندس')
+          ),
+          h('div',{className:'oc-team-stat'},
+            h('div',{className:'oc-team-stat-val',style:{color:'#16A34A'}},c.avgAtt+'%'),
+            h('div',{className:'oc-team-stat-lbl'},'نسبة الحضور')
+          ),
+          h('div',{className:'oc-team-stat'},
+            h('div',{className:'oc-team-stat-val',style:{color:pal.cc}},c.projs.length),
+            h('div',{className:'oc-team-stat-lbl'},'مشروع')
+          ),
+          h('div',{className:'oc-team-stat'},
+            h('div',{className:'oc-team-stat-val',style:{color:'#D97706'}},presentN),
+            h('div',{className:'oc-team-stat-lbl'},'نشط')
+          )
         )
       ),
-      h('div',{className:'oc-eng-grid'},
-        c.engs.map(function(e){
-          const st=ocEngStatus(e.id,att);
-          return h('div',{key:e.id||e.name,className:'oc-eng-card',style:{'--avBg':pal.avBg,'--avColor':pal.avColor}},
-            h('div',{className:'oc-eng-av'},ocInitials(e.name)),
-            h('div',{style:{flex:1,minWidth:0}},
-              h('div',{className:'oc-eng-name'},e.name),
-              h('div',{className:'oc-eng-role'},e.spec||'مهندس'),
-              h('div',{className:'oc-eng-s '+st.cls},st.l)
-            )
+      /* Spec filter tabs */
+      specs.length>1&&h('div',{className:'oc-spec-tabs'},
+        specs.map(function(s){
+          const active=specF===s;
+          const lbl=s==='all'?'الكل':s;
+          const count=s==='all'?c.engs.length:c.engs.filter(function(e){return e.spec===s;}).length;
+          return h('button',{key:s,className:'oc-spec-tab'+(active?' on':''),onClick:function(){setSpecF(s);},style:active?{background:pal.cc,color:'#fff',borderColor:pal.cc}:undefined},
+            lbl,h('span',{className:'oc-spec-count'},count)
           );
         })
       ),
-      c.projs.length>0&&h('div',{className:'oc-proj-list'},
-        h('div',{className:'oc-proj-head'},'المشروعات ('+c.projs.length+')'),
-        c.projs.map(function(p,i){return h('div',{key:i,className:'oc-proj-item',style:{'--cc':pal.cc}},h('div',{className:'oc-proj-dot'}),typeof p==='string'?p:p.name);})
-      )
+      /* Engineer cards */
+      h('div',{className:'oc-team-grid'},
+        filteredEngs.map(function(e){
+          const st=ocEngStatus(e.id,att);
+          const av=ocAvColor(e.name);
+          const stColor=st.cls==='oc-sa'?'#16A34A':st.cls==='oc-sl'?'#F59E0B':st.l==='إجازة'?'#A855F7':'#EF4444';
+          return h('div',{key:e.id||e.name,className:'oc-team-card'},
+            h('div',{className:'oc-team-av-wrap'},
+              h('div',{className:'oc-team-av',style:{background:av.bg,color:av.color}},ocInitials(e.name)),
+              h('div',{className:'oc-team-status-dot',style:{background:stColor},title:st.l})
+            ),
+            h('div',{className:'oc-team-card-name'},e.name),
+            h('div',{className:'oc-team-card-spec'},e.spec||'مهندس')
+          );
+        })
+      ),
+      filteredEngs.length===0&&h('div',{style:{textAlign:'center',padding:30,color:'var(--sub)',fontSize:13}},'لا يوجد مهندسون بتخصص '+(specF==='all'?'':specF))
     );
   }
-  const totalEng=cities.reduce(function(a,c){return a+c.engs.length;},0);
-  const activeCities=cities.filter(function(c){return c.engs.length>0&&(!srch||c.name.includes(srch)||c.engs.some(function(e){return e.name.includes(srch)||(e.spec||'').includes(srch);}));});
-  return h('div',{className:'oc-canvas'},
-    h('div',{className:'oc-topbar'},
-      h('span',{style:{fontSize:12,fontWeight:800,color:'var(--sub)'}},company),
-      h('span',{className:'oc-spacer'}),
-      h('button',{className:'oc-btn green',onClick:function(){doPrint('all');}},svgPrint,' طباعة الكل')
+  /* ── MAIN ORG VIEW ── */
+  return h('div',{className:'oc-canvas',style:{fontFamily:"'Cairo',sans-serif"}},
+    /* Header */
+    h('div',{className:'oc-page-hdr'},
+      h('div',null,
+        h('div',{className:'oc-page-title'},'🏛️ الهيكل التنظيمي'),
+        h('div',{className:'oc-page-sub'},company)
+      ),
+      h('div',{className:'oc-stats-pill'},
+        h('span',{className:'oc-stats-item'},h('strong',null,totalEng),' مهندس'),
+        h('span',{className:'oc-stats-sep'},'·'),
+        h('span',{className:'oc-stats-item'},h('strong',null,activeCities.length),' محافظات'),
+        h('span',{className:'oc-stats-sep'},'·'),
+        h('span',{className:'oc-stats-item'},h('strong',null,totalProj),' مشروع'),
+        h('button',{className:'oc-btn green',style:{marginRight:8},onClick:function(){doPrint('all');}},svgPrint,' طباعة')
+      )
     ),
     h('div',{className:'oc-view'},
-      h('div',{className:'oc-root'},
-        h('div',{className:'oc-root-av'},ocInitials(dirName)),
-        h('div',{className:'oc-root-name'},dirName),
-        h('div',{className:'oc-root-role'},dirTitle),
-        h('div',{className:'oc-root-badge'},totalEng+' مهندس • '+activeCities.length+' محافظات')
+      /* Director (dark) */
+      h('div',{className:'oc-root-dark'},
+        h('div',{className:'oc-root-dark-av'},ocInitials(dirName)),
+        h('div',{className:'oc-root-dark-name'},dirName),
+        h('div',{className:'oc-root-dark-role'},dirTitle),
+        h('div',{className:'oc-root-dark-badge'},totalEng+' مهندس • '+activeCities.length+' محافظات')
       ),
       h('div',{className:'oc-line'}),
+      /* Province cards */
       h('div',{className:'oc-branch'},
         activeCities.map(function(c){
           const pal=c.pal;
-          let activeN=0,leaveN=0;
-          c.engs.forEach(function(e){const s=ocEngStatus(e.id,att);if(s.cls==='oc-sa')activeN++;else if(s.l==='إجازة')leaveN++;});
-          return h('div',{key:c.id,className:'oc-city',
-            style:{'--cc':pal.cc,'--avBg':pal.avBg,'--avColor':pal.avColor},
+          /* Top 3 engineer avatars + (+N) */
+          const top=c.engs.slice(0,3);
+          const more=Math.max(0,c.engs.length-3);
+          return h('div',{key:c.id,className:'oc-city-v2',
+            style:{'--cc':pal.cc},
             onClick:function(){setCity(c.id);}
           },
-            h('div',{className:'oc-city-head'},
-              h('div',{className:'oc-city-av'},ocInitials(c.mgrName)),
-              h('div',{className:'oc-city-info'},
-                h('div',{className:'oc-city-name'},c.name),
-                h('div',{className:'oc-city-role'},c.mgrRole)
+            h('div',{className:'oc-city-v2-head',style:{borderTop:'5px solid '+pal.cc}},
+              h('div',{className:'oc-city-v2-label'},'المحافظة'),
+              h('div',{className:'oc-city-v2-name'},c.name),
+              h('div',{className:'oc-city-v2-att',style:{background:pal.avBg,color:pal.avColor}},c.avgAtt+'% حضور')
+            ),
+            h('div',{className:'oc-city-v2-grid'},
+              h('div',{className:'oc-city-v2-stat'},
+                h('div',{className:'oc-city-v2-stat-val'},c.engs.length),
+                h('div',{className:'oc-city-v2-stat-lbl'},'مهندس')
+              ),
+              h('div',{className:'oc-city-v2-stat'},
+                h('div',{className:'oc-city-v2-stat-val'},c.projs.length),
+                h('div',{className:'oc-city-v2-stat-lbl'},'مشروع')
               )
             ),
-            h('div',{className:'oc-city-stats'},
-              h('div',{className:'oc-city-stat'},c.engs.length+' مهندس'),
-              c.projs.length>0?h('div',{className:'oc-city-stat'},c.projs.length+' مشروع'):null,
-              activeN>0?h('div',{className:'oc-city-stat',style:{background:'#dcfce7',color:'#166534'}},activeN+' نشط'):null,
-              leaveN>0?h('div',{className:'oc-city-stat',style:{background:'#fef3c7',color:'#92400e'}},leaveN+' إجازة'):null
+            top.length>0&&h('div',{className:'oc-city-v2-avs'},
+              top.map(function(e,i){
+                const av=ocAvColor(e.name);
+                return h('div',{key:i,className:'oc-team-av',style:{background:av.bg,color:av.color,marginRight:i===0?0:-12,zIndex:10-i,border:'2px solid var(--bg)'}},ocInitials(e.name));
+              }),
+              more>0&&h('div',{className:'oc-team-av',style:{background:'#E2E8F0',color:'#475569',marginRight:-12,zIndex:6,border:'2px solid var(--bg)',fontSize:12}},'+'+more)
             ),
-            h('div',{className:'oc-city-foot'},svgChevron,' عرض التفاصيل')
+            h('button',{className:'oc-city-v2-btn',style:{background:pal.cc,color:'#fff'}},svgChevron,' عرض الفريق')
           );
         })
       )
@@ -6753,7 +6908,7 @@ ${PROVS.map(prov=>{
 
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
-        h(OcOrgChart,{data:data,att:att,orgData:orgData,onPrintReady:fn=>{orgPrintRef.current=fn;}})
+        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,onPrintReady:fn=>{orgPrintRef.current=fn;}})
       ),
 
       /* ── ENGINEER PROFILE MODAL ────────────────────────── */
