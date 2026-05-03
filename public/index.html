@@ -5263,16 +5263,30 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const totalH1USD=paidStats.paid1USD+paidStats.unpaid1USD;
             const totalH2USD=paidStats.paid2USD+paidStats.unpaid2USD;
             return [
+              h("div",{key:"egp-summary",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}},
+                h("div",{style:{padding:"12px 16px",background:"linear-gradient(135deg,#EFF6FF 0%,#DBEAFE 100%)",border:"2px solid #2563EB",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+                  h("div",{style:{display:"flex",flexDirection:"column",gap:2}},
+                    h("span",{style:{fontSize:11,fontWeight:700,color:"#1d4ed8"}},"إجمالى النصف الأول بالجنيه المصري"),
+                    h("span",{style:{fontSize:10,color:"var(--sub)"}},"("+f$(totalH1USD)+" بالدولار)")
+                  ),
+                  h("span",{style:{fontSize:22,fontWeight:900,color:"#1d4ed8",letterSpacing:"-0.5px"}},fE(totalH1USD*rate))
+                ),
+                h("div",{style:{padding:"12px 16px",background:"linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%)",border:"2px solid #16A34A",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+                  h("div",{style:{display:"flex",flexDirection:"column",gap:2}},
+                    h("span",{style:{fontSize:11,fontWeight:700,color:"#15803d"}},"إجمالى النصف التاني بالجنيه المصري"),
+                    h("span",{style:{fontSize:10,color:"var(--sub)"}},"("+f$(totalH2USD)+" بالدولار)")
+                  ),
+                  h("span",{style:{fontSize:22,fontWeight:900,color:"#15803d",letterSpacing:"-0.5px"}},fE(totalH2USD*rate))
+                )
+              ),
               h("div",{key:"h1",className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
                 h(Ic,{n:"paid",sz:14,c:"#2563EB"}),
                 h("span",{style:{fontSize:11,fontWeight:800,color:"#2563EB",minWidth:80}},"النصف الأول"),
-                h("span",{style:{fontSize:11,fontWeight:700,color:"#D97706"}},"إجمالى: "+f$(totalH1USD)+" · "+fE(totalH1USD*rate)),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid1N+" مدفوع"),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid1USD)+" · "+fE(paidStats.paid1USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},fE(paidStats.paid1USD*rate)),
                 h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct1+"%"}})),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid1N+" معلق"),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid1USD)+" · "+fE(paidStats.unpaid1USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},fE(paidStats.unpaid1USD*rate)),
                 h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct1+"%"),
                 (isAdmin||isProvince)&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
                 (isAdmin||isProvince)&&paidStats.paid1N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,1)},"إلغاء الكل")
@@ -5280,13 +5294,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               h("div",{key:"h2",className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
                 h(Ic,{n:"paid",sz:14,c:"#16A34A"}),
                 h("span",{style:{fontSize:11,fontWeight:800,color:"#16A34A",minWidth:80}},"النصف الثاني"),
-                h("span",{style:{fontSize:11,fontWeight:700,color:"#D97706"}},"إجمالى: "+f$(totalH2USD)+" · "+fE(totalH2USD*rate)),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid2N+" مدفوع"),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid2USD)+" · "+fE(paidStats.paid2USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},fE(paidStats.paid2USD*rate)),
                 h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct2+"%"}})),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid2N+" معلق"),
-                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid2USD)+" · "+fE(paidStats.unpaid2USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},fE(paidStats.unpaid2USD*rate)),
                 h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct2+"%"),
                 (isAdmin||isProvince)&&paidStats.unpaid2N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,2)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
                 (isAdmin||isProvince)&&paidStats.paid2N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,2)},"إلغاء الكل")
