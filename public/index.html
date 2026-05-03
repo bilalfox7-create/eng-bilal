@@ -1306,6 +1306,16 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .att-popup-btn:hover{filter:brightness(1.15)}
 .att-popup-clr{margin-top:2px;background:rgba(239,68,68,.1)!important;color:#F87171!important;border:1px solid rgba(239,68,68,.25)!important}
 .att-cell-EG{background:rgba(59,130,246,.18)!important;color:#60A5FA!important;opacity:.7}
+.extra-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  margin-right:6px;padding:2px 8px;border-radius:100px;
+  background:linear-gradient(135deg,rgba(252,211,77,.15),rgba(251,146,60,.12));
+  border:1px solid rgba(252,211,77,.4);
+  color:#FCD34D;font-size:9.5px;font-weight:800;
+  letter-spacing:.2px;
+  vertical-align:middle;
+  box-shadow:0 0 8px rgba(252,211,77,.1);
+}
 </style>
 </head>
 <body>
@@ -1374,7 +1384,28 @@ const PROV_CITY={
 /* ── Helpers ────────────────────────────────────────────── */
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
-const calc=(e,r,eg)=>{const dr=r/30,a1=e.d1*dr,a2=e.d2*dr;return{a1,a2,tot:a1+a2,egp:(a1+a2)*eg};};
+const calc=(e,r,eg)=>{const dr=r/30,a1=e.d1*dr,a2=e.d2*dr,ex=(+e.extra||0)*dr;return{a1,a2,extra:ex,tot:a1+a2+ex,egp:(a1+a2+ex)*eg};};
+/* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month. */
+const calcArrivalDays=(arrivalDateStr,year,month)=>{
+  if(!arrivalDateStr)return null;
+  const arr=new Date(arrivalDateStr+'T12:00');
+  if(isNaN(arr))return null;
+  const aY=arr.getFullYear(),aM=arr.getMonth()+1,aD=arr.getDate();
+  if(aY!==year||aM!==month)return null;
+  const dim=new Date(year,month,0).getDate();
+  // Threshold: arrivals after day 22 → become "extra" days (carry to next month)
+  const EXTRA_THRESHOLD=22;
+  if(aD<=15){
+    // Arrived in first half: d1 = remaining days from arrival to 15 (using user's spec: 15-aD)
+    return{d1:Math.max(0,15-aD),d2:dim-15,extra:0,arrivalDay:aD};
+  }else if(aD<=EXTRA_THRESHOLD){
+    // Arrived in second half (before threshold): d2 = remaining days
+    return{d1:0,d2:dim-aD+1,extra:0,arrivalDay:aD};
+  }else{
+    // Arrived too late: both halves missed, days carry to next month
+    return{d1:0,d2:0,extra:dim-aD+1,arrivalDay:aD};
+  }
+};
 const mkKey=(m,y)=>`${y}-${String(m).padStart(2,'0')}`;
 const dc=o=>JSON.parse(JSON.stringify(o));
 const now=new Date();
@@ -1687,7 +1718,7 @@ function App(){
   const [engProfile,setEngProfile]=useState(null);
   const [epTab,setEpTab]=useState('info');
   const [modal,setModal]=useState(null);
-  const [form,setForm]=useState({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});
+  const [form,setForm]=useState({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});
   const [nmForm,setNmForm]=useState({month:now.getMonth()+1,year:now.getFullYear()});
   const [search,setSearch]=useState("");
   const [toast,setToast]=useState(null);
@@ -2321,8 +2352,14 @@ function App(){
     if(!form.name.trim()){msg("أدخل اسم المهندس","err");return;}
     if(lockGuard())return;
     const nd=dc(data);
+    // Auto-calc d1/d2/extra if arrivalDate is in current month
+    const arrCalc=calcArrivalDays(form.arrivalDate,cfg.year,cfg.month);
+    const finalD1=arrCalc?arrCalc.d1:+form.d1;
+    const finalD2=arrCalc?arrCalc.d2:+form.d2;
+    const finalExtra=arrCalc?arrCalc.extra:0;
+    const engId=form.id||"u"+Date.now();
     if(form.id){
-      nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,arrivalDate:form.arrivalDate||null}:e);
+      nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:finalD1,d2:finalD2,extra:finalExtra,arrivalDate:form.arrivalDate||null}:e);
       logActivity('تعديل مهندس',`${form.name} — ${form.prov.replace('محافظة ','')}`);
       // Update org chart for edited engineer
       if(orgData){
@@ -2345,7 +2382,7 @@ function App(){
       }
       msg("تم الحفظ");
     } else {
-      const newEng={id:"u"+Date.now(),name:form.name.trim(),spec:form.spec||"مهندس",d1:+form.d1,d2:+form.d2,arrivalDate:form.arrivalDate||null,addedAt:new Date().toISOString().split('T')[0]};
+      const newEng={id:engId,name:form.name.trim(),spec:form.spec||"مهندس",d1:finalD1,d2:finalD2,extra:finalExtra,arrivalDate:form.arrivalDate||null,addedAt:new Date().toISOString().split('T')[0]};
       nd[form.prov]=[...(nd[form.prov]||[]),newEng];
       logActivity('إضافة مهندس',`${newEng.name} — ${form.prov.replace('محافظة ','')}`);
       // Update org chart
@@ -2366,8 +2403,48 @@ function App(){
       msg("تمت الإضافة");
     }
     const updated={...mkMonthBase(),data:nd,savedAt:null};
-    setMonths(prev=>({...prev,[ak]:updated}));
-    queueSave(ak,updated);
+    // Propagate arrivalDate across all months + auto-mark Egypt days in attendance
+    const propUpdates={};
+    const arr=form.arrivalDate?new Date(form.arrivalDate+'T12:00'):null;
+    // Build list of months to scan: include current `ak` even if engineer is new there
+    const allKeys=Array.from(new Set([ak,...Object.keys(months)])).filter(k=>k!=='leaves');
+    allKeys.forEach(key=>{
+      const m=key===ak?updated:months[key];
+      if(!m?.data)return;
+      let provKey=null,idx=-1;
+      Object.keys(m.data).forEach(p=>{
+        const i=(m.data[p]||[]).findIndex(e=>e.id===engId);
+        if(i>=0){provKey=p;idx=i;}
+      });
+      if(!provKey)return;// engineer not in this month
+      const newList=[...m.data[provKey]];
+      newList[idx]={...newList[idx],arrivalDate:form.arrivalDate||null};
+      const[yStr,mStr]=key.split('-');
+      const year=+yStr,month=+mStr;
+      // For arrival's own month, override d1/d2/extra with auto-calc
+      const ac=calcArrivalDays(form.arrivalDate,year,month);
+      if(ac){newList[idx]={...newList[idx],d1:ac.d1,d2:ac.d2,extra:ac.extra};}
+      else if(key!==ak){newList[idx]={...newList[idx],extra:0};}// clear extra in non-arrival months
+      const newData={...m.data,[provKey]:newList};
+      // Update attendance: mark/unmark 'EG' days
+      const dim=new Date(year,month,0).getDate();
+      const newAtt={...(m.attendance||{})};
+      const engAtt={...(newAtt[engId]||{})};
+      Object.keys(engAtt).forEach(d=>{if(engAtt[d]?.s==='EG')delete engAtt[d];});
+      if(arr){
+        const monthEnd=new Date(year,month-1,dim,23,59,59);
+        const monthStart=new Date(year,month-1,1);
+        if(arr>monthEnd){
+          for(let d=1;d<=dim;d++)engAtt[d]={s:'EG'};
+        }else if(arr>=monthStart){
+          for(let d=1;d<arr.getDate();d++)engAtt[d]={s:'EG'};
+        }
+      }
+      newAtt[engId]=engAtt;
+      propUpdates[key]={...m,data:newData,attendance:newAtt,savedAt:null};
+    });
+    setMonths(prev=>({...prev,...propUpdates}));
+    Object.entries(propUpdates).forEach(([k,v])=>queueSave(k,v));
     setModal(null);
   };
 
@@ -3682,7 +3759,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 1–15"),h("input",{type:"number",min:0,max:15,value:form.d1,onChange:ev=>setForm(f=>({...f,d1:Math.max(0,Math.min(15,+ev.target.value||0))}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 16–30"),h("input",{type:"number",min:0,max:15,value:form.d2,onChange:ev=>setForm(f=>({...f,d2:Math.max(0,Math.min(15,+ev.target.value||0))}))}))
           ),
-          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>setForm(f=>({...f,arrivalDate:ev.target.value||null})),style:{fontSize:13}})),
+          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>{
+            const v=ev.target.value||null;
+            const ac=v?calcArrivalDays(v,cfg.year,cfg.month):null;
+            setForm(f=>ac?{...f,arrivalDate:v,d1:ac.d1,d2:ac.d2,extra:ac.extra}:{...f,arrivalDate:v,extra:0});
+          },style:{fontSize:13}})),
+          form.arrivalDate&&(()=>{
+            const ac=calcArrivalDays(form.arrivalDate,cfg.year,cfg.month);
+            if(!ac)return h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:13}),"تاريخ القدوم في شهر آخر — لن يتأثر هذا الشهر تلقائياً");
+            const total=ac.d1+ac.d2+ac.extra;
+            return h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:13}),
+              `حساب تلقائي: ${ac.d1} أيام (1-15) + ${ac.d2} أيام (16-30)${ac.extra>0?` + ⭐ ${ac.extra} يوم إضافي للشهر القادم`:''} = ${total} يوم`
+            );
+          })(),
+          (form.extra>0||form.arrivalDate)&&h("div",{className:"fld"},h("label",null,"⭐ أيام إضافية (تنقل للشهر التالي)"),h("input",{type:"number",min:0,max:31,value:form.extra,onChange:ev=>setForm(f=>({...f,extra:Math.max(0,+ev.target.value||0)})),style:{fontSize:13}})),
           h("div",{className:"prev-box"},
             [{l:"إعاشة 1–15",v:f$(prevC.a1),c:"#2563EB"},{l:"إعاشة 16–30",v:f$(prevC.a2),c:"#16A34A"},{l:"إجمالى ($)",v:f$(prevC.tot)},{l:"إجمالى (ج.م)",v:fE(prevC.egp),c:"#D97706"}]
             .map((x,i)=>h("div",{key:i},h("div",{className:"prev-lbl"},x.l),h("div",{className:"prev-val",style:{color:x.c||"var(--text)"}},x.v)))
@@ -4043,7 +4133,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           page==="att"&&isProvince&&h("button",{className:"btn",style:{gap:5,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{if(confirm("تحضير كل أيام الشهر حاضر لمهندسي محافظتك؟\nسيتم تسجيل الحضور لكل أيام العمل (غير الجمع)."))attFillMonth(attProv);},title:"تحضير الشهر كامل لمحافظتك"},h(Ic,{n:"att",sz:14}),h("span",null,"تحضير الشهر كله")),
           page==="att"&&isProvince&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:()=>{if(confirm("إلغاء تحضير الشهر؟\nسيتم حذف كل تسجيلات الحضور لمهندسي محافظتك في هذا الشهر."))attClearMonth(attProv);},title:"إلغاء تحضير الشهر لمحافظتك"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء تحضير الشهر")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
-          isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
+          isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("div",{className:"notif-wrap"},
             h("button",{
               ref:notifBtnRef,
@@ -4236,7 +4326,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
                 h("span",{className:"card-badge"},G.n+" مهندس"),
                 h("button",{className:"btn blue",style:{padding:"4px 12px",fontSize:11},
-                  onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}
+                  onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");}
                 },h(Ic,{n:"plus",sz:11})," إضافة مهندس")
               )
             ),
@@ -4675,7 +4765,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
                         h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
-                        (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})()
+                        (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})(),
+                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية تنقل للشهر التالي"},"⭐ ",e.extra," أيام إضافية: ",f$((+e.extra)*(cfg.rate/30)))
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
