@@ -2133,7 +2133,10 @@ function App(){
     const spentUSD=aggExpItems.reduce((a,e)=>a+(+e.usd||0),0);
     const spentLYD=aggExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
     const trfOutUSD=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
-    const trfInLYD=aggTransfers.filter(t=>t.toCustodyId).reduce((a,t)=>a+(+t.lyd||0),0);
+    /* Count ALL transfers' LYD (whether routed to a specific custody or kept as رصيد حر).
+       Previously this only counted transfers with toCustodyId set, so a free transfer
+       would reduce USD but never increase LYD — leaving converted money untracked. */
+    const trfInLYD=aggTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
     const balanceUSD=receivedUSD-spentUSD-trfOutUSD;
     const balanceLYD=receivedLYD-spentLYD+trfInLYD;
     const rate=(+cfg.egp)||5;
