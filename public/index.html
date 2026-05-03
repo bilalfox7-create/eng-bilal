@@ -4061,20 +4061,23 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               },
               title:"التنبيهات"
             },"🔔",allNotifications.length>0&&h("span",{className:`notif-badge ${allNotifications.some(n=>n.lvl==='red')?'red':''}`},allNotifications.length)),
-            notifsOpen&&h("div",{className:"notif-dropdown",style:{top:notifPos.top+'px',left:notifPos.left+'px'}},
-              h("div",{className:"notif-hdr"},
-                h("span",{className:"notif-hdr-title"},"🔔 التنبيهات"),
-                h("span",{className:"notif-hdr-count"},allNotifications.length+" تنبيه")
+            notifsOpen&&ReactDOM.createPortal(
+              h("div",{className:"notif-dropdown",style:{top:notifPos.top+'px',left:notifPos.left+'px'}},
+                h("div",{className:"notif-hdr"},
+                  h("span",{className:"notif-hdr-title"},"🔔 التنبيهات"),
+                  h("span",{className:"notif-hdr-count"},allNotifications.length+" تنبيه")
+                ),
+                allNotifications.length===0
+                  ?h("div",{className:"notif-empty"},"✓ كل شيء على ما يرام")
+                  :allNotifications.map(n=>h("div",{key:n.id,className:`notif-item lvl-${n.lvl}`,onClick:()=>{n.action();setNotifsOpen(false);}},
+                      h("div",{className:"notif-item-icon"},n.icon),
+                      h("div",{className:"notif-item-body"},
+                        h("div",{className:"notif-item-title"},n.title),
+                        n.subtitle&&h("div",{className:"notif-item-sub"},n.subtitle)
+                      )
+                    ))
               ),
-              allNotifications.length===0
-                ?h("div",{className:"notif-empty"},"✓ كل شيء على ما يرام")
-                :allNotifications.map(n=>h("div",{key:n.id,className:`notif-item lvl-${n.lvl}`,onClick:()=>{n.action();setNotifsOpen(false);}},
-                    h("div",{className:"notif-item-icon"},n.icon),
-                    h("div",{className:"notif-item-body"},
-                      h("div",{className:"notif-item-title"},n.title),
-                      n.subtitle&&h("div",{className:"notif-item-sub"},n.subtitle)
-                    )
-                  ))
+              document.body
             )
           ),
           h("button",{
