@@ -1728,7 +1728,7 @@ function App(){
   const [gOpen,setGOpen]=useState(false);
   const [gQ,setGQ]=useState("");
   const [notifsOpen,setNotifsOpen]=useState(false);
-  const [notifPos,setNotifPos]=useState({top:60,right:16});
+  const [notifPos,setNotifPos]=useState({top:60,left:16});
   const notifBtnRef=useRef(null);
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
@@ -4052,13 +4052,16 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 ev.stopPropagation();
                 if(!notifsOpen&&notifBtnRef.current){
                   const r=notifBtnRef.current.getBoundingClientRect();
-                  setNotifPos({top:r.bottom+8,right:Math.max(8,window.innerWidth-r.right)});
+                  // Dropdown is 340px wide. Position its right edge to align with button's right edge,
+                  // but ensure left>=8 to stay in viewport
+                  const W=340,leftCoord=Math.max(8,Math.min(window.innerWidth-W-8,r.right-W));
+                  setNotifPos({top:r.bottom+8,left:leftCoord});
                 }
                 setNotifsOpen(o=>!o);
               },
               title:"التنبيهات"
             },"🔔",allNotifications.length>0&&h("span",{className:`notif-badge ${allNotifications.some(n=>n.lvl==='red')?'red':''}`},allNotifications.length)),
-            notifsOpen&&h("div",{className:"notif-dropdown",style:{top:notifPos.top+'px',right:notifPos.right+'px'}},
+            notifsOpen&&h("div",{className:"notif-dropdown",style:{top:notifPos.top+'px',left:notifPos.left+'px'}},
               h("div",{className:"notif-hdr"},
                 h("span",{className:"notif-hdr-title"},"🔔 التنبيهات"),
                 h("span",{className:"notif-hdr-count"},allNotifications.length+" تنبيه")
