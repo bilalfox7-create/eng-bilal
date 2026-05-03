@@ -1385,25 +1385,23 @@ const PROV_CITY={
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
 const calc=(e,r,eg)=>{const dr=r/30,a1=e.d1*dr,a2=e.d2*dr,ex=(+e.extra||0)*dr;return{a1,a2,extra:ex,tot:a1+a2+ex,egp:(a1+a2+ex)*eg};};
-/* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month. */
+/* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month.
+   Uses fixed 30-day billing month (company model regardless of calendar month length). */
 const calcArrivalDays=(arrivalDateStr,year,month)=>{
   if(!arrivalDateStr)return null;
   const arr=new Date(arrivalDateStr+'T12:00');
   if(isNaN(arr))return null;
   const aY=arr.getFullYear(),aM=arr.getMonth()+1,aD=arr.getDate();
   if(aY!==year||aM!==month)return null;
-  const dim=new Date(year,month,0).getDate();
-  // Threshold: arrivals after day 22 → become "extra" days (carry to next month)
+  const FIXED=30;// billing always treats month as 30 days
   const EXTRA_THRESHOLD=22;
   if(aD<=15){
-    // Arrived in first half: d1 = remaining days from arrival to 15 (using user's spec: 15-aD)
-    return{d1:Math.max(0,15-aD),d2:dim-15,extra:0,arrivalDay:aD};
+    // Arrived in first half: d1 = days from arrival to 14 (15-aD), d2 = full 15
+    return{d1:Math.max(0,15-aD),d2:15,extra:0,arrivalDay:aD};
   }else if(aD<=EXTRA_THRESHOLD){
-    // Arrived in second half (before threshold): d2 = remaining days
-    return{d1:0,d2:dim-aD+1,extra:0,arrivalDay:aD};
+    return{d1:0,d2:Math.max(0,Math.min(15,FIXED-aD+1)),extra:0,arrivalDay:aD};
   }else{
-    // Arrived too late: both halves missed, days carry to next month
-    return{d1:0,d2:0,extra:dim-aD+1,arrivalDay:aD};
+    return{d1:0,d2:0,extra:Math.max(0,FIXED-aD+1),arrivalDay:aD};
   }
 };
 const mkKey=(m,y)=>`${y}-${String(m).padStart(2,'0')}`;
