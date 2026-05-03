@@ -688,11 +688,11 @@ body::before{
 }
 .notif-badge.red{background:#DC2626}
 .notif-dropdown{
-  position:absolute;top:calc(100% + 8px);left:0;
+  position:fixed;
   width:340px;max-height:480px;overflow-y:auto;
   background:var(--bg2);border:1px solid var(--bdr2);
   border-radius:12px;box-shadow:var(--shadow3);
-  z-index:1000;padding:6px;
+  z-index:999999;padding:6px;
 }
 .notif-dropdown::-webkit-scrollbar{width:4px}
 .notif-dropdown::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
@@ -1728,6 +1728,8 @@ function App(){
   const [gOpen,setGOpen]=useState(false);
   const [gQ,setGQ]=useState("");
   const [notifsOpen,setNotifsOpen]=useState(false);
+  const [notifPos,setNotifPos]=useState({top:60,right:16});
+  const notifBtnRef=useRef(null);
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
   const [attSelected,setAttSelected]=useState(()=>new Set());
@@ -4044,11 +4046,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
           h("div",{className:"notif-wrap"},
             h("button",{
+              ref:notifBtnRef,
               className:`notif-btn ${allNotifications.some(n=>n.lvl==='red')?'has-alerts':''}`,
-              onClick:(ev)=>{ev.stopPropagation();setNotifsOpen(o=>!o);},
+              onClick:(ev)=>{
+                ev.stopPropagation();
+                if(!notifsOpen&&notifBtnRef.current){
+                  const r=notifBtnRef.current.getBoundingClientRect();
+                  setNotifPos({top:r.bottom+8,right:Math.max(8,window.innerWidth-r.right)});
+                }
+                setNotifsOpen(o=>!o);
+              },
               title:"التنبيهات"
             },"🔔",allNotifications.length>0&&h("span",{className:`notif-badge ${allNotifications.some(n=>n.lvl==='red')?'red':''}`},allNotifications.length)),
-            notifsOpen&&h("div",{className:"notif-dropdown"},
+            notifsOpen&&h("div",{className:"notif-dropdown",style:{top:notifPos.top+'px',right:notifPos.right+'px'}},
               h("div",{className:"notif-hdr"},
                 h("span",{className:"notif-hdr-title"},"🔔 التنبيهات"),
                 h("span",{className:"notif-hdr-count"},allNotifications.length+" تنبيه")
