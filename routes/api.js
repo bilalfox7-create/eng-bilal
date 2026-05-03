@@ -309,9 +309,9 @@ router.delete('/logo', adminOnly, (_req, res) => {
 /* ── Fixed rents config ──────────────────────────────── */
 
 const DEFAULT_FIXED_RENTS = [
-  { id: 'r1', desc: 'سكن رقم 1', day: 1,  lyd: 5000, usd: 0 },
-  { id: 'r2', desc: 'سكن رقم 2', day: 7,  lyd: 3500, usd: 0 },
-  { id: 'r3', desc: 'سكن رقم 3', day: 22, lyd: 5000, usd: 0 }
+  { id: 'r1', desc: 'سكن رقم 1', day: 1,  lyd: 5000, usd: 0, prov: '' },
+  { id: 'r2', desc: 'سكن رقم 2', day: 7,  lyd: 3500, usd: 0, prov: '' },
+  { id: 'r3', desc: 'سكن رقم 3', day: 22, lyd: 5000, usd: 0, prov: '' }
 ];
 
 router.get('/fixed-rents', (_req, res) => {

@@ -1778,9 +1778,9 @@ function App(){
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
   const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
   const [fixedRents,setFixedRents]=useState([
-    {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0},
-    {id:'r2',desc:'سكن رقم 2',day:7,lyd:3500,usd:0},
-    {id:'r3',desc:'سكن رقم 3',day:22,lyd:5000,usd:0}
+    {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0,prov:''},
+    {id:'r2',desc:'سكن رقم 2',day:7,lyd:3500,usd:0,prov:''},
+    {id:'r3',desc:'سكن رقم 3',day:22,lyd:5000,usd:0,prov:''}
   ]);
   const [editingRent,setEditingRent]=useState(null);
   const [orgData,setOrgData]=useState(null);
@@ -3383,7 +3383,7 @@ function App(){
       desc:rent.desc+' — '+MONTHS[(cfg.month||1)-1]+' '+(cfg.year||now.getFullYear()),
       type:'إيجار',
       category:'',
-      prov:'',
+      prov:rent.prov||'',
       usd:+rent.usd||0,
       lyd:+rent.lyd||0,
       date:rent.dueDate,
@@ -4335,14 +4335,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         ),
         h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:8}},
           h("div",{className:"info blue"},h(Ic,{n:"info",sz:14}),"الإيجارات تظهر تلقائياً كل شهر في يوم الاستحقاق. التعديل هنا بيغير الأشهر القادمة."),
-          editingRent.rents.map((r,idx)=>h("div",{key:r.id,style:{display:"grid",gridTemplateColumns:"1.6fr .8fr 1fr 1fr auto",gap:8,alignItems:"end",padding:"10px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--bdr2)"}},
+          editingRent.rents.map((r,idx)=>h("div",{key:r.id,style:{display:"grid",gridTemplateColumns:"1.4fr 1.1fr .6fr 1fr 1fr auto",gap:8,alignItems:"end",padding:"10px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--bdr2)"}},
             h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"الوصف"),h("input",{value:r.desc,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],desc:ev.target.value};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
+            h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"المحافظة"),
+              h("select",{value:r.prov||'',onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],prov:ev.target.value};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}},
+                h("option",{value:""},"— عام —"),
+                PROVS.map(p=>h("option",{key:p,value:p},p.replace('محافظة ','')))
+              )
+            ),
             h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"اليوم"),h("input",{type:"number",min:1,max:31,value:r.day,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],day:Math.max(1,Math.min(31,+ev.target.value||1))};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:11,fontFamily:"inherit"}})),
             h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",value:r.lyd,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],lyd:+ev.target.value||0};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--gold)",fontWeight:700,fontSize:11,fontFamily:"inherit"}})),
             h("div",null,h("label",{style:{fontSize:9,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:3}},"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",value:r.usd||0,onChange:ev=>{const nr=[...editingRent.rents];nr[idx]={...nr[idx],usd:+ev.target.value||0};setEditingRent({rents:nr});},style:{width:"100%",padding:"5px 8px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--blue)",fontWeight:700,fontSize:11,fontFamily:"inherit"}})),
             h("button",{className:"btn-icon del",onClick:()=>{const nr=editingRent.rents.filter((_,i)=>i!==idx);setEditingRent({rents:nr});}},h(Ic,{n:"del",sz:12}))
           )),
-          h("button",{className:"btn",style:{padding:"6px 12px",fontSize:11,gap:4,alignSelf:"flex-start"},onClick:()=>{const nr=[...editingRent.rents,{id:'r'+Date.now(),desc:'إيجار جديد',day:1,lyd:0,usd:0}];setEditingRent({rents:nr});}},h(Ic,{n:"plus",sz:12}),"إضافة إيجار ثابت")
+          h("button",{className:"btn",style:{padding:"6px 12px",fontSize:11,gap:4,alignSelf:"flex-start"},onClick:()=>{const nr=[...editingRent.rents,{id:'r'+Date.now(),desc:'إيجار جديد',day:1,lyd:0,usd:0,prov:''}];setEditingRent({rents:nr});}},h(Ic,{n:"plus",sz:12}),"إضافة إيجار ثابت")
         ),
         h("div",{className:"modal-ftr"},
           h("button",{className:"btn",onClick:()=>setEditingRent(null)},"إلغاء"),
@@ -4818,7 +4824,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}},
                       h("div",null,
                         h("div",{style:{fontSize:13,fontWeight:800}},r.desc),
-                        h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},"يوم "+r.day+" من الشهر")
+                        h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},"يوم "+r.day+" من الشهر"),
+                        r.prov&&h("div",{style:{fontSize:10,marginTop:3,display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",borderRadius:100,background:"rgba(96,165,250,.12)",color:"#60A5FA",fontWeight:700}},"📍 ",r.prov.replace('محافظة ',''))
                       ),
                       r.paid?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(52,211,153,.15)",color:"#34D399",fontSize:10,fontWeight:800}},"✅ مدفوع"):isOverdue?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(248,113,113,.15)",color:"#F87171",fontSize:10,fontWeight:800}},"⚠️ متأخر"):isToday?h("span",{style:{padding:"3px 8px",borderRadius:100,background:"rgba(252,211,77,.15)",color:"#FCD34D",fontSize:10,fontWeight:800}},"📅 اليوم"):h("span",{style:{padding:"3px 8px",borderRadius:100,background:"var(--bdr)",color:"var(--sub)",fontSize:10,fontWeight:700}},"مستحق")
                     ),
