@@ -1300,6 +1300,16 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .content>*{animation:pageIn .2s ease}
 .month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
 .warn-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#D97706;font-size:12px;font-weight:600;margin-bottom:8px}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;margin-bottom:10px;background:linear-gradient(135deg,rgba(96,165,250,.10),rgba(167,139,250,.06));border:1px solid rgba(96,165,250,.25);border-radius:12px}
+.page-header-info{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.page-header-icon{font-size:22px;line-height:1}
+.page-header-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.page-header-month{font-size:13px;font-weight:700;color:var(--blue);background:rgba(96,165,250,.12);padding:3px 12px;border-radius:100px;border:1px solid rgba(96,165,250,.25)}
+.page-header-select{padding:6px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bdr);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;outline:none;font-family:inherit}
+.page-header-select:hover{border-color:var(--blue)}
+.page-header-select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(96,165,250,.2)}
+html.light .page-header{background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-color:#BFDBFE}
+html.light .page-header-month{background:#DBEAFE;color:#1d4ed8;border-color:#93C5FD}
 .att-popup{position:fixed;background:var(--bg2);border:1px solid var(--bdr2);border-radius:10px;padding:6px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:9999;display:flex;flex-direction:column;gap:3px;min-width:130px}
 .att-popup-hdr{padding:3px 8px 5px;font-size:10px;color:var(--sub);font-weight:700;border-bottom:1px solid var(--bdr);margin-bottom:2px}
 .att-popup-btn{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;text-align:right;transition:opacity .15s;width:100%}
@@ -1837,9 +1847,21 @@ function App(){
       }
       return Promise.all(fetches).then(([md,ld,od,ud])=>{
         const m=md.months||{};
+        /* Auto-create current month if missing — site auto-manages months by date */
+        const expectedKey=mkKey(now.getMonth()+1,now.getFullYear());
+        if(!m[expectedKey]){
+          const sortedKeys=Object.keys(m).filter(k=>k!=='leaves').sort();
+          const prevKey=sortedKeys[sortedKeys.length-1];
+          const prev=prevKey?m[prevKey]:null;
+          const nd=prev?.data?JSON.parse(JSON.stringify(prev.data)):JSON.parse(JSON.stringify(BASE));
+          PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
+          const[y2,m2]=expectedKey.split('-');
+          m[expectedKey]={data:nd,cfg:{...(prev?.cfg||{rate:300,egp:52.5,company:''}),month:+m2,year:+y2},savedAt:null,attendance:null,expenses:null};
+          /* Save to DB */
+          fetch(`/api/months/${expectedKey}`,{method:'PUT',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(m[expectedKey])}).catch(()=>{});
+        }
         setMonths(m);
-        const keys=Object.keys(m).filter(k=>k!=='leaves').sort();
-        if(keys.length>0)setAk(keys[keys.length-1]);
+        setAk(expectedKey);
         setLogo(ld.logo||null);
         if(u.role==='admin'){setOrgData(od?.data||DEFAULT_ORG);setProvUsers(ud?.users||[]);}
         setLoaded(true);
@@ -1988,9 +2010,19 @@ function App(){
       }
       const [md,ld,ud]=await Promise.all(fetches);
       const m=md.months||{};
+      const expectedKey=mkKey(now.getMonth()+1,now.getFullYear());
+      if(!m[expectedKey]){
+        const sortedKeys=Object.keys(m).filter(k=>k!=='leaves').sort();
+        const prevKey=sortedKeys[sortedKeys.length-1];
+        const prev=prevKey?m[prevKey]:null;
+        const nd=prev?.data?JSON.parse(JSON.stringify(prev.data)):JSON.parse(JSON.stringify(BASE));
+        PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
+        const[y2,m2]=expectedKey.split('-');
+        m[expectedKey]={data:nd,cfg:{...(prev?.cfg||{rate:300,egp:52.5,company:''}),month:+m2,year:+y2},savedAt:null,attendance:null,expenses:null};
+        if(d.role==='admin')fetch(`/api/months/${expectedKey}`,{method:'PUT',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(m[expectedKey])}).catch(()=>{});
+      }
       setMonths(m);
-      const keys=Object.keys(m).filter(k=>k!=='leaves').sort();
-      if(keys.length>0)setAk(keys[keys.length-1]);
+      setAk(expectedKey);
       setLogo(ld.logo||null);
       if(d.role==='admin')setProvUsers(ud?.users||[]);
     }catch(e){setLoginError("خطأ في الاتصال بالخادم");}
@@ -4657,14 +4689,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     /* ── MAIN ─────────────────────────────────────────── */
     h("div",{className:"main"},
       h("div",{className:"mstrip"},
-        h("button",{className:"menu-btn",onClick:()=>setMobOpen(v=>!v)},h(Ic,{n:"menu",sz:16})),
-        h("div",{className:"month-cur-btn"},
-          isSaved&&h("span",{className:"mdot"}),
-          isLocked&&h("span",{style:{fontSize:13,lineHeight:1}},"🔒"),
-          h("span",null,mn+" "+cfg.year)
-        ),
-        h("div",{className:"mchip",style:{gap:5,cursor:"pointer"},onClick:()=>setPage("hist")},h(Ic,{n:"report",sz:12}),"السجلات"),
-        isAdmin&&h("div",{className:"mchip add",onClick:()=>setModal("new-month")},h(Ic,{n:"plus",sz:12})," شهر جديد")
+        h("button",{className:"menu-btn",onClick:()=>setMobOpen(v=>!v)},h(Ic,{n:"menu",sz:16}))
       ),
       h("div",{className:"topbar"},
         h("div",{className:"topbar-left"},
@@ -4742,6 +4767,31 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("span",null,`أنت تعمل على ${mn} ${cfg.year} — `+(isLocked?"هذا الشهر مقفول 🔒":"هذا ليس الشهر النشط")),
           h("button",{className:"btn",style:{padding:"3px 10px",fontSize:10,marginRight:"auto"},onClick:()=>switchMonth(expectedAk)},"الرجوع للشهر الحالي")
         ),
+        /* ── Page header (page name + month + selector) ── */
+        ['eng','att','expenses','dash','stats','leaves'].includes(page)&&(()=>{
+          const ICONS={eng:'📋',att:'✅',expenses:'💰',dash:'📊',stats:'📈',leaves:'✈️'};
+          const usingAttKey=page==='att';
+          const curKey=usingAttKey?attKey:ak;
+          const curMonth=usingAttKey?attMn:mn;
+          const curYear=usingAttKey?attCfg.year:cfg.year;
+          const setKey=usingAttKey?setAttKey:setAk;
+          const monthOpts=Object.keys(months).filter(k=>k!=='leaves').sort();
+          // Include current key even if not in saved months yet
+          if(!monthOpts.includes(curKey))monthOpts.push(curKey);
+          return h("div",{className:"page-header"},
+            h("div",{className:"page-header-info"},
+              h("span",{className:"page-header-icon"},ICONS[page]||'📅'),
+              h("span",{className:"page-header-title"},pageTitle[page]||page),
+              h("span",{className:"page-header-month"},curMonth+" "+curYear)
+            ),
+            isAdmin&&h("select",{className:"page-header-select",value:curKey,onChange:ev=>setKey(ev.target.value),title:"تغيير الشهر"},
+              monthOpts.sort().map(k=>{
+                const[y,m]=k.split('-');
+                return h("option",{key:k,value:k},MONTHS[+m-1]+" "+y);
+              })
+            )
+          );
+        })(),
 
         /* ══ DASHBOARD ══ */
         page==="dash"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
