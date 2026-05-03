@@ -2461,33 +2461,54 @@ function App(){
     allKeys.forEach(key=>{
       const m=key===ak?updated:months[key];
       if(!m?.data)return;
+      const[yStr,mStr]=key.split('-');
+      const year=+yStr,month=+mStr;
+      // Determine month position relative to arrival
+      let isBeforeArrival=false,isAfterArrival=false,arrCalcRes=null;
+      if(form.arrivalDate){
+        const arrDate=new Date(form.arrivalDate+'T12:00');
+        const monthStart=new Date(year,month-1,1);
+        const monthEnd=new Date(year,month,0,23,59,59);
+        isBeforeArrival=arrDate>monthEnd;
+        isAfterArrival=arrDate<monthStart;
+        arrCalcRes=calcArrivalDays(form.arrivalDate,year,month);
+      }
       let provKey=null,idx=-1;
       Object.keys(m.data).forEach(p=>{
         const i=(m.data[p]||[]).findIndex(e=>e.id===engId);
         if(i>=0){provKey=p;idx=i;}
       });
-      if(!provKey)return;// engineer not in this month
-      const newList=[...m.data[provKey]];
-      newList[idx]={...newList[idx],arrivalDate:form.arrivalDate||null};
-      const[yStr,mStr]=key.split('-');
-      const year=+yStr,month=+mStr;
-      // Apply arrival-based logic per month
-      if(form.arrivalDate){
-        const ac=calcArrivalDays(form.arrivalDate,year,month);
-        if(ac){
-          // Arrival's own month: use the auto-calc
-          newList[idx]={...newList[idx],d1:ac.d1,d2:ac.d2,extra:ac.extra};
-        }else{
-          // Compare month vs arrival month
-          const arr=new Date(form.arrivalDate+'T12:00');
-          const monthStart=new Date(year,month-1,1);
-          const monthEnd=new Date(year,month,0,23,59,59);
-          if(arr>monthEnd){
-            // Month entirely BEFORE arrival → engineer wasn't there
+      let newList,newData;
+      if(!provKey){
+        // Engineer not yet in this month
+        if(!form.arrivalDate||isBeforeArrival){
+          return;// no arrival or month before arrival → don't add
+        }
+        // Add engineer to this month (arrival month or after)
+        provKey=form.prov;
+        newList=[...(m.data[provKey]||[])];
+        let nD1=15,nD2=15,nExtra=0;
+        if(arrCalcRes){nD1=arrCalcRes.d1;nD2=arrCalcRes.d2;nExtra=arrCalcRes.extra;}
+        newList.push({
+          id:engId,
+          name:form.name.trim(),
+          spec:form.spec||"مهندس",
+          d1:nD1,d2:nD2,extra:nExtra,
+          arrivalDate:form.arrivalDate,
+          addedAt:new Date().toISOString().split('T')[0]
+        });
+        idx=newList.length-1;
+        newData={...m.data,[provKey]:newList};
+      }else{
+        // Engineer exists — update
+        newList=[...m.data[provKey]];
+        newList[idx]={...newList[idx],arrivalDate:form.arrivalDate||null};
+        if(form.arrivalDate){
+          if(arrCalcRes){
+            newList[idx]={...newList[idx],d1:arrCalcRes.d1,d2:arrCalcRes.d2,extra:arrCalcRes.extra};
+          }else if(isBeforeArrival){
             newList[idx]={...newList[idx],d1:0,d2:0,extra:0};
-          }else if(arr<monthStart){
-            // Month entirely AFTER arrival → full month
-            // Only fill d1=15, d2=15 if currently 0 (don't overwrite manual edits)
+          }else if(isAfterArrival){
             const cur=newList[idx];
             const cd1=+cur.d1||0,cd2=+cur.d2||0;
             if(cd1===0&&cd2===0){
@@ -2496,11 +2517,11 @@ function App(){
               newList[idx]={...cur,extra:0};
             }
           }
+        }else if(key!==ak){
+          newList[idx]={...newList[idx],extra:0};
         }
-      }else if(key!==ak){
-        newList[idx]={...newList[idx],extra:0};// clear extra when arrivalDate cleared
+        newData={...m.data,[provKey]:newList};
       }
-      const newData={...m.data,[provKey]:newList};
       // Update attendance: mark/unmark 'EG' days
       const dim=new Date(year,month,0).getDate();
       const newAtt={...(m.attendance||{})};
