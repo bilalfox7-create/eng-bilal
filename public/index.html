@@ -665,6 +665,55 @@ body::before{
 .logo-preview:hover{border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.05);box-shadow:0 0 20px rgba(96,165,250,.1)}
 .logo-preview img{width:100%;height:100%;object-fit:contain}
 
+/* ── Notifications bell ── */
+.notif-wrap{position:relative;display:inline-flex;align-items:center}
+.notif-btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:8px;
+  background:var(--bg2);border:1.5px solid var(--bdr2);
+  cursor:pointer;transition:all .2s;font-size:16px;
+}
+.notif-btn:hover{background:var(--bg3);border-color:var(--blue)}
+.notif-btn.has-alerts{animation:notif-pulse 2s infinite}
+@keyframes notif-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(252,211,77,.4)}
+  50%{box-shadow:0 0 0 6px rgba(252,211,77,0)}
+}
+.notif-badge{
+  position:absolute;top:-4px;left:-4px;
+  min-width:16px;height:16px;border-radius:100px;padding:0 4px;
+  background:#EF4444;color:#fff;font-size:9px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg);box-shadow:0 0 6px rgba(239,68,68,.5);
+}
+.notif-badge.red{background:#DC2626}
+.notif-dropdown{
+  position:absolute;top:calc(100% + 8px);left:0;
+  width:340px;max-height:480px;overflow-y:auto;
+  background:var(--bg2);border:1px solid var(--bdr2);
+  border-radius:12px;box-shadow:var(--shadow3);
+  z-index:1000;padding:6px;
+}
+.notif-dropdown::-webkit-scrollbar{width:4px}
+.notif-dropdown::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.notif-hdr{padding:10px 14px 8px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center}
+.notif-hdr-title{font-size:12px;font-weight:800;color:var(--text)}
+.notif-hdr-count{font-size:10px;color:var(--sub);font-weight:700}
+.notif-empty{padding:28px 14px;text-align:center;color:var(--sub);font-size:11px}
+.notif-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 12px;border-radius:8px;cursor:pointer;
+  transition:background .15s;margin-top:4px;
+  border-right:3px solid transparent;
+}
+.notif-item:hover{background:var(--bg3)}
+.notif-item.lvl-red{border-right-color:#EF4444;background:rgba(248,113,113,.04)}
+.notif-item.lvl-yellow{border-right-color:#FCD34D;background:rgba(252,211,77,.04)}
+.notif-item-icon{font-size:18px;line-height:1;flex-shrink:0}
+.notif-item-body{flex:1;min-width:0}
+.notif-item-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.4}
+.notif-item-sub{font-size:10px;color:var(--sub);margin-top:3px}
+
 /* ── Search ── */
 .search-wrap{position:relative;display:inline-flex;align-items:center}
 .search-wrap input{
@@ -1678,6 +1727,7 @@ function App(){
   const [serverBackups,setServerBackups]=useState([]);
   const [gOpen,setGOpen]=useState(false);
   const [gQ,setGQ]=useState("");
+  const [notifsOpen,setNotifsOpen]=useState(false);
   const [attTimeModal,setAttTimeModal]=useState(null);
   const [attView,setAttView]=useState('table'); // 'table' | 'log'
   const [attSelected,setAttSelected]=useState(()=>new Set());
@@ -2131,6 +2181,39 @@ function App(){
     else if(aggBalance.low)notes.push({id:'bal-low',lvl:'yellow',msg:`⚠️ الرصيد المتبقى منخفض (${aggBalance.remPct}%)`});
     return notes;
   },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year,dueRentsToday,aggBalance]);
+
+  /* ── Unified notifications (bell dropdown) ───────────── */
+  const allNotifications=useMemo(()=>{
+    const items=[];
+    const today=new Date();today.setHours(0,0,0,0);
+    if(pendingLeaves>0){
+      items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة طلبات الإجازة',action:()=>setPage('leaves')});
+    }
+    returnAlerts.forEach(l=>{
+      const days=Math.ceil((new Date(l.returnDate+'T12:00')-today)/86400000);
+      items.push({id:'ret-'+l.id,icon:'🏠',lvl:days<=1?'red':'yellow',title:`عودة ${l.engineerName} ${days<=0?'اليوم':'خلال '+days+' يوم'}`,subtitle:l.prov,action:()=>setPage('leaves')});
+    });
+    monthRents.forEach(r=>{
+      if(r.paid)return;
+      const due=new Date(r.dueDate+'T12:00');due.setHours(0,0,0,0);
+      const dd=Math.ceil((due-today)/86400000);
+      if(dd===0)items.push({id:'rent-due-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار مستحق اليوم: ${r.desc}`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+      else if(dd<0)items.push({id:'rent-overdue-'+r.id,icon:'⚠️',lvl:'red',title:`إيجار متأخر: ${r.desc}`,subtitle:r.dueDate+' · '+(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+      else if(dd<=3)items.push({id:'rent-soon-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار قريب: ${r.desc} (خلال ${dd} يوم)`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+    });
+    if(aggBalance.critical)items.push({id:'bal-c',icon:'⚠️',lvl:'red',title:'الرصيد المجمع منخفض جداً',subtitle:`${aggBalance.remPct}% فقط متبقى`,action:()=>setPage('expenses')});
+    else if(aggBalance.low)items.push({id:'bal-l',icon:'⚠️',lvl:'yellow',title:'الرصيد المجمع منخفض',subtitle:`${aggBalance.remPct}% متبقى`,action:()=>setPage('expenses')});
+    // Sort: red first, then yellow
+    return items.sort((a,b)=>(a.lvl==='red'?-1:1)-(b.lvl==='red'?-1:1));
+  },[pendingLeaves,returnAlerts,monthRents,aggBalance]);
+
+  /* ── Close notifications dropdown on outside click ── */
+  useEffect(()=>{
+    if(!notifsOpen)return;
+    const close=(ev)=>{if(!ev.target.closest('.notif-wrap'))setNotifsOpen(false);};
+    document.addEventListener('click',close);
+    return()=>document.removeEventListener('click',close);
+  },[notifsOpen]);
 
   const engProfileData=useMemo(()=>{
     if(!engProfile)return null;
@@ -3767,6 +3850,28 @@ function App(){
           page==="att"&&isProvince&&h("button",{className:"btn",style:{gap:5,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.35)",color:"#EF4444",fontWeight:800},onClick:()=>{if(confirm("إلغاء تحضير الشهر؟\nسيتم حذف كل تسجيلات الحضور لمهندسي محافظتك في هذا الشهر."))attClearMonth(attProv);},title:"إلغاء تحضير الشهر لمحافظتك"},h(Ic,{n:"del",sz:14}),h("span",null,"إلغاء تحضير الشهر")),
           isAdmin&&h("button",{className:`btn ${isSaved?"":"green"}`,onClick:saveMonth},h(Ic,{n:"save",sz:14}),h("span",null,isSaved?"إعادة حفظ":"حفظ الشهر")),
           isAdmin&&h("button",{className:"btn blue",onClick:()=>{setForm({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:14}),h("span",null,"مهندس")),
+          h("div",{className:"notif-wrap"},
+            h("button",{
+              className:`notif-btn ${allNotifications.some(n=>n.lvl==='red')?'has-alerts':''}`,
+              onClick:(ev)=>{ev.stopPropagation();setNotifsOpen(o=>!o);},
+              title:"التنبيهات"
+            },"🔔",allNotifications.length>0&&h("span",{className:`notif-badge ${allNotifications.some(n=>n.lvl==='red')?'red':''}`},allNotifications.length)),
+            notifsOpen&&h("div",{className:"notif-dropdown"},
+              h("div",{className:"notif-hdr"},
+                h("span",{className:"notif-hdr-title"},"🔔 التنبيهات"),
+                h("span",{className:"notif-hdr-count"},allNotifications.length+" تنبيه")
+              ),
+              allNotifications.length===0
+                ?h("div",{className:"notif-empty"},"✓ كل شيء على ما يرام")
+                :allNotifications.map(n=>h("div",{key:n.id,className:`notif-item lvl-${n.lvl}`,onClick:()=>{n.action();setNotifsOpen(false);}},
+                    h("div",{className:"notif-item-icon"},n.icon),
+                    h("div",{className:"notif-item-body"},
+                      h("div",{className:"notif-item-title"},n.title),
+                      n.subtitle&&h("div",{className:"notif-item-sub"},n.subtitle)
+                    )
+                  ))
+            )
+          ),
           h("button",{
             className:"btn",
             onClick:()=>setDark(d=>!d),
