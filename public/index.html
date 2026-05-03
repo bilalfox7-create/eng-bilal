@@ -2937,11 +2937,11 @@ function App(){
     const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
     const logoHtml=logo?`<img src="${logo}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:2px solid rgba(255,255,255,.2);" />`:'<div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;">🏗️</div>';
     const provColors=["#1d4ed8","#15803d","#b45309","#6d28d9"];
+    const rate=liveRate||cfg.egp||0;
     const provRows=PROVS.map((prov,pi)=>{
       const engs=data[prov]||[];const T=totals[pi];
       const color=PC[pi];const light=PL[pi];const border=PB[pi];
       if(engs.length===0)return'';
-      const rate=liveRate||cfg.egp||0;
       const rows=engs.map((e,i)=>{
         const c=calc(e,cfg.rate,cfg.egp);
         const bg=i%2===0?'#ffffff':'#f8fafc';
