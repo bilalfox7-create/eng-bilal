@@ -1326,6 +1326,15 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
   vertical-align:middle;
   box-shadow:0 0 8px rgba(52,211,153,.1);
 }
+.d1-bonus{
+  display:inline-flex;align-items:center;gap:2px;
+  padding:2px 7px;border-radius:100px;
+  background:linear-gradient(135deg,rgba(252,211,77,.18),rgba(251,146,60,.14));
+  border:1.5px solid rgba(252,211,77,.5);
+  color:#FCD34D;font-size:10px;font-weight:900;
+  white-space:nowrap;
+  box-shadow:0 0 6px rgba(252,211,77,.15);
+}
 </style>
 </head>
 <body>
@@ -1395,10 +1404,14 @@ const PROV_CITY={
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
 /* calc: e.extra carries to NEXT month (NOT in this month's tot).
-   incomingExtra is days carried IN from previous month — included in this month's tot. */
+   incomingExtra is days carried IN from previous month — folded into a1 (d1 portion). */
 const calc=(e,r,eg,incomingExtra=0)=>{
-  const dr=r/30,a1=e.d1*dr,a2=e.d2*dr,inc=(+incomingExtra||0)*dr;
-  return{a1,a2,incoming:inc,tot:a1+a2+inc,egp:(a1+a2+inc)*eg};
+  const dr=r/30;
+  const a1Reg=e.d1*dr;
+  const a2=e.d2*dr;
+  const inc=(+incomingExtra||0)*dr;
+  // a1 includes the incoming carryover so إعاشة 1 column shows combined amount
+  return{a1:a1Reg+inc,a1Reg,a1Inc:inc,a2,incoming:inc,incomingDays:+incomingExtra||0,tot:a1Reg+a2+inc,egp:(a1Reg+a2+inc)*eg};
 };
 /* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month.
    Disbursement model:
@@ -4829,11 +4842,13 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
                         h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
                         (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})(),
-                        inc>0&&h("span",{className:"incoming-badge",title:"أيام مرحلة من الشهر السابق (محتسبة في إجمالى هذا الشهر)"},"📥 +",inc," أيام مرحلة: ",f$(inc*(cfg.rate/30))),
                         (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي")
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
+                      h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
+                        h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)}),
+                        inc>0&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
+                      )),
                       h("td",{style:{color:"#2563EB",fontWeight:700}},c.a1.toFixed(1)),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
                       h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
