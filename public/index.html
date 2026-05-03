@@ -2186,6 +2186,7 @@ function App(){
   const allNotifications=useMemo(()=>{
     const items=[];
     const today=new Date();today.setHours(0,0,0,0);
+    // Leaves & returns — visible to all roles (already filtered by province in pendingLeaves/returnAlerts)
     if(pendingLeaves>0){
       items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة طلبات الإجازة',action:()=>setPage('leaves')});
     }
@@ -2193,19 +2194,22 @@ function App(){
       const days=Math.ceil((new Date(l.returnDate+'T12:00')-today)/86400000);
       items.push({id:'ret-'+l.id,icon:'🏠',lvl:days<=1?'red':'yellow',title:`عودة ${l.engineerName} ${days<=0?'اليوم':'خلال '+days+' يوم'}`,subtitle:l.prov,action:()=>setPage('leaves')});
     });
-    monthRents.forEach(r=>{
-      if(r.paid)return;
-      const due=new Date(r.dueDate+'T12:00');due.setHours(0,0,0,0);
-      const dd=Math.ceil((due-today)/86400000);
-      if(dd===0)items.push({id:'rent-due-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار مستحق اليوم: ${r.desc}`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
-      else if(dd<0)items.push({id:'rent-overdue-'+r.id,icon:'⚠️',lvl:'red',title:`إيجار متأخر: ${r.desc}`,subtitle:r.dueDate+' · '+(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
-      else if(dd<=3)items.push({id:'rent-soon-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار قريب: ${r.desc} (خلال ${dd} يوم)`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
-    });
-    if(aggBalance.critical)items.push({id:'bal-c',icon:'⚠️',lvl:'red',title:'الرصيد المجمع منخفض جداً',subtitle:`${aggBalance.remPct}% فقط متبقى`,action:()=>setPage('expenses')});
-    else if(aggBalance.low)items.push({id:'bal-l',icon:'⚠️',lvl:'yellow',title:'الرصيد المجمع منخفض',subtitle:`${aggBalance.remPct}% متبقى`,action:()=>setPage('expenses')});
+    // Rents & balance — admin-level concerns only
+    if(!isProvince){
+      monthRents.forEach(r=>{
+        if(r.paid)return;
+        const due=new Date(r.dueDate+'T12:00');due.setHours(0,0,0,0);
+        const dd=Math.ceil((due-today)/86400000);
+        if(dd===0)items.push({id:'rent-due-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار مستحق اليوم: ${r.desc}`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+        else if(dd<0)items.push({id:'rent-overdue-'+r.id,icon:'⚠️',lvl:'red',title:`إيجار متأخر: ${r.desc}`,subtitle:r.dueDate+' · '+(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+        else if(dd<=3)items.push({id:'rent-soon-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار قريب: ${r.desc} (خلال ${dd} يوم)`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
+      });
+      if(aggBalance.critical)items.push({id:'bal-c',icon:'⚠️',lvl:'red',title:'الرصيد المجمع منخفض جداً',subtitle:`${aggBalance.remPct}% فقط متبقى`,action:()=>setPage('expenses')});
+      else if(aggBalance.low)items.push({id:'bal-l',icon:'⚠️',lvl:'yellow',title:'الرصيد المجمع منخفض',subtitle:`${aggBalance.remPct}% متبقى`,action:()=>setPage('expenses')});
+    }
     // Sort: red first, then yellow
     return items.sort((a,b)=>(a.lvl==='red'?-1:1)-(b.lvl==='red'?-1:1));
-  },[pendingLeaves,returnAlerts,monthRents,aggBalance]);
+  },[pendingLeaves,returnAlerts,monthRents,aggBalance,isProvince]);
 
   /* ── Close notifications dropdown on outside click ── */
   useEffect(()=>{
