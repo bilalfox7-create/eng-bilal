@@ -132,8 +132,84 @@ router.put('/months/:key', (req, res) => {
     return res.json({ ok: true });
   }
 
-  const { data, cfg, savedAt, expenses, attendance } = req.body;
+  const { data, cfg, savedAt, expenses, attendance, force } = req.body;
   if (!data || !cfg) return res.status(400).json({ error: 'بيانات ناقصة' });
+
+  /* ── DESTRUCTIVE WRITE GUARD ──
+     Reject PUTs that would silently wipe non-trivial existing data.
+     Client must explicitly pass { force: true } to bypass.
+     Protects against stale-state autosaves (e.g. tab loaded before
+     newer data was added in another tab/session).
+  */
+  if (!force) {
+    const existing = db.prepare('SELECT data, expenses, attendance FROM months WHERE key = ?').get(key);
+    if (existing) {
+      const existingData = JSON.parse(existing.data || '{}');
+      const existingExp  = existing.expenses ? JSON.parse(existing.expenses) : null;
+      const existingAtt  = existing.attendance ? JSON.parse(existing.attendance) : null;
+      const conflicts = [];
+      // Compare engineer counts per province (no province should silently lose engineers)
+      for (const prov of Object.keys(existingData)) {
+        const before = (existingData[prov] || []).length;
+        const after  = (data[prov]         || []).length;
+        if (before > 0 && after < before) {
+          conflicts.push(`المهندسين فى ${prov}: ${before} → ${after}`);
+        }
+      }
+      // Expenses: never silently null out non-empty data
+      const expHadData = existingExp && (
+        (existingExp.custody   || []).length +
+        (existingExp.items     || []).length +
+        (existingExp.transfers || []).length
+      ) > 0;
+      const expGoneNow = !expenses || (
+        (expenses.custody   || []).length +
+        (expenses.items     || []).length +
+        (expenses.transfers || []).length
+      ) === 0;
+      if (expHadData && expGoneNow) conflicts.push('المصروفات والعهد ستُمسح');
+      // Attendance: same check
+      const attHadKeys = existingAtt ? Object.keys(existingAtt).length : 0;
+      const attHasKeys = attendance  ? Object.keys(attendance).length  : 0;
+      if (attHadKeys > 5 && attHasKeys < attHadKeys / 2) {
+        conflicts.push(`الحضور: ${attHadKeys} → ${attHasKeys} سجلات`);
+      }
+      if (conflicts.length > 0) {
+        return res.status(409).json({
+          error: 'تعارض في الحفظ — البيانات الواردة ستمسح بيانات موجودة. أعد تحميل الصفحة وحاول مرة أخرى.',
+          conflicts,
+          needsForce: true,
+        });
+      }
+    }
+
+    /* ── Pre-save backup ──
+       Snapshot the entire DB before this write. Cheap insurance —
+       SQLite copy is ~kB. Keeps last 100 snapshots.
+    */
+    try {
+      const BACKUP_DIR = process.env.DB_PATH
+        ? path.join(path.dirname(process.env.DB_PATH), 'backups')
+        : path.join(__dirname, '..', 'backups');
+      if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+      const allRows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
+      const months = {};
+      for (const row of allRows) {
+        months[row.key] = {
+          data:       JSON.parse(row.data),
+          cfg:        JSON.parse(row.cfg),
+          savedAt:    row.saved_at || null,
+          expenses:   row.expenses   ? JSON.parse(row.expenses)   : null,
+          attendance: row.attendance ? JSON.parse(row.attendance) : null,
+        };
+      }
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      fs.writeFileSync(path.join(BACKUP_DIR, `pre-save-${ts}-${key}.json`),
+                       JSON.stringify({ months }, null, 0));
+      const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+      while (all.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
+    } catch (e) { console.error('pre-save backup failed:', e.message); }
+  }
 
   db.prepare(`
     INSERT INTO months (key, data, cfg, saved_at, expenses, attendance) VALUES (?, ?, ?, ?, ?, ?)
@@ -432,7 +508,7 @@ router.get('/backups', adminOnly, (_req, res) => {
         return { name: f, size: stat.size, time: stat.mtimeMs };
       })
       .sort((a, b) => b.time - a.time)
-      .slice(0, 10);
+      .slice(0, 100);
     res.json({ backups: files });
   } catch { res.json({ backups: [] }); }
 });

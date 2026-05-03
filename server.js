@@ -79,7 +79,7 @@ function runBackup() {
     const file = path.join(BACKUP_DIR, `backup-${ts}.json`);
     fs.writeFileSync(file, JSON.stringify({ months }, null, 2));
     const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
-    while (all.length > 30) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
+    while (all.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
     console.log(`✅ نسخة احتياطية: ${file}`);
   } catch (e) { console.error('❌ فشل النسخ الاحتياطي:', e.message); }
 }
