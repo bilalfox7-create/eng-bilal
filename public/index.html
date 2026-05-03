@@ -3288,6 +3288,194 @@ function App(){
     setTimeout(()=>w.print(),300);
   };
 
+  /* ── Comprehensive monthly report (admin-only PDF) ── */
+  const generateMonthlyReport=()=>{
+    if(!isAdmin){msg('للأدمن فقط','err');return;}
+    const w=window.open('','_blank','width=1000,height=800');
+    if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
+    const fmt=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtN=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+    const monthLabel=MONTHS[M-1]+' '+Y;
+    const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
+    // KPIs
+    const totalEngs=PROVS.reduce((a,p)=>a+(data[p]||[]).length,0);
+    const paidEngs=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>e.paid).length,0);
+    const unpaidEngs=totalEngs-paidEngs;
+    const monthRate=+cfg.rate||300;
+    const paidUsdSum=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>e.paid).reduce((b,e)=>b+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0),0);
+    const unpaidUsdSum=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>!e.paid).reduce((b,e)=>b+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0),0);
+    // Attendance for prev month (which has been completed)
+    const pm=M===1?12:M-1,py=M===1?Y-1:Y;
+    const attK=`${py}-${String(pm).padStart(2,'0')}`;
+    const attM=months[attK];
+    const attData=attM?.attendance||{};
+    const totalAttDays=Object.values(attData).reduce((a,d)=>a+Object.values(d).filter(x=>x?.s==='P').length,0);
+    // Expenses for current month
+    const monthExp=months[ak]?.expenses||{custody:[],items:[],transfers:[]};
+    const monthExpItems=monthExp.items||[];
+    const monthCustody=monthExp.custody||[];
+    const expByCat={};
+    monthExpItems.filter(e=>e.type==='مصروف').forEach(e=>{
+      const cat=e.category||'بدون تصنيف';
+      if(!expByCat[cat])expByCat[cat]={usd:0,lyd:0,count:0};
+      expByCat[cat].usd+=+e.usd||0;expByCat[cat].lyd+=+e.lyd||0;expByCat[cat].count++;
+    });
+    // Rents this month
+    const rents=monthRents||[];
+    // Leaves this month
+    const inMonth=(d)=>{if(!d)return false;const dd=new Date(d+'T12:00');return dd.getFullYear()===Y&&(dd.getMonth()+1)===M;};
+    const traveled=leaves.filter(l=>l.status==='approved'&&inMonth(l.travelDate));
+    const returnedThis=leaves.filter(l=>l.status==='approved'&&inMonth(l.returnDate));
+    const today2=new Date();today2.setHours(12,0,0,0);
+    const onLeaveNow=leaves.filter(l=>{
+      if(l.status!=='approved'||!l.travelDate)return false;
+      const t=new Date(l.travelDate+'T12:00'),r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
+      return t<=today2&&(!r||today2<=r);
+    });
+    const logoSrc=logo||'';
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
+<title>التقرير الشهري الشامل — ${monthLabel}</title>
+<style>
+@page{size:A4;margin:14mm}
+*{box-sizing:border-box}
+body{font-family:'Segoe UI','Tahoma',Arial,sans-serif;direction:rtl;color:#222;margin:0;padding:18px;background:#fff;line-height:1.5}
+.report-hdr{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2563EB;padding-bottom:14px;margin-bottom:18px}
+.report-hdr-l{display:flex;align-items:center;gap:14px}
+.report-hdr img{max-width:75px;max-height:75px}
+.report-hdr h1{margin:0;font-size:22px;font-weight:800;color:#1F2937}
+.report-hdr .sub{font-size:13px;color:#666;margin-top:4px}
+.report-hdr-r{text-align:left;font-size:11px;color:#666}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.kpi{padding:12px 14px;border-radius:10px;border:2px solid;background:#fafbff}
+.kpi.blue{border-color:#60A5FA;background:#EFF6FF}
+.kpi.green{border-color:#34D399;background:#ECFDF5}
+.kpi.red{border-color:#F87171;background:#FEF2F2}
+.kpi.gold{border-color:#FCD34D;background:#FFFBEB}
+.kpi-lbl{font-size:10px;font-weight:700;color:#6B7280;margin-bottom:4px}
+.kpi-val{font-size:18px;font-weight:800;color:#111827}
+.kpi-sub{font-size:10px;color:#6B7280;margin-top:3px}
+.section{margin-bottom:22px;page-break-inside:avoid}
+.section h2{font-size:15px;font-weight:800;color:#1F2937;border-right:4px solid #2563EB;padding:6px 12px;margin:0 0 10px;background:#F3F4F6;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{border:1px solid #D1D5DB;padding:6px 8px;text-align:right}
+th{background:#F9FAFB;font-weight:700;color:#374151}
+tfoot td{font-weight:800;background:#F3F4F6}
+.prov-tag{display:inline-block;padding:1px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#EFF6FF;color:#2563EB}
+.paid-yes{color:#059669;font-weight:700}
+.paid-no{color:#D97706;font-weight:700}
+.rent-paid{background:#ECFDF5;color:#059669;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
+.rent-due{background:#FFFBEB;color:#D97706;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
+.rent-overdue{background:#FEF2F2;color:#DC2626;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
+.empty{padding:14px;text-align:center;color:#9CA3AF;font-style:italic;font-size:11px}
+.footer{margin-top:24px;padding-top:10px;border-top:1px solid #D1D5DB;font-size:10px;color:#9CA3AF;text-align:center}
+@media print{button.no-print{display:none}}
+button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2563EB;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px}
+</style></head><body>
+<button class="no-print" onclick="window.print()">🖨 طباعة / حفظ PDF</button>
+<div class="report-hdr">
+  <div class="report-hdr-l">
+    ${logoSrc?`<img src="${logoSrc}" alt="logo"/>`:''}
+    <div>
+      <h1>التقرير الشهري الشامل</h1>
+      <div class="sub">${cfg.company||'شركة المشاريع الليبية'} — ${monthLabel}</div>
+    </div>
+  </div>
+  <div class="report-hdr-r">طُبع في: ${today}</div>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi blue"><div class="kpi-lbl">إجمالى المهندسين</div><div class="kpi-val">${fmtN(totalEngs)}</div><div class="kpi-sub">في ${PROVS.length} محافظات</div></div>
+  <div class="kpi green"><div class="kpi-lbl">مدفوع</div><div class="kpi-val">${fmtN(paidEngs)}</div><div class="kpi-sub">${fmt(paidUsdSum)} $</div></div>
+  <div class="kpi gold"><div class="kpi-lbl">معلق الدفع</div><div class="kpi-val">${fmtN(unpaidEngs)}</div><div class="kpi-sub">${fmt(unpaidUsdSum)} $</div></div>
+  <div class="kpi ${aggBalance.critical?'red':aggBalance.low?'gold':'blue'}"><div class="kpi-lbl">الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-sub">${fmt(aggBalance.balanceLYD)} د.ل · ${aggBalance.remPct}% متبقى</div></div>
+</div>
+
+<div class="section">
+  <h2>👷 المهندسون حسب المحافظة</h2>
+  <table>
+    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>مدفوع</th><th>معلق</th><th>الإجمالى ($)</th></tr></thead>
+    <tbody>
+      ${PROVS.map(p=>{
+        const engs=data[p]||[];
+        const paid=engs.filter(e=>e.paid).length;
+        const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0);
+        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${paid}</td><td class="paid-no">${engs.length-paid}</td><td>${fmt(tot)} $</td></tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paidEngs}</td><td class="paid-no">${unpaidEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td></tr></tfoot>
+  </table>
+</div>
+
+<div class="section">
+  <h2>📅 ملخص الحضور — ${MONTHS[pm-1]} ${py}</h2>
+  ${attM?`<table>
+    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>إجمالى أيام الحضور</th><th>متوسط الأيام/مهندس</th></tr></thead>
+    <tbody>
+      ${PROVS.map(p=>{
+        const engs=attM.data?.[p]||[];
+        const days=engs.reduce((a,e)=>a+Object.values(attData[e.id]||{}).filter(x=>x?.s==='P').length,0);
+        const avg=engs.length?(days/engs.length).toFixed(1):'0';
+        return `<tr><td>${p}</td><td>${engs.length}</td><td>${days}</td><td>${avg}</td></tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot><tr><td colspan="2">الإجمالى</td><td>${totalAttDays}</td><td></td></tr></tfoot>
+  </table>`:'<div class="empty">لم يتم تسجيل حضور لهذا الشهر بعد</div>'}
+</div>
+
+<div class="section">
+  <h2>💸 المصروفات حسب التصنيف — ${monthLabel}</h2>
+  ${Object.keys(expByCat).length>0?`<table>
+    <thead><tr><th>التصنيف</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th></tr></thead>
+    <tbody>
+      ${Object.entries(expByCat).map(([cat,v])=>`<tr><td>${cat}</td><td>${v.count}</td><td>${fmt(v.usd)}</td><td>${fmt(v.lyd)}</td></tr>`).join('')}
+    </tbody>
+    <tfoot><tr><td>الإجمالى</td><td>${monthExpItems.filter(e=>e.type==='مصروف').length}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.usd||0),0))}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.lyd||0),0))}</td></tr></tfoot>
+  </table>`:'<div class="empty">لا توجد مصروفات مسجلة لهذا الشهر</div>'}
+</div>
+
+<div class="section">
+  <h2>🏠 الإيجارات الثابتة — ${monthLabel}</h2>
+  <table>
+    <thead><tr><th>الإيجار</th><th>اليوم</th><th>المبلغ (د.ل)</th><th>الحالة</th></tr></thead>
+    <tbody>
+      ${rents.map(r=>{
+        const cls=r.paid?'rent-paid':(new Date(r.dueDate)<today2?'rent-overdue':'rent-due');
+        const lbl=r.paid?'مدفوع ✓':(new Date(r.dueDate)<today2?'متأخر ⚠':'مستحق');
+        return `<tr><td>${r.desc}</td><td>${r.day}</td><td>${fmt(r.lyd)}</td><td><span class="${cls}">${lbl}</span></td></tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot><tr><td colspan="2">الإجمالى</td><td>${fmt(rents.reduce((a,r)=>a+(+r.lyd||0),0))} د.ل</td><td>${rents.filter(r=>r.paid).length}/${rents.length} مدفوع</td></tr></tfoot>
+  </table>
+</div>
+
+<div class="section">
+  <h2>✈️ الإجازات — ${monthLabel}</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+    <div class="kpi blue" style="padding:8px"><div class="kpi-lbl">سافروا</div><div class="kpi-val" style="font-size:14px">${traveled.length}</div></div>
+    <div class="kpi green" style="padding:8px"><div class="kpi-lbl">عادوا</div><div class="kpi-val" style="font-size:14px">${returnedThis.length}</div></div>
+    <div class="kpi gold" style="padding:8px"><div class="kpi-lbl">في إجازة الآن</div><div class="kpi-val" style="font-size:14px">${onLeaveNow.length}</div></div>
+  </div>
+  ${(traveled.length+returnedThis.length+onLeaveNow.length)>0?`<table>
+    <thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th>المدة</th><th>الحالة</th></tr></thead>
+    <tbody>
+      ${[...new Map([...traveled,...returnedThis,...onLeaveNow].map(l=>[l.id,l])).values()].map(l=>{
+        const status=onLeaveNow.find(x=>x.id===l.id)?'<span class="rent-due">في إجازة</span>':returnedThis.find(x=>x.id===l.id)?'<span class="rent-paid">عاد</span>':'<span class="prov-tag">سافر</span>';
+        return `<tr><td>${l.engineerName}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||'—'}</td><td>${l.returnDate||'—'}</td><td>${l.durationDays} يوم</td><td>${status}</td></tr>`;
+      }).join('')}
+    </tbody>
+  </table>`:'<div class="empty">لا توجد إجازات هذا الشهر</div>'}
+</div>
+
+<div class="footer">
+  تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${cfg.company||''}
+</div>
+</body></html>`;
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>{try{w.focus();}catch(e){}},200);
+  };
+
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
     {id:"dash",n:"dash",lbl:"لوحة التحكم"},
@@ -3894,6 +4082,15 @@ function App(){
 
         /* ══ DASHBOARD ══ */
         page==="dash"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+          isAdmin&&h("div",{className:"card",style:{borderTop:"2.5px solid #A78BFA",background:"linear-gradient(135deg,rgba(167,139,250,.08),rgba(96,165,250,.04))"}},
+            h("div",{style:{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}},
+              h("div",null,
+                h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:4,display:"flex",alignItems:"center",gap:8}},"📊 التقرير الشهري الشامل"),
+                h("div",{style:{fontSize:11,color:"var(--sub)"}},"تقرير متكامل بكل بيانات "+mn+" "+cfg.year+": مهندسين، حضور، مصروفات، إيجارات، إجازات")
+              ),
+              h("button",{className:"btn",style:{gap:6,padding:"8px 16px",fontSize:12,fontWeight:700,background:"linear-gradient(135deg,#A78BFA,#60A5FA)",border:"none",color:"#fff"},onClick:generateMonthlyReport},h(Ic,{n:"pdf",sz:14}),"إنشاء التقرير")
+            )
+          ),
           h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"att",sz:13,c:"#2563EB"})),"المهام المطلوبة الآن"),
