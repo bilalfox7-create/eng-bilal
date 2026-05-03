@@ -3403,11 +3403,32 @@ function App(){
     msg('تم إلغاء الدفع');
   };
 
-  /* ── Save fixed rents config ────────────────────────── */
+  /* ── Save fixed rents config + propagate prov changes to existing paid expense items ── */
   const saveFixedRents=(newRents)=>{
     setFixedRents(newRents);
     fetch('/api/fixed-rents',{method:'PUT',credentials:'include',
       headers:{'Content-Type':'application/json'},body:JSON.stringify({rents:newRents})}).catch(()=>{});
+    // Propagate prov changes to all existing paid rent expense items across all months
+    const rentMap=Object.fromEntries(newRents.map(r=>[r.id,r]));
+    const updates={};// {monthKey: updatedMonth}
+    Object.entries(months).forEach(([key,m])=>{
+      if(key==='leaves'||!m?.expenses?.items)return;
+      let changed=false;
+      const newItems=(m.expenses.items||[]).map(it=>{
+        if(it.fixedRentId&&rentMap[it.fixedRentId]){
+          const tplProv=rentMap[it.fixedRentId].prov||'';
+          if((it.prov||'')!==tplProv){changed=true;return{...it,prov:tplProv};}
+        }
+        return it;
+      });
+      if(changed){
+        updates[key]={...m,expenses:{...m.expenses,items:newItems}};
+      }
+    });
+    if(Object.keys(updates).length>0){
+      setMonths(prev=>({...prev,...updates}));
+      Object.entries(updates).forEach(([k,v])=>queueSave(k,v));
+    }
   };
 
   /* ── Export filtered expenses to Excel ───────────────── */
