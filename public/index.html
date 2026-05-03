@@ -2165,25 +2165,27 @@ function App(){
     return list;
   },[months]);
   const aggBalance=useMemo(()=>{
-    const receivedUSD=aggCustody.reduce((a,c)=>a+(+c.usd||0),0);
-    const receivedLYD=aggCustody.reduce((a,c)=>a+(+c.lyd||0),0);
-    const spentUSD=aggExpItems.reduce((a,e)=>a+(+e.usd||0),0);
-    const spentLYD=aggExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
-    const trfOutUSD=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
-    /* Count ALL transfers' LYD (whether routed to a specific custody or kept as رصيد حر).
-       Previously this only counted transfers with toCustodyId set, so a free transfer
-       would reduce USD but never increase LYD — leaving converted money untracked. */
-    const trfInLYD=aggTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
-    const balanceUSD=receivedUSD-spentUSD-trfOutUSD;
-    const balanceLYD=receivedLYD-spentLYD+trfInLYD;
+    const custodyUSD=aggCustody.reduce((a,c)=>a+(+c.usd||0),0);
+    const custodyLYD=aggCustody.reduce((a,c)=>a+(+c.lyd||0),0);
+    const itemsUSD=aggExpItems.reduce((a,e)=>a+(+e.usd||0),0);
+    const itemsLYD=aggExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
+    const trfUSDout=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
+    const trfLYDin =aggTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
+    /* Display metrics — include transfers in their respective sides so the math
+       is visible (received - spent = balance). USD→LYD conversions count as USD
+       spent and LYD received from the user's perspective. */
+    const receivedUSD=custodyUSD;
+    const receivedLYD=custodyLYD+trfLYDin;
+    const spentUSD=itemsUSD+trfUSDout;
+    const spentLYD=itemsLYD;
+    const balanceUSD=receivedUSD-spentUSD;
+    const balanceLYD=receivedLYD-spentLYD;
     const rate=(+cfg.egp)||5;
-    /* Consumption % = real expenses (in USD-equiv) / received (in USD-equiv).
-       Transfers are conversions, not spending — they don't count as consumption.
-       The previous formula tried to account for transfer rate differences but went
-       negative when LYD inflows exceeded LYD outflows. */
-    const totalRecvUSD=receivedUSD+receivedLYD/rate;
-    const totalSpentUSD=spentUSD+spentLYD/rate;
-    const pct=totalRecvUSD>0?Math.max(0,Math.min(100,Math.round(totalSpentUSD/totalRecvUSD*100))):0;
+    /* Consumption % uses REAL spending vs REAL income only — transfers cancel out
+       (you didn't lose money by converting). */
+    const realRecvUSD=custodyUSD+custodyLYD/rate;
+    const realSpentUSD=itemsUSD+itemsLYD/rate;
+    const pct=realRecvUSD>0?Math.max(0,Math.min(100,Math.round(realSpentUSD/realRecvUSD*100))):0;
     const remPct=100-pct;
     return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,pct,remPct,low:remPct<20,critical:remPct<10};
   },[aggCustody,aggExpItems,aggTransfers,cfg.egp]);
