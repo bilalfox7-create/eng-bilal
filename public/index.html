@@ -5258,30 +5258,41 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"السعر المحفوظ: "+cfg.egp+" ج.م/$"),
             (isAdmin||isProvince)&&h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
           ),
-          h("div",{className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
-            h(Ic,{n:"paid",sz:14,c:"#2563EB"}),
-            h("span",{style:{fontSize:11,fontWeight:800,color:"#2563EB",minWidth:80}},"النصف الأول"),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid1N+" مدفوع"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid1USD)),
-            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct1+"%"}})),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid1N+" معلق"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid1USD)),
-            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct1+"%"),
-            (isAdmin||isProvince)&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
-            (isAdmin||isProvince)&&paidStats.paid1N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,1)},"إلغاء الكل")
-          ),
-          h("div",{className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
-            h(Ic,{n:"paid",sz:14,c:"#16A34A"}),
-            h("span",{style:{fontSize:11,fontWeight:800,color:"#16A34A",minWidth:80}},"النصف الثاني"),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid2N+" مدفوع"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid2USD)),
-            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct2+"%"}})),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid2N+" معلق"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid2USD)),
-            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct2+"%"),
-            (isAdmin||isProvince)&&paidStats.unpaid2N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,2)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
-            (isAdmin||isProvince)&&paidStats.paid2N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,2)},"إلغاء الكل")
-          ),
+          (()=>{
+            const rate=liveRate||cfg.egp||0;
+            const totalH1USD=paidStats.paid1USD+paidStats.unpaid1USD;
+            const totalH2USD=paidStats.paid2USD+paidStats.unpaid2USD;
+            return [
+              h("div",{key:"h1",className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
+                h(Ic,{n:"paid",sz:14,c:"#2563EB"}),
+                h("span",{style:{fontSize:11,fontWeight:800,color:"#2563EB",minWidth:80}},"النصف الأول"),
+                h("span",{style:{fontSize:11,fontWeight:700,color:"#D97706"}},"إجمالى: "+f$(totalH1USD)+" · "+fE(totalH1USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
+                h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid1N+" مدفوع"),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid1USD)+" · "+fE(paidStats.paid1USD*rate)),
+                h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct1+"%"}})),
+                h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid1N+" معلق"),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid1USD)+" · "+fE(paidStats.unpaid1USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct1+"%"),
+                (isAdmin||isProvince)&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+                (isAdmin||isProvince)&&paidStats.paid1N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,1)},"إلغاء الكل")
+              ),
+              h("div",{key:"h2",className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
+                h(Ic,{n:"paid",sz:14,c:"#16A34A"}),
+                h("span",{style:{fontSize:11,fontWeight:800,color:"#16A34A",minWidth:80}},"النصف الثاني"),
+                h("span",{style:{fontSize:11,fontWeight:700,color:"#D97706"}},"إجمالى: "+f$(totalH2USD)+" · "+fE(totalH2USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
+                h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid2N+" مدفوع"),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid2USD)+" · "+fE(paidStats.paid2USD*rate)),
+                h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct2+"%"}})),
+                h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid2N+" معلق"),
+                h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid2USD)+" · "+fE(paidStats.unpaid2USD*rate)),
+                h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct2+"%"),
+                (isAdmin||isProvince)&&paidStats.unpaid2N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,2)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+                (isAdmin||isProvince)&&paidStats.paid2N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,2)},"إلغاء الكل")
+              )
+            ];
+          })(),
           search&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h(Ic,{n:"srch",sz:14,c:"var(--blue)"}),`نتائج البحث (${filtered.length})`),h("button",{className:"btn red-outline",style:{padding:"4px 10px",fontSize:11},onClick:()=>setSearch("")},"مسح")),
             h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
