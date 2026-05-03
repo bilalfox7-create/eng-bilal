@@ -3671,12 +3671,11 @@ function App(){
           h("div",{className:"nav-item-icon"},h(Ic,{n:"plane",sz:15})),h("span",null,"طلبات الإجازة"),
           pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)
         ),
+        h("div",{key:"expenses",className:`nav-item ${page==="expenses"?"on":""}`,onClick:()=>{setPage("expenses");setMobOpen(false);}},
+          h("div",{className:"nav-item-icon"},h(Ic,{n:"wallet",sz:15})),h("span",null,"العهدة والمصروفات")
+        ),
 
         (isAdmin||!isProvince)&&h(React.Fragment,{key:"admin-nav"},
-          h("div",{className:"sb-section"},"المالية"),
-          h("div",{className:`nav-item ${page==="expenses"?"on":""}`,onClick:()=>{setPage("expenses");setMobOpen(false);}},
-            h("div",{className:"nav-item-icon"},h(Ic,{n:"wallet",sz:15})),h("span",null,"العهدة والمصروفات")
-          ),
           h("div",{className:"sb-section"},"التحليلات"),
           ...[
             {id:"stats",n:"stats",lbl:"الإحصائيات"},
