@@ -2043,6 +2043,9 @@ function App(){
     const prevEng=prevList.find(pe=>pe.id===engId);
     return +(prevEng?.extra)||0;
   },[months,prevAk]);
+  /* Paid-status helpers: backwards compat with old `paid` field */
+  const isP1=e=>e?.paid1!==undefined?!!e.paid1:!!e?.paid;
+  const isP2=e=>e?.paid2!==undefined?!!e.paid2:!!e?.paid;
   const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{
     const inc=getIncomingExtra(e.id,p);
     const c=calc(e,cfg.rate,cfg.egp,inc);
@@ -2584,23 +2587,37 @@ function App(){
     msg("تم الحذف");
   };
 
-  const togglePaid=(p,id)=>{
+  const togglePaidHalf=(p,id,half)=>{
     if(lockGuard())return;
     const nd=dc(data);
-    nd[p]=nd[p].map(e=>e.id===id?{...e,paid:!e.paid}:e);
+    nd[p]=nd[p].map(e=>{
+      if(e.id!==id)return e;
+      const cur1=isP1(e),cur2=isP2(e);
+      const out={...e,paid1:half===1?!cur1:cur1,paid2:half===2?!cur2:cur2};
+      delete out.paid;
+      return out;
+    });
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
   };
+  const togglePaid1=(p,id)=>togglePaidHalf(p,id,1);
+  const togglePaid2=(p,id)=>togglePaidHalf(p,id,2);
 
-  const markAllPaid=(paid)=>{
+  const markAllPaid=(paid,half)=>{
     if(lockGuard())return;
     const nd=dc(data);
-    PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>({...e,paid}));});
+    PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>{
+      const cur1=isP1(e),cur2=isP2(e);
+      const out={...e,paid1:half===1||half==='both'?paid:cur1,paid2:half===2||half==='both'?paid:cur2};
+      delete out.paid;
+      return out;
+    });});
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
-    msg(paid?"تم تأشير الكل كمدفوع ✓":"تم إلغاء الكل");
+    const lbl=half===1?'النصف الأول':half===2?'النصف الثاني':'الكل';
+    msg(paid?`تم تأشير ${lbl} كمدفوع ✓`:`تم إلغاء ${lbl}`);
   };
 
   /* ── Attendance helpers ─────────────────────────────── */
@@ -2800,12 +2817,20 @@ function App(){
   };
 
   const paidStats=useMemo(()=>{
-    const paid=allE.filter(e=>e.paid);
-    const unpaid=allE.filter(e=>!e.paid);
-    const paidUSD=paid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp,getIncomingExtra(e.id,e.prov)).tot,0);
-    const unpaidUSD=unpaid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp,getIncomingExtra(e.id,e.prov)).tot,0);
-    const pct=allE.length>0?Math.round(paid.length/allE.length*100):0;
-    return{paidN:paid.length,unpaidN:unpaid.length,paidUSD,unpaidUSD,pct};
+    let p1N=0,p2N=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
+    allE.forEach(e=>{
+      const c=calc(e,cfg.rate,cfg.egp,getIncomingExtra(e.id,e.prov));
+      if(isP1(e)){p1N++;paid1USD+=c.a1;}else{unpaid1USD+=c.a1;}
+      if(isP2(e)){p2N++;paid2USD+=c.a2;}else{unpaid2USD+=c.a2;}
+    });
+    const N=allE.length;
+    return{
+      paid1N:p1N,unpaid1N:N-p1N,paid1USD,unpaid1USD,pct1:N>0?Math.round(p1N/N*100):0,
+      paid2N:p2N,unpaid2N:N-p2N,paid2USD,unpaid2USD,pct2:N>0?Math.round(p2N/N*100):0,
+      paidN:p1N+p2N,unpaidN:(N*2)-(p1N+p2N),
+      paidUSD:paid1USD+paid2USD,unpaidUSD:unpaid1USD+unpaid2USD,
+      pct:N>0?Math.round((p1N+p2N)/(N*2)*100):0
+    };
   },[allE,cfg.rate,cfg.egp]);
 
   const delMonth=async k=>{
@@ -2919,17 +2944,20 @@ function App(){
       const rows=engs.map((e,i)=>{
         const c=calc(e,cfg.rate,cfg.egp);
         const bg=i%2===0?'#ffffff':'#f8fafc';
+        const p1=isP1(e),p2=isP2(e);
+        const badge=(paid)=>`<span style="background:${paid?"#dcfce7":"#fefce8"};color:${paid?"#15803d":"#b45309"};font-size:9px;padding:2px 6px;border-radius:100px;font-weight:700;">${paid?"✓":"⏳"}</span>`;
         return `<tr style="background:${bg};">
           <td style="padding:7px 8px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:1px solid #f1f5f9;">${i+1}</td>
           <td style="padding:7px 8px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${e.name}</td>
           <td style="padding:7px 8px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.spec}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${e.d1}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:${color};border-bottom:1px solid #f1f5f9;">${c.a1.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p1)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${e.d2}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:${color};border-bottom:1px solid #f1f5f9;">${c.a2.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p2)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${c.tot.toFixed(2)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${c.egp.toFixed(0)}</td>
-          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;"><span style="background:${e.paid?"#dcfce7":"#fefce8"};color:${e.paid?"#15803d":"#b45309"};font-size:9px;padding:2px 7px;border-radius:100px;font-weight:700;">${e.paid?"✓ مدفوع":"⏳ معلق"}</span></td>
         </tr>`;
       }).join('');
       return `
@@ -2951,13 +2979,14 @@ function App(){
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:26px;">م</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;min-width:120px;">الاسم</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;">التخصص</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:46px;">1-15</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">إعاشة 1 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:46px;">16-30</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">إعاشة 2 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:70px;">إجمالى ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:74px;">إجمالى (ج.م)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">الحالة</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">1-15</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 1 ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 1</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">16-30</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 2 ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 2</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">إجمالى ($)</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:68px;">إجمالى (ج.م)</th>
             </tr>
           </thead>
           <tbody>
@@ -2967,7 +2996,9 @@ function App(){
               <td></td>
               <td style="padding:8px;text-align:center;font-weight:800;color:${color};">${T.a1.toFixed(2)}</td>
               <td></td>
+              <td></td>
               <td style="padding:8px;text-align:center;font-weight:800;color:${color};">${T.a2.toFixed(2)}</td>
+              <td></td>
               <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${T.tot.toFixed(2)}</td>
               <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${T.egp.toFixed(0)}</td>
             </tr>
@@ -3803,11 +3834,18 @@ ${provRows.length>1?`
     const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
     // KPIs
     const totalEngs=PROVS.reduce((a,p)=>a+(data[p]||[]).length,0);
-    const paidEngs=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>e.paid).length,0);
-    const unpaidEngs=totalEngs-paidEngs;
     const monthRate=+cfg.rate||300;
-    const paidUsdSum=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>e.paid).reduce((b,e)=>b+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0),0);
-    const unpaidUsdSum=PROVS.reduce((a,p)=>a+(data[p]||[]).filter(e=>!e.paid).reduce((b,e)=>b+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0),0);
+    let paid1Engs=0,paid2Engs=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
+    PROVS.forEach(p=>{(data[p]||[]).forEach(e=>{
+      const dr=monthRate/30;
+      const a1=(+e.d1||0)*dr,a2=(+e.d2||0)*dr;
+      if(isP1(e)){paid1Engs++;paid1USD+=a1;}else{unpaid1USD+=a1;}
+      if(isP2(e)){paid2Engs++;paid2USD+=a2;}else{unpaid2USD+=a2;}
+    });});
+    const paidUsdSum=paid1USD+paid2USD;
+    const unpaidUsdSum=unpaid1USD+unpaid2USD;
+    const paidEngs=paid1Engs+paid2Engs;// total halves paid (out of totalEngs*2)
+    const unpaidEngs=(totalEngs*2)-paidEngs;
     // Attendance for prev month (which has been completed)
     const pm=M===1?12:M-1,py=M===1?Y-1:Y;
     const attK=`${py}-${String(pm).padStart(2,'0')}`;
@@ -3889,24 +3927,25 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 
 <div class="kpi-grid">
   <div class="kpi blue"><div class="kpi-lbl">إجمالى المهندسين</div><div class="kpi-val">${fmtN(totalEngs)}</div><div class="kpi-sub">في ${PROVS.length} محافظات</div></div>
-  <div class="kpi green"><div class="kpi-lbl">مدفوع</div><div class="kpi-val">${fmtN(paidEngs)}</div><div class="kpi-sub">${fmt(paidUsdSum)} $</div></div>
-  <div class="kpi gold"><div class="kpi-lbl">معلق الدفع</div><div class="kpi-val">${fmtN(unpaidEngs)}</div><div class="kpi-sub">${fmt(unpaidUsdSum)} $</div></div>
+  <div class="kpi green"><div class="kpi-lbl">النص الأول مدفوع</div><div class="kpi-val">${fmtN(paid1Engs)}/${fmtN(totalEngs)}</div><div class="kpi-sub">${fmt(paid1USD)} $</div></div>
+  <div class="kpi green"><div class="kpi-lbl">النص التاني مدفوع</div><div class="kpi-val">${fmtN(paid2Engs)}/${fmtN(totalEngs)}</div><div class="kpi-sub">${fmt(paid2USD)} $</div></div>
   <div class="kpi ${aggBalance.critical?'red':aggBalance.low?'gold':'blue'}"><div class="kpi-lbl">الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-sub">${fmt(aggBalance.balanceLYD)} د.ل · ${aggBalance.remPct}% متبقى</div></div>
 </div>
 
 <div class="section">
   <h2>👷 المهندسون حسب المحافظة</h2>
   <table>
-    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>مدفوع</th><th>معلق</th><th>الإجمالى ($)</th></tr></thead>
+    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
         const engs=data[p]||[];
-        const paid=engs.filter(e=>e.paid).length;
+        const p1=engs.filter(e=>isP1(e)).length;
+        const p2=engs.filter(e=>isP2(e)).length;
         const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0);
-        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${paid}</td><td class="paid-no">${engs.length-paid}</td><td>${fmt(tot)} $</td></tr>`;
+        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${p1}/${engs.length}</td><td class="paid-yes">${p2}/${engs.length}</td><td>${fmt(tot)} $</td></tr>`;
       }).join('')}
     </tbody>
-    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paidEngs}</td><td class="paid-no">${unpaidEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td></tr></tfoot>
+    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paid1Engs}/${totalEngs}</td><td class="paid-yes">${paid2Engs}/${totalEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td></tr></tfoot>
   </table>
 </div>
 
@@ -5219,16 +5258,29 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"السعر المحفوظ: "+cfg.egp+" ج.م/$"),
             (isAdmin||isProvince)&&h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
           ),
-          h("div",{className:"pay-strip"},
-            h(Ic,{n:"paid",sz:15,c:"var(--green)"}),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paidN+" مدفوع"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paidUSD)),
-            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct+"%"}})),
-            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaidN+" معلق"),
-            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaidUSD)),
-            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct+"%"),
-            (isAdmin||isProvince)&&paidStats.unpaidN>0&&h("button",{className:"btn green",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(true)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
-            (isAdmin||isProvince)&&paidStats.paidN>0&&h("button",{className:"btn",style:{padding:"4px 12px",fontSize:11},onClick:()=>markAllPaid(false)},"إلغاء الكل")
+          h("div",{className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
+            h(Ic,{n:"paid",sz:14,c:"#2563EB"}),
+            h("span",{style:{fontSize:11,fontWeight:800,color:"#2563EB",minWidth:80}},"النصف الأول"),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid1N+" مدفوع"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid1USD)),
+            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct1+"%"}})),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid1N+" معلق"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid1USD)),
+            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct1+"%"),
+            (isAdmin||isProvince)&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+            (isAdmin||isProvince)&&paidStats.paid1N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,1)},"إلغاء الكل")
+          ),
+          h("div",{className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
+            h(Ic,{n:"paid",sz:14,c:"#16A34A"}),
+            h("span",{style:{fontSize:11,fontWeight:800,color:"#16A34A",minWidth:80}},"النصف الثاني"),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid2N+" مدفوع"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.paid2USD)),
+            h("div",{className:"pay-strip-bar"},h("div",{className:"pay-strip-fill",style:{width:paidStats.pct2+"%"}})),
+            h("span",{style:{fontSize:12,fontWeight:700,color:"var(--gold)"}},paidStats.unpaid2N+" معلق"),
+            h("span",{style:{fontSize:11,color:"var(--sub)"}},f$(paidStats.unpaid2USD)),
+            h("span",{style:{fontSize:11,color:"var(--sub)",marginRight:"auto"}},paidStats.pct2+"%"),
+            (isAdmin||isProvince)&&paidStats.unpaid2N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,2)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
+            (isAdmin||isProvince)&&paidStats.paid2N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,2)},"إلغاء الكل")
           ),
           search&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h(Ic,{n:"srch",sz:14,c:"var(--blue)"}),`نتائج البحث (${filtered.length})`),h("button",{className:"btn red-outline",style:{padding:"4px 10px",fontSize:11},onClick:()=>setSearch("")},"مسح")),
@@ -5249,12 +5301,14 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               ),
               h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxTv*100).toFixed(1)}%`,background:color}})),
               h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,"الحالة"),isAdmin&&h("th",null,""))),
+                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"حالة\nنص أول"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"حالة\nنص تاني"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),isAdmin&&h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const inc=getIncomingExtra(e.id,prov);
                     const c=calc(e,cfg.rate,cfg.egp,inc);
-                    return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"rgba(255,255,255,.015)":""}},
+                    const p1=isP1(e),p2=isP2(e);
+                    const rowBg=p1&&p2?"rgba(52,211,153,.10)":(p1||p2)?"rgba(252,211,77,.06)":i%2===0?"rgba(255,255,255,.015)":"";
+                    return h("tr",{key:e.id,style:{background:rowBg}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
                         h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
@@ -5267,23 +5321,29 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         inc>0&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
                       )),
                       h("td",{style:{color:"#2563EB",fontWeight:700}},c.a1.toFixed(1)),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
-                      h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
-                      h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
-                      h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
                       h("td",null,
-                        h("span",{className:`paid-badge ${e.paid?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
-                          h(Ic,{n:e.paid?"paid":"clock",sz:11}),
-                          e.paid?"مدفوع":"معلق"
+                        h("span",{className:`paid-badge ${p1?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid1(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
+                          h(Ic,{n:p1?"paid":"clock",sz:11}),
+                          p1?"مدفوع":"معلق"
                         )
                       ),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
+                      h("td",{style:{color:"#16A34A",fontWeight:700}},c.a2.toFixed(1)),
+                      h("td",null,
+                        h("span",{className:`paid-badge ${p2?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid2(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
+                          h(Ic,{n:p2?"paid":"clock",sz:11}),
+                          p2?"مدفوع":"معلق"
+                        )
+                      ),
+                      h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
+                      h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
                       isAdmin&&h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delEng(prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
                       ))
                     );
                   }),
-                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),h("td",null,""),isAdmin&&h("td",null,""))
+                  h("tr",{className:"sub-row"},h("td",{colSpan:3,className:"l"},"إجمالى "+prov),h("td",null,""),h("td",{style:{color:"#2563EB"}},T.a1.toFixed(1)),h("td",null,""),h("td",null,""),h("td",{style:{color:"#16A34A"}},T.a2.toFixed(1)),h("td",null,""),h("td",null,T.tot.toFixed(1)),h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),isAdmin&&h("td",null,""))
                 )
               ))
             );
