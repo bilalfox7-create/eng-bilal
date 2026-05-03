@@ -1401,7 +1401,13 @@ const calc=(e,r,eg,incomingExtra=0)=>{
   return{a1,a2,incoming:inc,tot:a1+a2+inc,egp:(a1+a2+inc)*eg};
 };
 /* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month.
-   Uses fixed 30-day billing month (company model regardless of calendar month length). */
+   Disbursement model:
+   - d1 صرف happens on day 1 (must be present that day to receive d1)
+   - d2 صرف happens on day 14 (must be present that day to receive d2)
+   Logic:
+   - Arrival on day 1: d1=15, d2=15 (full month)
+   - Arrival day 2-14: d1=0 (missed صرف), d2=15 (present at day 14), extra = days from arrival to day 15
+   - Arrival day 15-30: d1=0, d2=0 (missed both), extra = days from arrival to end of month */
 const calcArrivalDays=(arrivalDateStr,year,month)=>{
   if(!arrivalDateStr)return null;
   const arr=new Date(arrivalDateStr+'T12:00');
@@ -1409,13 +1415,13 @@ const calcArrivalDays=(arrivalDateStr,year,month)=>{
   const aY=arr.getFullYear(),aM=arr.getMonth()+1,aD=arr.getDate();
   if(aY!==year||aM!==month)return null;
   const FIXED=30;// billing always treats month as 30 days
-  const EXTRA_THRESHOLD=22;
-  if(aD<=15){
-    // Arrived in first half: d1 = days from arrival to 14 (15-aD), d2 = full 15
-    return{d1:Math.max(0,15-aD),d2:15,extra:0,arrivalDay:aD};
-  }else if(aD<=EXTRA_THRESHOLD){
-    return{d1:0,d2:Math.max(0,Math.min(15,FIXED-aD+1)),extra:0,arrivalDay:aD};
+  if(aD===1){
+    return{d1:15,d2:15,extra:0,arrivalDay:aD};
+  }else if(aD<=14){
+    // Present on day 14 → gets d2. Days from arrival to 15 carry as extra.
+    return{d1:0,d2:15,extra:15-aD+1,arrivalDay:aD};
   }else{
+    // Missed day 14 صرف → no d2. All days from arrival carry as extra.
     return{d1:0,d2:0,extra:Math.max(0,FIXED-aD+1),arrivalDay:aD};
   }
 };
@@ -2452,10 +2458,35 @@ function App(){
       newList[idx]={...newList[idx],arrivalDate:form.arrivalDate||null};
       const[yStr,mStr]=key.split('-');
       const year=+yStr,month=+mStr;
-      // For arrival's own month, override d1/d2/extra with auto-calc
-      const ac=calcArrivalDays(form.arrivalDate,year,month);
-      if(ac){newList[idx]={...newList[idx],d1:ac.d1,d2:ac.d2,extra:ac.extra};}
-      else if(key!==ak){newList[idx]={...newList[idx],extra:0};}// clear extra in non-arrival months
+      // Apply arrival-based logic per month
+      if(form.arrivalDate){
+        const ac=calcArrivalDays(form.arrivalDate,year,month);
+        if(ac){
+          // Arrival's own month: use the auto-calc
+          newList[idx]={...newList[idx],d1:ac.d1,d2:ac.d2,extra:ac.extra};
+        }else{
+          // Compare month vs arrival month
+          const arr=new Date(form.arrivalDate+'T12:00');
+          const monthStart=new Date(year,month-1,1);
+          const monthEnd=new Date(year,month,0,23,59,59);
+          if(arr>monthEnd){
+            // Month entirely BEFORE arrival → engineer wasn't there
+            newList[idx]={...newList[idx],d1:0,d2:0,extra:0};
+          }else if(arr<monthStart){
+            // Month entirely AFTER arrival → full month
+            // Only fill d1=15, d2=15 if currently 0 (don't overwrite manual edits)
+            const cur=newList[idx];
+            const cd1=+cur.d1||0,cd2=+cur.d2||0;
+            if(cd1===0&&cd2===0){
+              newList[idx]={...cur,d1:15,d2:15,extra:0};
+            }else{
+              newList[idx]={...cur,extra:0};
+            }
+          }
+        }
+      }else if(key!==ak){
+        newList[idx]={...newList[idx],extra:0};// clear extra when arrivalDate cleared
+      }
       const newData={...m.data,[provKey]:newList};
       // Update attendance: mark/unmark 'EG' days
       const dim=new Date(year,month,0).getDate();
