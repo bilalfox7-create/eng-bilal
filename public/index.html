@@ -3256,7 +3256,7 @@ function App(){
   );
 
   /* ── Province page guard ──────────────────────────── */
-  if(user?.role==='province'&&!["eng","att","leaves"].includes(page)){
+  if(user?.role==='province'&&!["eng","att","leaves","expenses"].includes(page)){
     setTimeout(()=>setPage("att"),0);
   }
   /* ── Viewer page guard ─────────────────────────────── */
