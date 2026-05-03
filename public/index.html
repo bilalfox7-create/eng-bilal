@@ -2140,9 +2140,13 @@ function App(){
     const balanceUSD=receivedUSD-spentUSD-trfOutUSD;
     const balanceLYD=receivedLYD-spentLYD+trfInLYD;
     const rate=(+cfg.egp)||5;
+    /* Consumption % = real expenses (in USD-equiv) / received (in USD-equiv).
+       Transfers are conversions, not spending — they don't count as consumption.
+       The previous formula tried to account for transfer rate differences but went
+       negative when LYD inflows exceeded LYD outflows. */
     const totalRecvUSD=receivedUSD+receivedLYD/rate;
-    const totalSpentUSD=spentUSD+(spentLYD-trfInLYD)/rate+trfOutUSD;
-    const pct=totalRecvUSD>0?Math.min(100,Math.round(totalSpentUSD/totalRecvUSD*100)):0;
+    const totalSpentUSD=spentUSD+spentLYD/rate;
+    const pct=totalRecvUSD>0?Math.max(0,Math.min(100,Math.round(totalSpentUSD/totalRecvUSD*100))):0;
     const remPct=100-pct;
     return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,pct,remPct,low:remPct<20,critical:remPct<10};
   },[aggCustody,aggExpItems,aggTransfers,cfg.egp]);
