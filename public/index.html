@@ -2310,8 +2310,8 @@ function App(){
     if(d>=14&&monthStatus.d2.st==='none')notes.push({id:'d2',lvl:'yellow',msg:`لم يتم إعاشة النصف الثاني لـ${mn} ${cfg.year} بعد`});
     if(d>=29){const nm=m===12?1:m+1,ny=m===12?y+1:y;if(monthStatus.d1.st==='none')notes.push({id:'d1',lvl:'yellow',msg:`لم يتم إعاشة النصف الأول لـ${MONTHS[nm-1]} ${ny} بعد`});}
     if(dueRentsToday.length>0)dueRentsToday.forEach(r=>notes.push({id:'rent-'+r.id,lvl:'yellow',msg:`⚠️ إيجار مستحق اليوم: ${r.desc} (${(+r.lyd).toLocaleString('ar-EG')} د.ل)`}));
-    if(aggBalance.critical)notes.push({id:'bal-crit',lvl:'red',msg:`⚠️ الرصيد المتبقى منخفض جداً (${aggBalance.remPct}% فقط)`});
-    else if(aggBalance.low)notes.push({id:'bal-low',lvl:'yellow',msg:`⚠️ الرصيد المتبقى منخفض (${aggBalance.remPct}%)`});
+    if(aggBalance.critical)notes.push({id:'bal-crit',lvl:'red',msg:`⚠️ الاستهلاك تجاوز 80% (${aggBalance.pct}% مستخدم)`});
+    else if(aggBalance.low)notes.push({id:'bal-low',lvl:'yellow',msg:`⚠️ الاستهلاك ${aggBalance.pct}% — راقب المصروفات`});
     return notes;
   },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year,dueRentsToday,aggBalance]);
 
@@ -2337,8 +2337,8 @@ function App(){
         else if(dd<0)items.push({id:'rent-overdue-'+r.id,icon:'⚠️',lvl:'red',title:`إيجار متأخر: ${r.desc}`,subtitle:r.dueDate+' · '+(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
         else if(dd<=3)items.push({id:'rent-soon-'+r.id,icon:'📅',lvl:'yellow',title:`إيجار قريب: ${r.desc} (خلال ${dd} يوم)`,subtitle:(+r.lyd).toLocaleString('ar-EG')+' د.ل',action:()=>setPage('expenses')});
       });
-      if(aggBalance.critical)items.push({id:'bal-c',icon:'⚠️',lvl:'red',title:'الرصيد المجمع منخفض جداً',subtitle:`${aggBalance.remPct}% فقط متبقى`,action:()=>setPage('expenses')});
-      else if(aggBalance.low)items.push({id:'bal-l',icon:'⚠️',lvl:'yellow',title:'الرصيد المجمع منخفض',subtitle:`${aggBalance.remPct}% متبقى`,action:()=>setPage('expenses')});
+      if(aggBalance.critical)items.push({id:'bal-c',icon:'⚠️',lvl:'red',title:'استهلاك مرتفع جداً',subtitle:`${aggBalance.pct}% مستخدم`,action:()=>setPage('expenses')});
+      else if(aggBalance.low)items.push({id:'bal-l',icon:'⚠️',lvl:'yellow',title:'الاستهلاك مرتفع',subtitle:`${aggBalance.pct}% مستخدم`,action:()=>setPage('expenses')});
     }
     // Sort: red first, then yellow
     return items.sort((a,b)=>(a.lvl==='red'?-1:1)-(b.lvl==='red'?-1:1));
@@ -4939,7 +4939,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                   h("div",{style:{fontSize:11,color:"var(--sub)"}},"إجمالى العهدة عبر كل الشهور")
                 ),
                 aggBalance.low&&h("div",{style:{padding:"6px 12px",background:aggBalance.critical?"rgba(248,113,113,.2)":"rgba(252,211,77,.15)",border:`1px solid ${aggBalance.critical?"#F87171":"#FCD34D"}`,borderRadius:8,fontSize:11,fontWeight:800,color:aggBalance.critical?"#F87171":"#FCD34D"}},
-                  aggBalance.critical?"⚠️ الرصيد منخفض جداً (أقل من 10%)":"⚠️ الرصيد منخفض (أقل من 20%)"
+                  aggBalance.critical?`⚠️ الاستهلاك تجاوز 80% (${aggBalance.pct}%)`:`⚠️ الاستهلاك ${aggBalance.pct}% — راقب المصروفات`
                 )
               ),
               h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:14}},
