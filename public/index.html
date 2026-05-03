@@ -1316,6 +1316,16 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
   vertical-align:middle;
   box-shadow:0 0 8px rgba(252,211,77,.1);
 }
+.incoming-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  margin-right:6px;padding:2px 8px;border-radius:100px;
+  background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(34,197,94,.12));
+  border:1px solid rgba(52,211,153,.4);
+  color:#34D399;font-size:9.5px;font-weight:800;
+  letter-spacing:.2px;
+  vertical-align:middle;
+  box-shadow:0 0 8px rgba(52,211,153,.1);
+}
 </style>
 </head>
 <body>
@@ -1384,7 +1394,12 @@ const PROV_CITY={
 /* ── Helpers ────────────────────────────────────────────── */
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
-const calc=(e,r,eg)=>{const dr=r/30,a1=e.d1*dr,a2=e.d2*dr,ex=(+e.extra||0)*dr;return{a1,a2,extra:ex,tot:a1+a2+ex,egp:(a1+a2+ex)*eg};};
+/* calc: e.extra carries to NEXT month (NOT in this month's tot).
+   incomingExtra is days carried IN from previous month — included in this month's tot. */
+const calc=(e,r,eg,incomingExtra=0)=>{
+  const dr=r/30,a1=e.d1*dr,a2=e.d2*dr,inc=(+incomingExtra||0)*dr;
+  return{a1,a2,incoming:inc,tot:a1+a2+inc,egp:(a1+a2+inc)*eg};
+};
 /* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month.
    Uses fixed 30-day billing month (company model regardless of calendar month length). */
 const calcArrivalDays=(arrivalDateStr,year,month)=>{
@@ -1973,7 +1988,25 @@ function App(){
   const am=useMemo(()=>months[ak]||null,[months,ak]);
   const data=useMemo(()=>am?.data||dc(BASE),[am]);
   const cfg=useMemo(()=>am?.cfg||{month:now.getMonth()+1,year:now.getFullYear(),rate:300,egp:52.5,company:"شركة المشاريع الليبية"},[am]);
-  const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{const c=calc(e,cfg.rate,cfg.egp);return{p,n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};},{p,n:0,a1:0,a2:0,tot:0,egp:0})),[data,cfg]);
+  /* Previous month key — used to look up "incoming" extra days (carried over from late arrivals) */
+  const prevAk=useMemo(()=>{
+    const[yStr,mStr]=ak.split('-');
+    const y=+yStr,m=+mStr;
+    if(isNaN(y)||isNaN(m))return null;
+    return m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`;
+  },[ak]);
+  /* Helper: get incoming extra days for engineer X from previous month */
+  const getIncomingExtra=useCallback((engId,prov)=>{
+    if(!prevAk)return 0;
+    const prevList=months[prevAk]?.data?.[prov]||[];
+    const prevEng=prevList.find(pe=>pe.id===engId);
+    return +(prevEng?.extra)||0;
+  },[months,prevAk]);
+  const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{
+    const inc=getIncomingExtra(e.id,p);
+    const c=calc(e,cfg.rate,cfg.egp,inc);
+    return{p,n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};
+  },{p,n:0,a1:0,a2:0,tot:0,egp:0})),[data,cfg,getIncomingExtra]);
   const G=useMemo(()=>totals.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0}),[totals]);
   const maxT=useMemo(()=>Math.max(...totals.map(t=>t.tot),1),[totals]);
   const sortedKeys=useMemo(()=>Object.keys(months).filter(k=>k!=='leaves').sort(),[months]);
@@ -2675,8 +2708,8 @@ function App(){
   const paidStats=useMemo(()=>{
     const paid=allE.filter(e=>e.paid);
     const unpaid=allE.filter(e=>!e.paid);
-    const paidUSD=paid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp).tot,0);
-    const unpaidUSD=unpaid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp).tot,0);
+    const paidUSD=paid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp,getIncomingExtra(e.id,e.prov)).tot,0);
+    const unpaidUSD=unpaid.reduce((a,e)=>a+calc(e,cfg.rate,cfg.egp,getIncomingExtra(e.id,e.prov)).tot,0);
     const pct=allE.length>0?Math.round(paid.length/allE.length*100):0;
     return{paidN:paid.length,unpaidN:unpaid.length,paidUSD,unpaidUSD,pct};
   },[allE,cfg.rate,cfg.egp]);
@@ -4740,7 +4773,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h(Ic,{n:"srch",sz:14,c:"var(--blue)"}),`نتائج البحث (${filtered.length})`),h("button",{className:"btn red-outline",style:{padding:"4px 10px",fontSize:11},onClick:()=>setSearch("")},"مسح")),
             h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
               h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",{className:"l"},"المحافظة"),h("th",null,"إجمالى ($)"))),
-              h("tbody",null,filtered.map((e,i)=>{const c=calc(e,cfg.rate,cfg.egp);return h("tr",{key:e.id},h("td",{style:{color:"var(--sub)"}},i+1),h("td",{className:"l",style:{fontWeight:600}},e.name),h("td",{className:"l",style:{color:"var(--sub)"}},e.spec),h("td",{className:"l",style:{fontSize:11}},e.prov.replace("محافظة ","")),h("td",{style:{fontWeight:700,color:"#2563EB"}},f$(c.tot)));})  )
+              h("tbody",null,filtered.map((e,i)=>{const inc=getIncomingExtra(e.id,e.prov);const c=calc(e,cfg.rate,cfg.egp,inc);return h("tr",{key:e.id},h("td",{style:{color:"var(--sub)"}},i+1),h("td",{className:"l",style:{fontWeight:600}},e.name),h("td",{className:"l",style:{color:"var(--sub)"}},e.spec),h("td",{className:"l",style:{fontSize:11}},e.prov.replace("محافظة ","")),h("td",{style:{fontWeight:700,color:"#2563EB"}},f$(c.tot)));})  )
             ))
           ),
           !search&&PROVS.filter(p=>!isProvince||p===userProv).map((prov,_,arr)=>{
@@ -4758,13 +4791,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),h("th",null,"الحالة"),isAdmin&&h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
-                    const c=calc(e,cfg.rate,cfg.egp);
+                    const inc=getIncomingExtra(e.id,prov);
+                    const c=calc(e,cfg.rate,cfg.egp,inc);
                     return h("tr",{key:e.id,style:{background:e.paid?"rgba(52,211,153,.06)":i%2===0?"rgba(255,255,255,.015)":""}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
                         h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
                         (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})(),
-                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية تنقل للشهر التالي"},"⭐ ",e.extra," أيام إضافية: ",f$((+e.extra)*(cfg.rate/30)))
+                        inc>0&&h("span",{className:"incoming-badge",title:"أيام مرحلة من الشهر السابق (محتسبة في إجمالى هذا الشهر)"},"📥 +",inc," أيام مرحلة: ",f$(inc*(cfg.rate/30))),
+                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي")
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)})),
