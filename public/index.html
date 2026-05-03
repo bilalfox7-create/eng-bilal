@@ -2180,15 +2180,19 @@ function App(){
     const spentLYD=itemsLYD;
     const balanceUSD=receivedUSD-spentUSD;
     const balanceLYD=receivedLYD-spentLYD;
-    const rate=(+cfg.egp)||5;
-    /* Consumption % uses REAL spending vs REAL income only — transfers cancel out
-       (you didn't lose money by converting). */
-    const realRecvUSD=custodyUSD+custodyLYD/rate;
-    const realSpentUSD=itemsUSD+itemsLYD/rate;
-    const pct=realRecvUSD>0?Math.max(0,Math.min(100,Math.round(realSpentUSD/realRecvUSD*100))):0;
+    /* Consumption % per currency — take the WORST (max) so users see a
+       conservative warning when either pool is depleted. Avoids the previous
+       bug where LYD was converted via the EGP rate (≈53), making LYD spending
+       look ~10× smaller than it really was. */
+    const pctUSD=receivedUSD>0?spentUSD/receivedUSD*100:0;
+    const pctLYD=receivedLYD>0?spentLYD/receivedLYD*100:0;
+    const pct=Math.max(0,Math.min(100,Math.round(Math.max(pctUSD,pctLYD))));
     const remPct=100-pct;
-    return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,pct,remPct,low:remPct<20,critical:remPct<10};
-  },[aggCustody,aggExpItems,aggTransfers,cfg.egp]);
+    /* Thresholds: <50 green, 50-80 yellow, ≥80 red */
+    return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,
+            pct,remPct,pctUSD:Math.round(pctUSD),pctLYD:Math.round(pctLYD),
+            low:pct>=50,critical:pct>=80};
+  },[aggCustody,aggExpItems,aggTransfers]);
 
   /* ── Engineers list for "responsible" dropdown ─────── */
   const allEngineers=useMemo(()=>{
@@ -4956,13 +4960,17 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 )
               ),
               h("div",null,
-                h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5}},
+                h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5,flexWrap:"wrap",gap:6}},
                   h("span",{style:{fontWeight:700,color:"var(--sub)"}},"شريط الاستهلاك"),
+                  h("span",{style:{fontSize:10,color:"var(--sub)"}},
+                    "$ ",aggBalance.pctUSD,"% · د.ل ",aggBalance.pctLYD,"%"
+                  ),
                   h("span",{style:{fontWeight:800,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}},aggBalance.pct+"% مستخدم · "+aggBalance.remPct+"% متبقى")
                 ),
                 h("div",{style:{height:10,background:"rgba(255,255,255,.05)",borderRadius:5,overflow:"hidden",border:"1px solid var(--bdr)"}},
                   h("div",{style:{height:"100%",width:aggBalance.pct+"%",background:aggBalance.critical?"linear-gradient(90deg,#DC2626,#F87171)":aggBalance.low?"linear-gradient(90deg,#D97706,#FCD34D)":"linear-gradient(90deg,#34D399,#60A5FA)",transition:"width .5s",borderRadius:5}})
-                )
+                ),
+                aggBalance.critical&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},"⚠️ تحذير: تجاوزت 80% من الرصيد — راجع المصروفات قريباً")
               )
             )
           ),
