@@ -1768,6 +1768,7 @@ function App(){
   const [mustChangePwd,setMustChangePwd]=useState(false);
   const [forcePwdForm,setForcePwdForm]=useState({old:"",n1:"",n2:""});
   const [forcePwdErr,setForcePwdErr]=useState("");
+  const [userSettings,setUserSettings]=useState(null);// {tab:'info'|'password',pwdForm:{...},err,success}
   const [newUserForm,setNewUserForm]=useState({username:"",password:"",province:PROVS[0]});
   const [autoSaving,setAutoSaving]=useState(false);
   const isAdmin=useMemo(()=>user?.role==='admin',[user]);
@@ -2001,6 +2002,27 @@ function App(){
       setMustChangePwd(false);setForcePwdForm({old:"",n1:"",n2:""});
       msg("تم تغيير كلمة المرور بنجاح ✓");
     }catch(e){setForcePwdErr("خطأ في الاتصال بالخادم");}
+  };
+
+  /* ── Open / close user settings modal ────────────── */
+  const openUserSettings=()=>{
+    setUserSettings({tab:'info',pwdForm:{old:'',n1:'',n2:''},err:'',success:false});
+  };
+  const submitChangePassword=async()=>{
+    const f=userSettings?.pwdForm||{};
+    if(!f.old){setUserSettings(s=>({...s,err:'أدخل كلمة المرور الحالية',success:false}));return;}
+    if((f.n1||'').length<6){setUserSettings(s=>({...s,err:'كلمة المرور الجديدة 6 أحرف على الأقل',success:false}));return;}
+    if(f.n1!==f.n2){setUserSettings(s=>({...s,err:'كلمتا المرور غير متطابقتين',success:false}));return;}
+    try{
+      const r=await fetch('/auth/change-password',{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({oldPassword:f.old,newPassword:f.n1})});
+      const d=await r.json();
+      if(!r.ok){setUserSettings(s=>({...s,err:d.error||'خطأ',success:false}));return;}
+      setUserSettings(s=>({...s,err:'',success:true,pwdForm:{old:'',n1:'',n2:''}}));
+      msg('تم تغيير كلمة المرور بنجاح ✓');
+      setTimeout(()=>setUserSettings(s=>s?{...s,success:false}:s),3000);
+    }catch(e){setUserSettings(s=>({...s,err:'خطأ في الاتصال بالخادم',success:false}));}
   };
 
   /* ── Computed ─────────────────────────────────────── */
@@ -4378,6 +4400,59 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       )
     ),
 
+    /* ── USER SETTINGS MODAL ────────────────────────────── */
+    userSettings&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setUserSettings(null);}},
+      h("div",{className:"modal",style:{width:460}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"⚙️ إعدادات المستخدم"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setUserSettings(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{style:{display:"flex",gap:0,borderBottom:"1px solid var(--bdr)",padding:"0 14px"}},
+          [{id:'info',lbl:'👤 المعلومات'},{id:'password',lbl:'🔒 تغيير كلمة المرور'}].map(t=>
+            h("div",{key:t.id,
+              onClick:()=>setUserSettings(s=>({...s,tab:t.id,err:'',success:false})),
+              style:{padding:"12px 16px",cursor:"pointer",fontSize:12,fontWeight:700,borderBottom:userSettings.tab===t.id?"3px solid var(--blue)":"3px solid transparent",color:userSettings.tab===t.id?"var(--blue)":"var(--sub)",transition:"all .2s",marginBottom:-1}
+            },t.lbl)
+          )
+        ),
+        userSettings.tab==='info'&&h("div",{className:"modal-body",style:{padding:"18px"}},
+          h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+            [
+              {l:"اسم المستخدم",v:user?.username||'—',c:"var(--blue)"},
+              {l:"الدور",v:user?.role==='admin'?'أدمن':user?.role==='province'?'مستخدم محافظة':user?.role==='viewer'?'مدير مكتب (مشاهدة)':user?.role||'—',c:"var(--green)"},
+              user?.province?{l:"المحافظة",v:user.province,c:"var(--purple)"}:null,
+              {l:"معرّف المستخدم",v:user?.id||'—',c:"var(--sub)"}
+            ].filter(Boolean).map((row,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--bg3)",borderRadius:"var(--r)",border:"1px solid var(--bdr2)"}},
+              h("span",{style:{fontSize:11,fontWeight:700,color:"var(--sub)"}},row.l),
+              h("span",{style:{fontSize:13,fontWeight:800,color:row.c}},row.v)
+            ))
+          )
+        ),
+        userSettings.tab==='password'&&h("div",{className:"modal-body",style:{padding:"18px",display:"flex",flexDirection:"column",gap:12}},
+          h("div",{className:"info blue"},h(Ic,{n:"info",sz:14}),"كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل"),
+          h("div",{className:"fld"},h("label",null,"كلمة المرور الحالية *"),
+            h("input",{type:"password",value:userSettings.pwdForm.old,
+              onChange:ev=>setUserSettings(s=>({...s,pwdForm:{...s.pwdForm,old:ev.target.value},err:'',success:false}))})
+          ),
+          h("div",{className:"fld"},h("label",null,"كلمة المرور الجديدة *"),
+            h("input",{type:"password",value:userSettings.pwdForm.n1,
+              onChange:ev=>setUserSettings(s=>({...s,pwdForm:{...s.pwdForm,n1:ev.target.value},err:'',success:false}))})
+          ),
+          h("div",{className:"fld",style:{margin:0}},h("label",null,"تأكيد كلمة المرور الجديدة *"),
+            h("input",{type:"password",value:userSettings.pwdForm.n2,
+              onChange:ev=>setUserSettings(s=>({...s,pwdForm:{...s.pwdForm,n2:ev.target.value},err:'',success:false})),
+              onKeyDown:ev=>{if(ev.key==='Enter')submitChangePassword();}})
+          ),
+          userSettings.err&&h("div",{className:"info",style:{borderColor:"rgba(226,75,74,.3)",background:"rgba(226,75,74,.05)",color:"#E24B4A"}},h(Ic,{n:"warn",sz:14,c:"#E24B4A"}),userSettings.err),
+          userSettings.success&&h("div",{className:"info green"},h(Ic,{n:"check",sz:14}),"تم تغيير كلمة المرور بنجاح ✓")
+        ),
+        userSettings.tab==='password'&&h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setUserSettings(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:submitChangePassword},h(Ic,{n:"save",sz:13}),"حفظ كلمة المرور")
+        )
+      )
+    ),
+
     /* ── PASSWORD RESET MODAL ─────────────────────────── */
     pwdModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setPwdModal(null);}},
       h("div",{className:"modal",style:{width:380}},
@@ -4497,10 +4572,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("div",{style:{fontSize:9,color:"rgba(52,211,153,.6)"}},activeUsers.map(u=>u.username).join(" · "))
         ),
 
-        h("button",{className:"logout-btn",onClick:doLogout},
-          h(Ic,{n:"logout",sz:13}),
-          h("span",null,"تسجيل الخروج"),
-          h("span",{className:"logout-user"},user?.username)
+        h("div",{style:{display:"flex",gap:6,alignItems:"stretch"}},
+          h("button",{className:"logout-btn",onClick:doLogout,style:{flex:1}},
+            h(Ic,{n:"logout",sz:13}),
+            h("span",null,"تسجيل الخروج"),
+            h("span",{className:"logout-user"},user?.username)
+          ),
+          h("button",{
+            onClick:openUserSettings,
+            title:"إعدادات المستخدم",
+            style:{display:"flex",alignItems:"center",justifyContent:"center",width:38,padding:0,borderRadius:10,cursor:"pointer",border:"1px solid rgba(255,255,255,.05)",background:"transparent",color:"rgba(255,255,255,.5)",fontSize:14,transition:"all .2s"},
+            onMouseEnter:ev=>{ev.currentTarget.style.background="rgba(96,165,250,.07)";ev.currentTarget.style.color="var(--blue)";ev.currentTarget.style.borderColor="rgba(96,165,250,.2)";},
+            onMouseLeave:ev=>{ev.currentTarget.style.background="transparent";ev.currentTarget.style.color="rgba(255,255,255,.5)";ev.currentTarget.style.borderColor="rgba(255,255,255,.05)";}
+          },"⚙")
         )
       )
     ),
