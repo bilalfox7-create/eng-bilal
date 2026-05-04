@@ -1985,6 +1985,9 @@ function App(){
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
   const [histYear,setHistYear]=useState(String(now.getFullYear()));
   const [orgSpecFilter,setOrgSpecFilter]=useState('all');
+  const [reportTab,setReportTab]=useState('library');
+  const [customRepForm,setCustomRepForm]=useState({fromDate:'',toDate:'',prov:'all',type:'all'});
+  const [cmpModal,setCmpModal]=useState(null);
   const [attKey,setAttKey]=useState(()=>{const m=now.getMonth(),y=now.getFullYear();return m===0?mkKey(12,y-1):mkKey(m,y);});
   const [cmpKeys,setCmpKeys]=useState([]);
   const [engProfile,setEngProfile]=useState(null);
@@ -6867,15 +6870,127 @@ ${PROVS.map(prov=>{
         })(),
 
         /* ══ REPORT ══ */
-        page==="report"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
-          h("div",{className:"card"},
+        page==="report"&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
+          /* ─── Tabs navigation ─── */
+          h("div",{key:"rep-tabs",style:{display:"flex",gap:6,padding:6,background:"rgba(15,23,42,.5)",border:"1px solid rgba(139,92,246,.18)",borderRadius:14,backdropFilter:"blur(16px)",overflowX:"auto"}},
+            [{id:'library',icon:'📚',lbl:'مكتبة التقارير'},{id:'custom',icon:'🛠️',lbl:'تقرير مخصص'},{id:'comparison',icon:'⚖️',lbl:'تقارير مقارنة'},{id:'settings',icon:'⚙️',lbl:'الإعدادات'}].filter(t=>isAdmin||t.id!=='settings').map(t=>{
+              const active=reportTab===t.id;
+              return h("button",{key:t.id,onClick:()=>setReportTab(t.id),style:{flex:"1 1 auto",minWidth:140,padding:"10px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:active?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",color:active?"#fff":"var(--sub)",boxShadow:active?"0 6px 18px rgba(99,102,241,.4)":"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},h("span",{style:{fontSize:15}},t.icon),t.lbl);
+            })
+          ),
+          /* ─── TAB 1: LIBRARY ─── */
+          reportTab==='library'&&h("div",{key:"rep-lib",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
+            [
+              {id:'comprehensive',title:'التقرير الشامل',icon:'📊',desc:'ملخص شامل لمهندسين وحضور وإعاشة ومصروفات وإجازات',c1:'#6366f1',c2:'#8b5cf6',action:generateMonthlyReport},
+              {id:'attendance',title:'تقرير الحضور',icon:'✅',desc:'تفصيل أيام الحضور والغياب لكل مهندس بالشهر',c1:'#10b981',c2:'#059669',action:()=>{setPage('att');setTimeout(()=>handlePdfClick(),700);}},
+              {id:'disbursement',title:'تقرير الإعاشة',icon:'💵',desc:'d1 + d2 + الإضافات لكل مهندس مع الإجمالى',c1:'#f59e0b',c2:'#d97706',action:()=>{setPage('eng');setTimeout(()=>handlePdfClick(),700);}},
+              {id:'expenses',title:'تقرير المصروفات',icon:'💰',desc:'العهد والإيجارات والتحويلات والرصيد المتبقى',c1:'#ec4899',c2:'#db2777',action:()=>{setPage('expenses');setTimeout(()=>handlePdfClick(),700);}},
+              {id:'leaves',title:'تقرير الإجازات',icon:'✈️',desc:'كل الإجازات (محجوزة، مؤجلة، ملغية) مع التواريخ',c1:'#7F77DD',c2:'#5b51c7',action:()=>{setPage('leaves');setTimeout(()=>handlePdfClick(),700);}},
+              {id:'provinces',title:'تقرير المحافظات',icon:'🏢',desc:'إحصائيات كل محافظة (مهندسين، مشاريع، حضور)',c1:'#14b8a6',c2:'#0d9488',action:()=>{setPage('org');setTimeout(()=>{if(orgPrintRef.current)orgPrintRef.current('all');},700);}}
+            ].map(r=>h("div",{key:r.id,style:{padding:"20px",background:`linear-gradient(135deg,${r.c1}15,${r.c2}08)`,border:`1px solid ${r.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden",boxShadow:`0 8px 28px ${r.c1}20`}},
+              h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${r.c1}30,transparent 70%)`,pointerEvents:"none"}}),
+              h("div",{style:{position:"relative"}},
+                h("div",{style:{width:54,height:54,borderRadius:14,background:`linear-gradient(135deg,${r.c1},${r.c2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12,boxShadow:`0 8px 22px ${r.c1}50`}},r.icon),
+                h("div",{style:{fontSize:15,fontWeight:900,color:"var(--text)",marginBottom:6}},r.title),
+                h("div",{style:{fontSize:11,color:"var(--sub)",lineHeight:1.6,marginBottom:14,minHeight:48}},r.desc),
+                h("button",{onClick:r.action,style:{width:"100%",padding:"9px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${r.c1},${r.c2})`,color:"#fff",boxShadow:`0 6px 18px ${r.c1}40`}},"📄 إنشاء PDF")
+              )
+            ))
+          ),
+          /* ─── TAB 2: CUSTOM ─── */
+          reportTab==='custom'&&h("div",{key:"rep-cust",style:{padding:"24px 26px",background:"linear-gradient(135deg,rgba(99,102,241,.10),rgba(139,92,246,.06))",border:"1px solid rgba(139,92,246,.25)",borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
+            h("div",{style:{position:"absolute",top:-40,right:-40,width:160,height:160,background:"radial-gradient(circle,rgba(139,92,246,.25),transparent 70%)",pointerEvents:"none"}}),
+            h("div",{style:{position:"relative"}},
+              h("div",{style:{fontSize:20,fontWeight:900,color:"var(--text)",marginBottom:6}},"🛠️ تقرير مخصص"),
+              h("div",{style:{fontSize:13,color:"var(--sub)",marginBottom:20}},"اختار البيانات اللى تريدها وأنشئ تقرير على المقاس"),
+              h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:18}},
+                h("div",null,h("label",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",letterSpacing:".5px",display:"block",marginBottom:6}},"من تاريخ"),h("input",{type:"date",value:customRepForm.fromDate,onChange:ev=>setCustomRepForm(f=>({...f,fromDate:ev.target.value})),style:{width:"100%",padding:"9px 12px",border:"1px solid rgba(139,92,246,.3)",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})),
+                h("div",null,h("label",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",letterSpacing:".5px",display:"block",marginBottom:6}},"إلى تاريخ"),h("input",{type:"date",value:customRepForm.toDate,onChange:ev=>setCustomRepForm(f=>({...f,toDate:ev.target.value})),style:{width:"100%",padding:"9px 12px",border:"1px solid rgba(139,92,246,.3)",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})),
+                h("div",null,h("label",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",letterSpacing:".5px",display:"block",marginBottom:6}},"المحافظة"),h("select",{value:customRepForm.prov,onChange:ev=>setCustomRepForm(f=>({...f,prov:ev.target.value})),style:{width:"100%",padding:"9px 12px",border:"1px solid rgba(139,92,246,.3)",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},h("option",{value:"all"},"الكل"),...PROVS.map(p=>h("option",{key:p,value:p},p.replace("محافظة ",""))))),
+                h("div",null,h("label",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",letterSpacing:".5px",display:"block",marginBottom:6}},"نوع البيانات"),h("select",{value:customRepForm.type,onChange:ev=>setCustomRepForm(f=>({...f,type:ev.target.value})),style:{width:"100%",padding:"9px 12px",border:"1px solid rgba(139,92,246,.3)",borderRadius:10,background:"rgba(255,255,255,.05)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},h("option",{value:"all"},"شامل"),h("option",{value:"att"},"حضور فقط"),h("option",{value:"eng"},"إعاشة فقط"),h("option",{value:"exp"},"مصروفات فقط"),h("option",{value:"leaves"},"إجازات فقط")))
+              ),
+              h("button",{onClick:()=>{
+                const w=window.open('','_blank','width=1000,height=800');if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
+                const f=customRepForm;
+                let html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير مخصص</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}h3{color:#1A365D;border-bottom:2px solid #cbd5e1;padding-bottom:6px;margin:24px 0 12px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1A365D;color:#fff;padding:10px;text-align:right;font-weight:700}td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}.filt{background:#f1f5f9;padding:12px;border-radius:8px;margin-bottom:18px;font-size:12px}</style></head><body>`;
+                html+=`<h1>📊 تقرير مخصص</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2>`;
+                html+=`<div class="filt"><strong>الفلاتر:</strong> ${f.fromDate?'من '+f.fromDate+' ':''}${f.toDate?'إلى '+f.toDate+' ':''}· المحافظة: <strong>${f.prov==='all'?'الكل':f.prov}</strong> · النوع: <strong>${f.type==='all'?'شامل':f.type}</strong></div>`;
+                if(f.type==='all'||f.type==='eng'){
+                  html+=`<h3>المهندسون والإعاشة</h3><table><thead><tr><th>الاسم</th><th>التخصص</th><th>المحافظة</th><th>الإعاشة ($)</th></tr></thead><tbody>`;
+                  const akm=months[ak];
+                  if(akm&&akm.data){const provs=f.prov==='all'?PROVS:[f.prov];provs.forEach(p=>(akm.data[p]||[]).forEach(e=>{const c=calc(e,akm.cfg?.rate||300,akm.cfg?.egp||52.5);html+=`<tr><td>${e.name}</td><td>${e.spec||'مهندس'}</td><td>${p.replace('محافظة ','')}</td><td>${c.tot.toFixed(2)}</td></tr>`;}));}
+                  html+=`</tbody></table>`;
+                }
+                html+=`</body></html>`;
+                w.document.write(html);w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
+              },style:{padding:"11px 22px",border:"none",borderRadius:12,fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:"pointer",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",boxShadow:"0 8px 24px rgba(99,102,241,.4)"}},"⚡ إنشاء التقرير")
+            )
+          ),
+          /* ─── TAB 3: COMPARISON ─── */
+          reportTab==='comparison'&&h("div",{key:"rep-cmp",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
+            [{kind:'month',title:'شهر vs شهر',icon:'📅',desc:'قارن أى شهرين مع جدول مقارنة شامل',c1:'#6366f1',c2:'#8b5cf6'},{kind:'prov',title:'محافظة vs محافظة',icon:'🏢',desc:'مقارنة الأداء بين المحافظات فى نفس الشهر',c1:'#10b981',c2:'#059669'},{kind:'year',title:'سنة vs سنة',icon:'📈',desc:'تطور الأداء عبر السنوات',c1:'#f59e0b',c2:'#d97706'}].map(c=>h("div",{key:c.kind,style:{padding:"22px",background:`linear-gradient(135deg,${c.c1}15,${c.c2}08)`,border:`1px solid ${c.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
+              h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${c.c1}30,transparent 70%)`,pointerEvents:"none"}}),
+              h("div",{style:{position:"relative"}},
+                h("div",{style:{width:54,height:54,borderRadius:14,background:`linear-gradient(135deg,${c.c1},${c.c2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12,boxShadow:`0 8px 22px ${c.c1}50`}},c.icon),
+                h("div",{style:{fontSize:16,fontWeight:900,color:"var(--text)",marginBottom:6}},c.title),
+                h("div",{style:{fontSize:12,color:"var(--sub)",lineHeight:1.6,marginBottom:16,minHeight:48}},c.desc),
+                h("button",{onClick:()=>setCmpModal({kind:c.kind,c1:c.c1,c2:c.c2,a:'',b:'',extra:''}),style:{width:"100%",padding:"10px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${c.c1},${c.c2})`,color:"#fff",boxShadow:`0 6px 18px ${c.c1}40`}},"⚖️ ابدأ المقارنة")
+              )
+            ))
+          ),
+          /* ─── Comparison Modal ─── */
+          cmpModal&&h("div",{key:"cmp-modal",className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setCmpModal(null);}},
+            h("div",{className:"modal",style:{width:420}},
+              h("div",{className:"modal-hdr"},h("h3",null,cmpModal.kind==='month'?"📅 مقارنة شهرين":cmpModal.kind==='prov'?"🏢 مقارنة محافظتين":"📈 مقارنة سنتين"),h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setCmpModal(null)},h(Ic,{n:"del",sz:12}))),
+              h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:14}},
+                cmpModal.kind==='month'&&h("div",{className:"fld"},h("label",null,"الشهر الأول"),h("select",{value:cmpModal.a,onChange:ev=>setCmpModal(m=>({...m,a:ev.target.value}))},h("option",{value:""},"اختار..."),...Object.keys(months).filter(k=>k!=='leaves').sort().map(k=>{const[y,mo]=k.split('-');return h("option",{key:k,value:k},MONTHS[+mo-1]+" "+y);}))),
+                cmpModal.kind==='month'&&h("div",{className:"fld"},h("label",null,"الشهر الثانى"),h("select",{value:cmpModal.b,onChange:ev=>setCmpModal(m=>({...m,b:ev.target.value}))},h("option",{value:""},"اختار..."),...Object.keys(months).filter(k=>k!=='leaves').sort().map(k=>{const[y,mo]=k.split('-');return h("option",{key:k,value:k},MONTHS[+mo-1]+" "+y);}))),
+                cmpModal.kind==='prov'&&h("div",{className:"fld"},h("label",null,"المحافظة الأولى"),h("select",{value:cmpModal.a,onChange:ev=>setCmpModal(m=>({...m,a:ev.target.value}))},h("option",{value:""},"اختار..."),...PROVS.map(p=>h("option",{key:p,value:p},p)))),
+                cmpModal.kind==='prov'&&h("div",{className:"fld"},h("label",null,"المحافظة الثانية"),h("select",{value:cmpModal.b,onChange:ev=>setCmpModal(m=>({...m,b:ev.target.value}))},h("option",{value:""},"اختار..."),...PROVS.map(p=>h("option",{key:p,value:p},p)))),
+                cmpModal.kind==='prov'&&h("div",{className:"fld"},h("label",null,"الشهر"),h("select",{value:cmpModal.extra,onChange:ev=>setCmpModal(m=>({...m,extra:ev.target.value}))},h("option",{value:""},"اختار..."),...Object.keys(months).filter(k=>k!=='leaves').sort().map(k=>{const[y,mo]=k.split('-');return h("option",{key:k,value:k},MONTHS[+mo-1]+" "+y);}))),
+                cmpModal.kind==='year'&&h("div",{className:"fld"},h("label",null,"السنة الأولى"),h("select",{value:cmpModal.a,onChange:ev=>setCmpModal(m=>({...m,a:ev.target.value}))},h("option",{value:""},"اختار..."),...[...new Set(Object.keys(months).filter(k=>k!=='leaves').map(k=>k.split('-')[0]))].sort().map(y=>h("option",{key:y,value:y},y)))),
+                cmpModal.kind==='year'&&h("div",{className:"fld"},h("label",null,"السنة الثانية"),h("select",{value:cmpModal.b,onChange:ev=>setCmpModal(m=>({...m,b:ev.target.value}))},h("option",{value:""},"اختار..."),...[...new Set(Object.keys(months).filter(k=>k!=='leaves').map(k=>k.split('-')[0]))].sort().map(y=>h("option",{key:y,value:y},y))))
+              ),
+              h("div",{className:"modal-ftr"},h("button",{className:"btn",onClick:()=>setCmpModal(null)},"إلغاء"),h("button",{style:{padding:"8px 18px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${cmpModal.c1},${cmpModal.c2})`,color:"#fff",boxShadow:`0 6px 18px ${cmpModal.c1}40`},onClick:()=>{
+                if(!cmpModal.a||!cmpModal.b){msg("اختار العنصرين أولاً","err");return;}
+                if(cmpModal.kind==='prov'&&!cmpModal.extra){msg("اختار الشهر","err");return;}
+                const w=window.open('','_blank','width=1000,height=800');if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
+                let title='',rows=[];
+                if(cmpModal.kind==='month'){
+                  const m1=months[cmpModal.a],m2=months[cmpModal.b];
+                  title=`${MONTHS[+cmpModal.a.split('-')[1]-1]} ${cmpModal.a.split('-')[0]} vs ${MONTHS[+cmpModal.b.split('-')[1]-1]} ${cmpModal.b.split('-')[0]}`;
+                  const sumE=m=>m?PROVS.reduce((s,p)=>s+(m.data?.[p]||[]).length,0):0;
+                  const sumP=m=>m?PROVS.reduce((s,p)=>s+(m.data?.[p]||[]).reduce((a,e)=>a+calc(e,m.cfg?.rate||300,m.cfg?.egp||52.5).tot,0),0):0;
+                  const sumX=m=>m?.expenses?(m.expenses.items||[]).reduce((s,it)=>s+(+it.usd||0),0):0;
+                  rows=[{k:'المهندسون',a:sumE(m1),b:sumE(m2)},{k:'الإعاشة ($)',a:sumP(m1).toFixed(2),b:sumP(m2).toFixed(2)},{k:'المصروفات ($)',a:sumX(m1).toFixed(2),b:sumX(m2).toFixed(2)}];
+                }else if(cmpModal.kind==='prov'){
+                  title=`${cmpModal.a} vs ${cmpModal.b} (${MONTHS[+cmpModal.extra.split('-')[1]-1]} ${cmpModal.extra.split('-')[0]})`;
+                  const m=months[cmpModal.extra];
+                  const cnt=p=>m?(m.data?.[p]||[]).length:0;
+                  const pay=p=>m?(m.data?.[p]||[]).reduce((s,e)=>s+calc(e,m.cfg?.rate||300,m.cfg?.egp||52.5).tot,0):0;
+                  rows=[{k:'المهندسون',a:cnt(cmpModal.a),b:cnt(cmpModal.b)},{k:'الإعاشة ($)',a:pay(cmpModal.a).toFixed(2),b:pay(cmpModal.b).toFixed(2)}];
+                }else{
+                  title=`${cmpModal.a} vs ${cmpModal.b}`;
+                  const sumY=y=>{let e=0,p=0,x=0;Object.entries(months).forEach(([k,m])=>{if(k==='leaves'||!k.startsWith(y+'-')||!m)return;PROVS.forEach(pr=>(m.data?.[pr]||[]).forEach(en=>{e++;p+=calc(en,m.cfg?.rate||300,m.cfg?.egp||52.5).tot;}));x+=(m.expenses?.items||[]).reduce((s,it)=>s+(+it.usd||0),0);});return{e,p,x};};
+                  const ya=sumY(cmpModal.a),yb=sumY(cmpModal.b);
+                  rows=[{k:'إجمالى المهندسين',a:ya.e,b:yb.e},{k:'إجمالى الإعاشة ($)',a:ya.p.toFixed(2),b:yb.p.toFixed(2)},{k:'إجمالى المصروفات ($)',a:ya.x.toFixed(2),b:yb.x.toFixed(2)}];
+                }
+                const trs=rows.map(r=>{const va=parseFloat(String(r.a).replace(/,/g,''))||0,vb=parseFloat(String(r.b).replace(/,/g,''))||0;const diff=vb-va,pct=va!==0?Math.round(diff/va*100):0;const arrow=diff>0?'<span style="color:#16a34a">↑ +'+pct+'%</span>':diff<0?'<span style="color:#dc2626">↓ '+pct+'%</span>':'<span style="color:#64748b">—</span>';return `<tr><td><strong>${r.k}</strong></td><td>${r.a}</td><td>${r.b}</td><td>${arrow}</td></tr>`;}).join('');
+                const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1A365D;color:#fff;padding:12px;text-align:right;font-weight:800}td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}</style></head><body><h1>⚖️ ${title}</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2><table><thead><tr><th>المؤشر</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.a.split('-')[1]-1]+' '+cmpModal.a.split('-')[0]:cmpModal.kind==='prov'?cmpModal.a:cmpModal.a}</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.b.split('-')[1]-1]+' '+cmpModal.b.split('-')[0]:cmpModal.kind==='prov'?cmpModal.b:cmpModal.b}</th><th>التغيير</th></tr></thead><tbody>${trs}</tbody></table></body></html>`;
+                w.document.write(html);w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
+                setCmpModal(null);
+              }},"⚡ إنشاء المقارنة"))
+            )
+          ),
+          /* ─── TAB 4: SETTINGS (admin only) ─── */
+          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"report",sz:13,c:"#2563EB"})),"إعدادات الكشف الرسمى")),
             h("div",{style:{padding:"14px 16px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}},
               [{k:"company",l:"اسم الشركة / الجهة",t:"text"},{k:"month",l:"الشهر (1-12)",t:"number"},{k:"year",l:"السنة",t:"number"},{k:"rate",l:"الإعاشة الشهرية ($)",t:"number"},{k:"egp",l:"سعر الصرف (ج.م/$)",t:"number"}]
               .map(({k,l,t})=>h("div",{key:k},h("label",{style:{fontSize:10,fontWeight:600,color:"var(--sub)",display:"block",marginBottom:4,letterSpacing:".2px",textTransform:"uppercase"}},l),h("input",{type:t,value:cfg[k],onChange:ev=>updCfg(k,ev.target.value),style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})))
             )
           ),
-          h("div",{className:"card"},
+          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"img",sz:13,c:"#D97706"})),"شعار الشركة على الـ PDF")),
             h("div",{style:{padding:"14px 16px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}},
               h("div",{className:"logo-preview",onClick:()=>logoRef.current?.click()},
@@ -6891,10 +7006,10 @@ ${PROVS.map(prov=>{
               )
             )
           ),
-          h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
+          reportTab==='settings'&&isAdmin&&h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
 
           /* ── Active users ── */
-          h("div",{className:"card"},
+          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(52,211,153,.1)"}},
@@ -6931,7 +7046,7 @@ ${PROVS.map(prov=>{
           ),
 
           /* ── User management ── */
-          h("div",{className:"card"},
+          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.12)"}},
