@@ -499,6 +499,22 @@ router.get('/activity', adminOnly, (req, res) => {
   res.json({ logs: rows });
 });
 
+router.delete('/activity', adminOnly, (req, res) => {
+  const { ids, byAction } = req.body || {};
+  const db = getDb();
+  let deleted = 0;
+  if (Array.isArray(ids) && ids.length > 0) {
+    const placeholders = ids.map(() => '?').join(',');
+    const result = db.prepare(`DELETE FROM activity_log WHERE id IN (${placeholders})`).run(...ids);
+    deleted += result.changes;
+  }
+  if (typeof byAction === 'string' && byAction.length > 0) {
+    const result = db.prepare('DELETE FROM activity_log WHERE action = ?').run(byAction);
+    deleted += result.changes;
+  }
+  res.json({ ok: true, deleted });
+});
+
 /* ── Server backups ──────────────────────────────────── */
 
 const BACKUP_DIR = process.env.DB_PATH

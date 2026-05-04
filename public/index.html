@@ -2105,6 +2105,9 @@ function App(){
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
   /* Engineer transfer modal: select engineer + target province + date */
   const [engTransferForm,setEngTransferForm]=useState({engId:'',toProv:'',date:''});
+  /* Debounce flag for transfer button (2s lock after each submit) */
+  const [transferring,setTransferring]=useState(false);
+  const transferringRef=useRef(false);
   const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
   const [fixedRents,setFixedRents]=useState([
     {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0,prov:''},
@@ -3064,6 +3067,8 @@ function App(){
   const transferEngineer=(engId,toProv,dateStr)=>{
     if(!isAdmin){msg('للأدمن فقط','err');return;}
     if(lockGuard())return;
+    /* Debounce: ignore rapid double-clicks within 2s */
+    if(transferringRef.current){msg('جارٍ تنفيذ النقل السابق...','err');return;}
     /* Find current location of engineer in active month */
     let fromProv=null,engRec=null;
     PROVS.forEach(p=>{const found=(data[p]||[]).find(e=>e.id===engId);if(found){fromProv=p;engRec=found;}});
@@ -3071,11 +3076,22 @@ function App(){
     if(fromProv===toProv){msg('المهندس بالفعل فى '+toProv,'err');return;}
     if(!toProv||!PROVS.includes(toProv)){msg('اختار المحافظة الجديدة','err');return;}
     if(!dateStr){msg('اختار تاريخ النقل','err');return;}
+    /* Anti-duplicate: reject if engineer already has transfer with same date+from+to */
+    const existingTransfers=engRec.transfers||[];
+    const isDup=existingTransfers.some(t=>t.date===dateStr&&t.from===fromProv&&t.to===toProv);
+    if(isDup){
+      msg('⚠️ هذا التنقل مسجل مسبقاً — نفس التاريخ ونفس المحافظتين','err');
+      return;
+    }
     const today=new Date();today.setHours(12,0,0,0);
     const tDate=new Date(dateStr+'T12:00');
     if(tDate<today){
       if(!confirm('تاريخ النقل فى الماضى — تصحيح بأثر رجعى. تأكيد؟'))return;
     }
+    /* Lock the transfer button for 2s to prevent rapid double-submit */
+    transferringRef.current=true;
+    setTransferring(true);
+    setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
     const transferEntry={from:fromProv,to:toProv,date:dateStr,by:user?.username||'admin',at:new Date().toISOString()};
     const nd=dc(data);
     /* Remove from old prov, push to new prov with updated transfers + prov */
@@ -5179,12 +5195,14 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
           h("button",{
             className:"btn blue",
-            disabled:!engTransferForm.engId||!engTransferForm.toProv,
+            disabled:!engTransferForm.engId||!engTransferForm.toProv||transferring,
+            style:transferring?{opacity:.5,cursor:"not-allowed"}:{},
             onClick:()=>{
+              if(transferring)return;
               const date=engTransferForm.date||(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
               transferEngineer(engTransferForm.engId,engTransferForm.toProv,date);
             }
-          },"🔄 تأكيد النقل")
+          },transferring?"⏳ جارٍ النقل...":"🔄 تأكيد النقل")
         )
       ),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
