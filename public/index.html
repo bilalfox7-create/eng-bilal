@@ -1986,6 +1986,8 @@ function App(){
   const [histYear,setHistYear]=useState(String(now.getFullYear()));
   const [orgSpecFilter,setOrgSpecFilter]=useState('all');
   const [reportTab,setReportTab]=useState('library');
+  /* Per-card month override in library tab. Each card uses its own key. Empty = use sensible default. */
+  const [libCardMonth,setLibCardMonth]=useState({comprehensive:'',attendance:'',disbursement:'',expenses:''});
   const [customRepForm,setCustomRepForm]=useState({fromDate:'',toDate:'',prov:'all',type:'all'});
   const [cmpModal,setCmpModal]=useState(null);
   const [attKey,setAttKey]=useState(()=>{const m=now.getMonth(),y=now.getFullYear();return m===0?mkKey(12,y-1):mkKey(m,y);});
@@ -3214,19 +3216,40 @@ function App(){
   },[pendingPrint,page]);
 
 
-  const exportPDF=(mode='print')=>{
+  const exportPDF=(mode='print',monthKey=null)=>{
     const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     const PL=["#eff6ff","#f0fdf4","#fffbeb","#f5f3ff"];
     const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
     const logoHtml=logo?`<img src="${logo}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:2px solid rgba(255,255,255,.2);" />`:'<div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;">🏗️</div>';
     const provColors=["#1d4ed8","#15803d","#b45309","#6d28d9"];
-    const rate=liveRate||cfg.egp||0;
+    /* If monthKey override is given and differs from active month, build local bundle */
+    const _useOverride=monthKey&&monthKey!==ak&&months[monthKey];
+    const _data=_useOverride?(months[monthKey].data||{}):data;
+    const _cfg=_useOverride?(months[monthKey].cfg||cfg):cfg;
+    const _mn=_useOverride?MONTHS[(_cfg.month||1)-1]:mn;
+    const _totals=_useOverride?PROVS.map(p=>(_data[p]||[]).reduce((a,e)=>{const c=calc(e,_cfg.rate,_cfg.egp);return{n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};},{n:0,a1:0,a2:0,tot:0,egp:0})):totals;
+    const _G=_useOverride?_totals.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0}):G;
+    const _allE=_useOverride?PROVS.flatMap(p=>(_data[p]||[]).map(e=>({...e,prov:p}))):allE;
+    const _exp=_useOverride?(months[monthKey].expenses||{custody:[],items:[],transfers:[]}):null;
+    const _custody=_useOverride?(_exp.custody||[]):custody;
+    const _expItems=_useOverride?(_exp.items||[]):expItems;
+    const _expTotals=_useOverride?{
+      itemsUSD:_expItems.reduce((a,e)=>a+(+e.usd||0),0),
+      itemsLYD:_expItems.reduce((a,e)=>a+(+e.lyd||0),0),
+      rentUSD:_expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.usd||0),0),
+      rentLYD:_expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.lyd||0),0),
+      msrfUSD:_expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.usd||0),0),
+      msrfLYD:_expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.lyd||0),0),
+      custTotalUSD:_custody.reduce((a,c)=>a+(+c.usd||0),0),
+      custTotalLYD:_custody.reduce((a,c)=>a+(+c.lyd||0),0),
+    }:expTotals;
+    const rate=liveRate||_cfg.egp||0;
     const provRows=PROVS.map((prov,pi)=>{
-      const engs=data[prov]||[];const T=totals[pi];
+      const engs=_data[prov]||[];const T=_totals[pi];
       const color=PC[pi];const light=PL[pi];const border=PB[pi];
       if(engs.length===0)return'';
       const rows=engs.map((e,i)=>{
-        const c=calc(e,cfg.rate,cfg.egp);
+        const c=calc(e,_cfg.rate,_cfg.egp);
         const bg=i%2===0?'#ffffff':'#f8fafc';
         const p1=isP1(e),p2=isP2(e);
         const badge=(paid)=>`<span style="background:${paid?"#dcfce7":"#fefce8"};color:${paid?"#15803d":"#b45309"};font-size:9px;padding:2px 6px;border-radius:100px;font-weight:700;">${paid?"✓":"⏳"}</span>`;
@@ -3298,15 +3321,15 @@ function App(){
       </div>`;
     }).join('');
 
-    const totalDays1=allE.reduce((a,e)=>a+e.d1,0);
-    const totalDays2=allE.reduce((a,e)=>a+e.d2,0);
+    const totalDays1=_allE.reduce((a,e)=>a+e.d1,0);
+    const totalDays2=_allE.reduce((a,e)=>a+e.d2,0);
     const summaryCards=[
-      {l:"إجمالى المهندسين",v:G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe"},
-      {l:"إجمالى النصف الأول",v:G.a1.toFixed(2)+" $",sub:(G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0"},
-      {l:"إجمالى النصف الثاني",v:G.a2.toFixed(2)+" $",sub:(G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe"},
-      {l:"الإجمالى الكلى ($)",v:G.tot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0"},
-      {l:"الإجمالى (ج.م)",v:G.egp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a"},
-      {l:"الإعاشة اليومية",v:(cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd"},
+      {l:"إجمالى المهندسين",v:_G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe"},
+      {l:"إجمالى النصف الأول",v:_G.a1.toFixed(2)+" $",sub:(_G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0"},
+      {l:"إجمالى النصف الثاني",v:_G.a2.toFixed(2)+" $",sub:(_G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe"},
+      {l:"الإجمالى الكلى ($)",v:_G.tot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0"},
+      {l:"الإجمالى (ج.م)",v:_G.egp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a"},
+      {l:"الإعاشة اليومية",v:(_cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd"},
     ].map(s=>`<div style="background:${s.bg};border:1.5px solid ${s.br};border-radius:10px;padding:12px 10px;text-align:center;flex:1;min-width:0;">
       <div style="font-size:16px;font-weight:800;color:${s.c};margin-bottom:${s.sub?2:4}px;">${s.v}</div>
       ${s.sub?`<div style="font-size:11px;font-weight:700;color:#b45309;margin-bottom:3px;">${s.sub}</div>`:''}
@@ -3317,7 +3340,7 @@ function App(){
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>كشف إعاشات – ${mn} ${cfg.year}</title>
+<title>كشف إعاشات – ${_mn} ${_cfg.year}</title>
 <style>
   @page{size:A4;margin:12mm 10mm}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -3333,7 +3356,7 @@ function App(){
 <body>
 
 <div class="print-bar no-print">
-  <div style="font-size:13px;font-weight:700;color:#1e293b;">كشف إعاشات – ${mn} ${cfg.year} · ${cfg.company}</div>
+  <div style="font-size:13px;font-weight:700;color:#1e293b;">كشف إعاشات – ${_mn} ${_cfg.year} · ${_cfg.company}</div>
   <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
 </div>
 
@@ -3345,16 +3368,16 @@ function App(){
       ${logoHtml}
       <div>
         <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:3px;letter-spacing:-.3px;">كشف إعاشات المهندسين</div>
-        <div style="color:rgba(255,255,255,.65);font-size:11px;font-weight:500;">${cfg.company}</div>
+        <div style="color:rgba(255,255,255,.65);font-size:11px;font-weight:500;">${_cfg.company}</div>
         <div style="display:flex;gap:8px;margin-top:6px;">
-          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الإعاشة: ${cfg.rate} $</span>
-          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الصرف: ${cfg.egp} ج.م/$</span>
+          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الإعاشة: ${_cfg.rate} $</span>
+          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الصرف: ${_cfg.egp} ج.م/$</span>
         </div>
       </div>
     </div>
     <div style="text-align:left;">
-      <div style="color:#fff;font-size:26px;font-weight:800;line-height:1;">${mn}</div>
-      <div style="color:#93c5fd;font-size:18px;font-weight:700;">${cfg.year}</div>
+      <div style="color:#fff;font-size:26px;font-weight:800;line-height:1;">${_mn}</div>
+      <div style="color:#93c5fd;font-size:18px;font-weight:700;">${_cfg.year}</div>
       <div style="color:rgba(255,255,255,.45);font-size:10px;margin-top:4px;">صدر: ${new Date().toLocaleDateString('ar-EG')}</div>
     </div>
   </div>
@@ -3374,7 +3397,7 @@ function App(){
   <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:2px solid #1e3a8a;box-shadow:0 4px 12px rgba(0,0,0,.1);break-inside:avoid;">
     <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:#fff;font-weight:700;font-size:13px;">📊 ملخص الصرف الإجمالى</span>
-      <span style="color:#93c5fd;font-size:12px;">${mn} ${cfg.year}</span>
+      <span style="color:#93c5fd;font-size:12px;">${_mn} ${_cfg.year}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;background:#fff;">
       <thead>
@@ -3387,33 +3410,33 @@ function App(){
       </thead>
       <tbody>
         <tr style="background:#eff6ff;">
-          <td style="padding:9px 12px;font-weight:600;color:#1e40af;">النصف الأول (1 – 15) – ${mn} ${cfg.year}</td>
+          <td style="padding:9px 12px;font-weight:600;color:#1e40af;">النصف الأول (1 – 15) – ${_mn} ${_cfg.year}</td>
           <td style="padding:9px 12px;text-align:center;font-weight:700;color:#1e40af;">${totalDays1} يوم</td>
-          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#1d4ed8;">${G.a1.toFixed(2)} $</td>
-          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(G.a1*cfg.egp).toFixed(0)} ج.م</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#1d4ed8;">${_G.a1.toFixed(2)} $</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(_G.a1*_cfg.egp).toFixed(0)} ج.م</td>
         </tr>
         <tr style="background:#f0fdf4;">
-          <td style="padding:9px 12px;font-weight:600;color:#166534;">النصف الثاني (16 – 30) – ${mn} ${cfg.year}</td>
+          <td style="padding:9px 12px;font-weight:600;color:#166534;">النصف الثاني (16 – 30) – ${_mn} ${_cfg.year}</td>
           <td style="padding:9px 12px;text-align:center;font-weight:700;color:#166534;">${totalDays2} يوم</td>
-          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#15803d;">${G.a2.toFixed(2)} $</td>
-          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(G.a2*cfg.egp).toFixed(0)} ج.م</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:800;color:#15803d;">${_G.a2.toFixed(2)} $</td>
+          <td style="padding:9px 12px;text-align:center;font-weight:700;color:#92400e;">${(_G.a2*_cfg.egp).toFixed(0)} ج.م</td>
         </tr>
         <tr style="background:#fefce8;border-top:2px solid #fde68a;">
-          <td style="padding:10px 12px;font-weight:800;color:#92400e;font-size:12px;">✦ الشهر كامل – ${mn} ${cfg.year}</td>
+          <td style="padding:10px 12px;font-weight:800;color:#92400e;font-size:12px;">✦ الشهر كامل – ${_mn} ${_cfg.year}</td>
           <td style="padding:10px 12px;text-align:center;font-weight:800;color:#92400e;">${totalDays1+totalDays2} يوم</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#0f172a;font-size:14px;">${G.tot.toFixed(2)} $</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#b45309;font-size:13px;">${G.egp.toFixed(0)} ج.م</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#0f172a;font-size:14px;">${_G.tot.toFixed(2)} $</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;color:#b45309;font-size:13px;">${_G.egp.toFixed(0)} ج.م</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  ${custody.length>0?`
+  ${_custody.length>0?`
   <!-- ═══ CUSTODY ═══ -->
   <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #ddd6fe;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
     <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:#fff;font-weight:700;font-size:13px;">🏦 العهدة</span>
-      <span style="color:rgba(255,255,255,.8);font-size:11px;">${custody.length} عهدة · ${mn} ${cfg.year}</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${_custody.length} عهدة · ${_mn} ${_cfg.year}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
       <thead>
@@ -3430,9 +3453,9 @@ function App(){
         </tr>
       </thead>
       <tbody>
-        ${custody.map((c,i)=>{
-          const spentUSD=expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.usd||0),0);
-          const spentLYD=expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.lyd||0),0);
+        ${_custody.map((c,i)=>{
+          const spentUSD=_expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.usd||0),0);
+          const spentLYD=_expItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.lyd||0),0);
           const remUSD=(+c.usd||0)-spentUSD;
           const remLYD=(+c.lyd||0)-spentLYD;
           const rowBg=i%2===0?"#ffffff":"#fafafa";
@@ -3452,23 +3475,23 @@ function App(){
         <tr style="background:#f5f3ff;border-top:2px solid #ddd6fe;">
           <td colspan="2" style="padding:8px 10px;font-weight:700;color:#5b21b6;">◆ إجمالى العهدة</td>
           <td></td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${expTotals.custTotalUSD.toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${expTotals.itemsUSD.toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(expTotals.custTotalUSD-expTotals.itemsUSD).toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${expTotals.custTotalLYD.toFixed(2)} د.ل</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${expTotals.itemsLYD.toFixed(2)} د.ل</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(expTotals.custTotalLYD-expTotals.itemsLYD).toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${_expTotals.custTotalUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${_expTotals.itemsUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(_expTotals.custTotalUSD-_expTotals.itemsUSD).toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#5b21b6;">${_expTotals.custTotalLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#dc2626;">${_expTotals.itemsLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${(_expTotals.custTotalLYD-_expTotals.itemsLYD).toFixed(2)} د.ل</td>
         </tr>
       </tbody>
     </table>
   </div>`:''}
 
-  ${expItems.filter(e=>e.type==="مصروف").length>0?`
+  ${_expItems.filter(e=>e.type==="مصروف").length>0?`
   <!-- ═══ EXPENSES ITEMS ═══ -->
   <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #bfdbfe;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
     <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:#fff;font-weight:700;font-size:13px;">💸 المصروفات</span>
-      <span style="color:rgba(255,255,255,.8);font-size:11px;">${expItems.filter(e=>e.type==="مصروف").length} بند · ${mn} ${cfg.year}</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${_expItems.filter(e=>e.type==="مصروف").length} بند · ${_mn} ${_cfg.year}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
       <thead>
@@ -3483,8 +3506,8 @@ function App(){
         </tr>
       </thead>
       <tbody>
-        ${expItems.filter(e=>e.type==="مصروف").map((e,i)=>{
-          const cust=custody.find(c=>c.id===e.custodyId);
+        ${_expItems.filter(e=>e.type==="مصروف").map((e,i)=>{
+          const cust=_custody.find(c=>c.id===e.custodyId);
           const rowBg=i%2===0?"#ffffff":"#fafafa";
           return `<tr style="background:${rowBg};">
             <td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${i+1}</td>
@@ -3498,20 +3521,20 @@ function App(){
         }).join('')}
         <tr style="background:#eff6ff;border-top:2px solid #bfdbfe;">
           <td colspan="4" style="padding:8px 10px;font-weight:700;color:#1d4ed8;">◆ إجمالى المصروفات</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#1d4ed8;">${expTotals.msrfUSD.toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${expTotals.msrfLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#1d4ed8;">${_expTotals.msrfUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${_expTotals.msrfLYD.toFixed(2)} د.ل</td>
           <td></td>
         </tr>
       </tbody>
     </table>
   </div>`:''}
 
-  ${expItems.filter(e=>e.type==="إيجار").length>0?`
+  ${_expItems.filter(e=>e.type==="إيجار").length>0?`
   <!-- ═══ RENTS ═══ -->
   <div style="margin-bottom:16px;border-radius:10px;overflow:hidden;border:1.5px solid #bbf7d0;box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
     <div style="background:linear-gradient(135deg,#15803d,#16a34a);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
       <span style="color:#fff;font-weight:700;font-size:13px;">🏠 الإيجارات</span>
-      <span style="color:rgba(255,255,255,.8);font-size:11px;">${expItems.filter(e=>e.type==="إيجار").length} بند · ${mn} ${cfg.year}</span>
+      <span style="color:rgba(255,255,255,.8);font-size:11px;">${_expItems.filter(e=>e.type==="إيجار").length} بند · ${_mn} ${_cfg.year}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;">
       <thead>
@@ -3526,8 +3549,8 @@ function App(){
         </tr>
       </thead>
       <tbody>
-        ${expItems.filter(e=>e.type==="إيجار").map((e,i)=>{
-          const cust=custody.find(c=>c.id===e.custodyId);
+        ${_expItems.filter(e=>e.type==="إيجار").map((e,i)=>{
+          const cust=_custody.find(c=>c.id===e.custodyId);
           const rowBg=i%2===0?"#ffffff":"#fafafa";
           return `<tr style="background:${rowBg};">
             <td style="padding:7px 10px;text-align:center;color:#94a3b8;border-bottom:1px solid #f1f5f9;">${i+1}</td>
@@ -3541,8 +3564,8 @@ function App(){
         }).join('')}
         <tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
           <td colspan="4" style="padding:8px 10px;font-weight:700;color:#15803d;">◆ إجمالى الإيجارات</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${expTotals.rentUSD.toFixed(2)} $</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${expTotals.rentLYD.toFixed(2)} د.ل</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#15803d;">${_expTotals.rentUSD.toFixed(2)} $</td>
+          <td style="padding:8px 10px;text-align:center;font-weight:800;color:#b45309;">${_expTotals.rentLYD.toFixed(2)} د.ل</td>
           <td></td>
         </tr>
       </tbody>
@@ -3573,7 +3596,7 @@ function App(){
 
   <!-- footer -->
   <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;font-size:9px;color:#94a3b8;">
-    نظام إعاشات المهندسين · ${cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+    نظام إعاشات المهندسين · ${_cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
   </div>
 
 </div>
@@ -4114,21 +4137,26 @@ ${provRows.length>1?`
     setTimeout(()=>{try{w.focus();}catch(e){}},200);
   };
 
-  /* ── Comprehensive monthly report (admin-only PDF) ── */
-  const generateMonthlyReport=(mode='print')=>{
+  /* ── Comprehensive monthly report (admin-only PDF) — disbursement+expenses use given month, attendance uses prev month ── */
+  const generateMonthlyReport=(mode='print',monthKey=null)=>{
     if(!isAdmin){msg('للأدمن فقط','err');return;}
     const w=window.open('','_blank','width=1000,height=800');
     if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
     const fmt=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});
     const fmtN=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:0});
-    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+    /* Override: if monthKey given, use that month's disbursement/expenses; attendance always uses month BEFORE the disbursement month */
+    const useKey=monthKey||ak;
+    const useM=months[useKey];
+    const _data=useM?.data||data;
+    const _cfg=useM?.cfg||cfg;
+    const M=_cfg.month||(now.getMonth()+1),Y=_cfg.year||now.getFullYear();
     const monthLabel=MONTHS[M-1]+' '+Y;
     const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
     // KPIs
-    const totalEngs=PROVS.reduce((a,p)=>a+(data[p]||[]).length,0);
-    const monthRate=+cfg.rate||300;
+    const totalEngs=PROVS.reduce((a,p)=>a+(_data[p]||[]).length,0);
+    const monthRate=+_cfg.rate||300;
     let paid1Engs=0,paid2Engs=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
-    PROVS.forEach(p=>{(data[p]||[]).forEach(e=>{
+    PROVS.forEach(p=>{(_data[p]||[]).forEach(e=>{
       const dr=monthRate/30;
       const a1=(+e.d1||0)*dr,a2=(+e.d2||0)*dr;
       if(isP1(e)){paid1Engs++;paid1USD+=a1;}else{unpaid1USD+=a1;}
@@ -4144,8 +4172,8 @@ ${provRows.length>1?`
     const attM=months[attK];
     const attData=attM?.attendance||{};
     const totalAttDays=Object.values(attData).reduce((a,d)=>a+Object.values(d).filter(x=>x?.s==='P').length,0);
-    // Expenses for current month
-    const monthExp=months[ak]?.expenses||{custody:[],items:[],transfers:[]};
+    // Expenses for chosen disbursement month
+    const monthExp=useM?.expenses||{custody:[],items:[],transfers:[]};
     const monthExpItems=monthExp.items||[];
     const monthCustody=monthExp.custody||[];
     const expByCat={};
@@ -4211,7 +4239,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     ${logoSrc?`<img src="${logoSrc}" alt="logo"/>`:''}
     <div>
       <h1>التقرير الشهري الشامل</h1>
-      <div class="sub">${cfg.company||'شركة المشاريع الليبية'} — ${monthLabel}</div>
+      <div class="sub">${_cfg.company||'شركة المشاريع الليبية'} — ${monthLabel}</div>
     </div>
   </div>
   <div class="report-hdr-r">طُبع في: ${today}</div>
@@ -4230,7 +4258,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
-        const engs=data[p]||[];
+        const engs=_data[p]||[];
         const p1=engs.filter(e=>isP1(e)).length;
         const p2=engs.filter(e=>isP2(e)).length;
         const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0);
@@ -4302,7 +4330,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 </div>
 
 <div class="footer">
-  تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${cfg.company||''}
+  تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${_cfg.company||''}
 </div>
 </body></html>`;
     w.document.write(html);
@@ -4340,9 +4368,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 
   const _pdfShellCss=()=>`@page{size:A4;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;padding:18px;line-height:1.5}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35)}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #E2E8F0;padding:6px 8px;text-align:right}th{background:#F8FAFC;font-weight:800;color:#475569}.empty{padding:30px;text-align:center;color:#94A3B8;font-style:italic;font-size:12px;border:1.5px dashed #CBD5E1;border-radius:10px;margin:20px 0}.section{margin-bottom:18px}.section-title{font-size:14px;font-weight:900;color:#1E3A8A;padding:8px 12px;background:#F8FAFC;border-right:4px solid #2563EB;border-radius:4px;margin-bottom:10px}`;
 
-  /* ── Attendance PDF (current month) ── */
-  const printAttendancePDF=(mode='print')=>{
-    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+  /* ── Attendance PDF (defaults to PREVIOUS month — attendance is recorded for prev month at start of current month) ── */
+  const printAttendancePDF=(mode='print',monthKey=null)=>{
+    /* Default: use attKey (previous month). Fall back to current ak if no override and attKey missing data */
+    const useKey=monthKey||attKey;
+    const useM=months[useKey];
+    const _data=useM?.data||data;
+    const _att=useM?.attendance||{};
+    const _cfg=useM?.cfg||cfg;
+    const M=_cfg.month||(now.getMonth()+1),Y=_cfg.year||now.getFullYear();
     const monthLabel=MONTHS[M-1]+' '+Y;
     const daysInMonth=new Date(Y,M,0).getDate();
     const days=Array.from({length:daysInMonth},(_,i)=>i+1);
@@ -4353,10 +4387,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     const visibleProvs=isProvince?[userProv]:PROVS;
     let totalP=0,totalA=0,totalLv=0;
     const provBlocks=visibleProvs.map(prov=>{
-      const engs=data[prov]||[];
+      const engs=_data[prov]||[];
       if(!engs.length)return '';
       const rows=engs.map(eng=>{
-        const eAtt=att[eng.id]||{};
+        const eAtt=_att[eng.id]||{};
         let p=0,a=0,lv=0;
         const cells=days.map(d=>{
           const dd=eAtt[d];const st=dd?.s;const fri=isFri(d);
@@ -4376,13 +4410,21 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     _openPdfWin(html,mode);
   };
 
-  /* ── Expenses PDF (custody + items + transfers, all months for admin) ── */
-  const printExpensesPDF=(mode='print')=>{
+  /* ── Expenses PDF (defaults to current month ak; pass monthKey to override or pass 'all' for aggregated) ── */
+  const printExpensesPDF=(mode='print',monthKey=null)=>{
     const fmt=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});
     const fmtN=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:0});
-    const cust=isProvince?aggCustody.filter(c=>c.prov===userProv):aggCustody;
-    const items=isProvince?aggExpItems.filter(e=>e.prov===userProv):aggExpItems;
-    const trfs=isProvince?aggTransfers.filter(t=>t.prov===userProv):aggTransfers;
+    const useKey=monthKey||ak;
+    const isAll=useKey==='all';
+    const useM=months[useKey];
+    /* Source arrays: 'all' uses aggregated; specific month uses that month's expenses block */
+    const baseCust=isAll?aggCustody:(useM?.expenses?.custody||[]).map(c=>({...c,monthKey:useKey}));
+    const baseItems=isAll?aggExpItems:(useM?.expenses?.items||[]).map(e=>({...e,monthKey:useKey}));
+    const baseTrfs=isAll?aggTransfers:(useM?.expenses?.transfers||[]).map(t=>({...t,monthKey:useKey}));
+    const cust=isProvince?baseCust.filter(c=>c.prov===userProv):baseCust;
+    const items=isProvince?baseItems.filter(e=>e.prov===userProv):baseItems;
+    const trfs=isProvince?baseTrfs.filter(t=>t.prov===userProv):baseTrfs;
+    const monthLabel=isAll?'كل الشهور':(useM?.cfg?MONTHS[(useM.cfg.month||1)-1]+' '+useM.cfg.year:useKey);
     const totC_USD=cust.reduce((a,c)=>a+(+c.usd||0),0);
     const totC_LYD=cust.reduce((a,c)=>a+(+c.lyd||0),0);
     const totI_USD=items.reduce((a,e)=>a+(+e.usd||0),0);
@@ -4400,7 +4442,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     const sCust=cust.length?`<div class="section"><div class="section-title">💰 العهد المستلمة (${cust.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th>المصدر</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th><th>ملاحظات</th></tr></thead><tbody>${cust.map(c=>`<tr><td>${c.date||'—'}</td><td>${(c.prov||'').replace('محافظة ','')}</td><td>${c.responsible||'—'}</td><td>${c.source||'—'}</td><td style="text-align:center;font-weight:700;color:#059669">${fmt(c.usd||0)}</td><td style="text-align:center;font-weight:700;color:#15803D">${fmtN(c.lyd||0)}</td><td style="font-size:10px;color:#64748B">${c.notes||''}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="4">الإجمالى</td><td style="text-align:center;color:#059669">${fmt(totC_USD)} $</td><td style="text-align:center;color:#15803D">${fmtN(totC_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
     const sItems=items.length?`<div class="section"><div class="section-title">💸 المصروفات والإيجارات (${items.length})</div><table><thead><tr><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>الوصف</th><th>المحافظة</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th></tr></thead><tbody>${items.map(e=>`<tr><td>${e.date||'—'}</td><td><span style="background:${e.type==='إيجار'?'#FEF3C7':'#FEE2E2'};color:${e.type==='إيجار'?'#92400E':'#991B1B'};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${e.type||'—'}</span></td><td>${e.category||'—'}</td><td>${e.desc||'—'}</td><td>${(e.prov||'').replace('محافظة ','')}</td><td style="text-align:center;font-weight:700;color:#DC2626">${fmt(e.usd||0)}</td><td style="text-align:center;font-weight:700;color:#B91C1C">${fmtN(e.lyd||0)}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="5">الإجمالى</td><td style="text-align:center;color:#DC2626">${fmt(totI_USD)} $</td><td style="text-align:center;color:#B91C1C">${fmtN(totI_LYD)} د.ل</td></tr></tbody></table></div>`:'';
     const sTrfs=trfs.length?`<div class="section"><div class="section-title">🔄 التحويلات (${trfs.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th style="text-align:center">من ($)</th><th style="text-align:center">إلى (د.ل)</th><th style="text-align:center">السعر</th></tr></thead><tbody>${trfs.map(t=>`<tr><td>${t.date||'—'}</td><td>${(t.prov||'').replace('محافظة ','')}</td><td>${t.responsible||'—'}</td><td style="text-align:center;font-weight:700;color:#D97706">${fmt(t.usd||0)}</td><td style="text-align:center;font-weight:700;color:#92400E">${fmtN(t.lyd||0)}</td><td style="text-align:center;font-size:10px;color:#64748B">${t.usd>0?(t.lyd/t.usd).toFixed(2):'—'}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="3">الإجمالى</td><td style="text-align:center;color:#D97706">${fmt(totT_USD)} $</td><td style="text-align:center;color:#92400E">${fmtN(totT_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
-    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير المصروفات</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير العهدة والمصروفات','العهد + الإيجارات + التحويلات + الرصيد المتبقى')}${summary}${sCust||'<div class="empty">لا توجد عهد مسجلة</div>'}${sItems}${sTrfs}</body></html>`;
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير المصروفات — ${monthLabel}</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير العهدة والمصروفات','العهد + الإيجارات + التحويلات + الرصيد المتبقى · '+monthLabel)}${summary}${sCust||'<div class="empty">لا توجد عهد مسجلة</div>'}${sItems}${sTrfs}</body></html>`;
     _openPdfWin(html,mode);
   };
 
@@ -4465,9 +4507,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     _openPdfWin(html,mode);
   };
 
-  /* ── Wrappers for existing PDFs (now accept mode for preview/print) ── */
-  const printDisbursementPDF=(mode='print')=>exportPDF(mode);
-  const printComprehensivePDF=(mode='print')=>generateMonthlyReport(mode);
+  /* ── Wrappers for existing PDFs (now accept mode + monthKey) ── */
+  const printDisbursementPDF=(mode='print',monthKey=null)=>exportPDF(mode,monthKey);
+  const printComprehensivePDF=(mode='print',monthKey=null)=>generateMonthlyReport(mode,monthKey);
 
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
@@ -7038,27 +7080,46 @@ ${PROVS.map(prov=>{
             })
           ),
           /* ─── TAB 1: LIBRARY ─── */
-          reportTab==='library'&&h("div",{key:"rep-lib",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
-            [
-              {id:'comprehensive',title:'التقرير الشامل',icon:'📊',desc:'ملخص شامل لمهندسين وحضور وإعاشة ومصروفات وإجازات',c1:'#6366f1',c2:'#8b5cf6',gen:printComprehensivePDF,adminOnly:true},
-              {id:'attendance',title:'تقرير الحضور',icon:'✅',desc:'تفصيل أيام الحضور والغياب لكل مهندس بالشهر',c1:'#10b981',c2:'#059669',gen:printAttendancePDF},
-              {id:'disbursement',title:'تقرير الإعاشة',icon:'💵',desc:'d1 + d2 + الإضافات لكل مهندس مع الإجمالى',c1:'#f59e0b',c2:'#d97706',gen:printDisbursementPDF},
-              {id:'expenses',title:'تقرير المصروفات',icon:'💰',desc:'العهد والإيجارات والتحويلات والرصيد المتبقى',c1:'#ec4899',c2:'#db2777',gen:printExpensesPDF},
-              {id:'leaves',title:'تقرير الإجازات',icon:'✈️',desc:'كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ',c1:'#7F77DD',c2:'#5b51c7',gen:printLeavesPDF},
-              {id:'provinces',title:'تقرير المحافظات',icon:'🏢',desc:'إحصائيات كل محافظة (مهندسين، مشاريع، فِرَق)',c1:'#14b8a6',c2:'#0d9488',gen:printOrgPDF}
-            ].filter(r=>!r.adminOnly||isAdmin).map(r=>h("div",{key:r.id,style:{padding:"20px",background:`linear-gradient(135deg,${r.c1}15,${r.c2}08)`,border:`1px solid ${r.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden",boxShadow:`0 8px 28px ${r.c1}20`}},
-              h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${r.c1}30,transparent 70%)`,pointerEvents:"none"}}),
-              h("div",{style:{position:"relative"}},
-                h("div",{style:{width:54,height:54,borderRadius:14,background:`linear-gradient(135deg,${r.c1},${r.c2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12,boxShadow:`0 8px 22px ${r.c1}50`}},r.icon),
-                h("div",{style:{fontSize:15,fontWeight:900,color:"var(--text)",marginBottom:6}},r.title),
-                h("div",{style:{fontSize:11,color:"var(--sub)",lineHeight:1.6,marginBottom:14,minHeight:48}},r.desc),
-                h("div",{style:{display:"flex",gap:6}},
-                  h("button",{onClick:()=>r.gen('print'),title:"إنشاء وطباعة PDF",style:{flex:1,padding:"9px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${r.c1},${r.c2})`,color:"#fff",boxShadow:`0 6px 18px ${r.c1}40`}},"📄 إنشاء PDF"),
-                  h("button",{onClick:()=>r.gen('preview'),title:"معاينة قبل التحميل",style:{flexShrink:0,width:42,padding:"9px 0",border:`1px solid ${r.c1}55`,borderRadius:10,fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer",background:"rgba(255,255,255,.06)",color:r.c1}},"👁")
-                )
-              )
-            ))
-          ),
+          reportTab==='library'&&(()=>{
+            const sortedMonthKeys=Object.keys(months).filter(k=>k!=='leaves').sort().reverse();
+            const monthOpts=sortedMonthKeys.map(k=>{const[y,mo]=k.split('-');return {key:k,label:MONTHS[+mo-1]+' '+y};});
+            /* Default month per card based on the rule */
+            const defaultMonth={comprehensive:ak,attendance:attKey,disbursement:ak,expenses:ak};
+            const monthLabel=k=>monthOpts.find(o=>o.key===k)?.label||k;
+            const cards=[
+              {id:'comprehensive',title:'التقرير الشامل',icon:'📊',desc:'ملخص شامل لمهندسين وحضور وإعاشة ومصروفات وإجازات',c1:'#6366f1',c2:'#8b5cf6',gen:printComprehensivePDF,adminOnly:true,hasMonth:true,note:'الشهر يحدد الإعاشة والمصروفات؛ الحضور يطلع للشهر السابق تلقائياً'},
+              {id:'attendance',title:'تقرير الحضور',icon:'✅',desc:'تفصيل أيام الحضور والغياب لكل مهندس بالشهر',c1:'#10b981',c2:'#059669',gen:printAttendancePDF,hasMonth:true,note:'الافتراضى: الشهر السابق (الحضور بيتسجل أول كل شهر)'},
+              {id:'disbursement',title:'تقرير الإعاشة',icon:'💵',desc:'d1 + d2 + الإضافات لكل مهندس مع الإجمالى',c1:'#f59e0b',c2:'#d97706',gen:printDisbursementPDF,hasMonth:true,note:'الافتراضى: الشهر الحالى'},
+              {id:'expenses',title:'تقرير المصروفات',icon:'💰',desc:'العهد والإيجارات والتحويلات والرصيد المتبقى',c1:'#ec4899',c2:'#db2777',gen:printExpensesPDF,hasMonth:true,note:'الافتراضى: الشهر الحالى'},
+              {id:'leaves',title:'تقرير الإجازات',icon:'✈️',desc:'كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ',c1:'#7F77DD',c2:'#5b51c7',gen:printLeavesPDF,hasMonth:false,note:'snapshot لكل الإجازات النشطة'},
+              {id:'provinces',title:'تقرير المحافظات',icon:'🏢',desc:'إحصائيات كل محافظة (مهندسين، مشاريع، فِرَق)',c1:'#14b8a6',c2:'#0d9488',gen:printOrgPDF,hasMonth:false,note:'snapshot للهيكل التنظيمى'}
+            ];
+            const visibleCards=cards.filter(r=>!r.adminOnly||isAdmin);
+            return h("div",{key:"rep-lib",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
+              visibleCards.map(r=>{
+                const effectiveMonth=r.hasMonth?(libCardMonth[r.id]||defaultMonth[r.id]):null;
+                return h("div",{key:r.id,style:{padding:"20px",background:`linear-gradient(135deg,${r.c1}15,${r.c2}08)`,border:`1px solid ${r.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden",boxShadow:`0 8px 28px ${r.c1}20`}},
+                  h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${r.c1}30,transparent 70%)`,pointerEvents:"none"}}),
+                  h("div",{style:{position:"relative"}},
+                    h("div",{style:{width:54,height:54,borderRadius:14,background:`linear-gradient(135deg,${r.c1},${r.c2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12,boxShadow:`0 8px 22px ${r.c1}50`}},r.icon),
+                    h("div",{style:{fontSize:15,fontWeight:900,color:"var(--text)",marginBottom:6}},r.title),
+                    h("div",{style:{fontSize:11,color:"var(--sub)",lineHeight:1.6,marginBottom:r.hasMonth?10:14,minHeight:r.hasMonth?40:48}},r.desc),
+                    r.hasMonth&&h("div",{style:{marginBottom:10}},
+                      h("div",{style:{fontSize:9,color:r.c1,fontWeight:800,marginBottom:4,letterSpacing:".3px"}},"📅 الشهر"),
+                      h("select",{value:effectiveMonth,onChange:ev=>setLibCardMonth(s=>({...s,[r.id]:ev.target.value})),style:{width:"100%",padding:"7px 10px",border:`1px solid ${r.c1}55`,borderRadius:8,background:"rgba(255,255,255,.06)",color:"var(--text)",fontSize:11,fontFamily:"inherit",fontWeight:700,cursor:"pointer"}},
+                        monthOpts.length===0?h("option",{value:""},"لا توجد بيانات"):monthOpts.map(o=>h("option",{key:o.key,value:o.key},o.label))
+                      ),
+                      r.note&&h("div",{style:{fontSize:9,color:"var(--sub)",marginTop:4,opacity:.7,lineHeight:1.5}},r.note)
+                    ),
+                    h("div",{style:{display:"flex",gap:6}},
+                      h("button",{onClick:()=>r.gen('print',effectiveMonth),title:"إنشاء وطباعة PDF",style:{flex:1,padding:"9px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${r.c1},${r.c2})`,color:"#fff",boxShadow:`0 6px 18px ${r.c1}40`}},"📄 إنشاء PDF"),
+                      h("button",{onClick:()=>r.gen('preview',effectiveMonth),title:"معاينة قبل التحميل",style:{flexShrink:0,width:42,padding:"9px 0",border:`1px solid ${r.c1}55`,borderRadius:10,fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer",background:"rgba(255,255,255,.06)",color:r.c1}},"👁")
+                    )
+                  )
+                );
+              })
+            );
+          })(),
           /* ─── TAB 2: CUSTOM ─── */
           reportTab==='custom'&&h("div",{key:"rep-cust",style:{padding:"24px 26px",background:"linear-gradient(135deg,rgba(99,102,241,.10),rgba(139,92,246,.06))",border:"1px solid rgba(139,92,246,.25)",borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
             h("div",{style:{position:"absolute",top:-40,right:-40,width:160,height:160,background:"radial-gradient(circle,rgba(139,92,246,.25),transparent 70%)",pointerEvents:"none"}}),
