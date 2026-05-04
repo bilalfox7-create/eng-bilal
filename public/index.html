@@ -5243,7 +5243,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 [
                   isAdmin&&{icon:'👤',label:'إضافة مهندس',c1:'#6366f1',c2:'#8b5cf6',action:()=>{setForm({prov:isProvince?userProv:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");}},
                   isAdmin&&{icon:'💰',label:'إضافة عهدة',c1:'#10b981',c2:'#059669',action:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}},
-                  (isAdmin||isProvince)&&{icon:'💸',label:'إضافة مصروف',c1:'#ec4899',c2:'#db2777',action:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}},
+                  isAdmin&&{icon:'💸',label:'إضافة مصروف',c1:'#ec4899',c2:'#db2777',action:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}},
                   (isAdmin||isProvince)&&{icon:'✈️',label:'طلب إجازة جديد',c1:'#f59e0b',c2:'#d97706',action:()=>{setPage('leaves');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}}
                 ].filter(Boolean).map((a,i)=>h("div",{
                   key:i,
