@@ -2458,6 +2458,48 @@ function App(){
     }
     return total?inProv/total:0;
   };
+  /* Returns engineers who were in `prov` for ANY day in (year, month).
+     For each, attaches:
+       - currentProv: where they currently live in data[]
+       - daysInProvSet: Set of days (1..N) they were in `prov`
+       - inProv1to15, inProv16toEnd: # of days in each half
+       - d1Ratio, d2Ratio: proportion of [1,15] and [16,end] window
+       - hasTransfer, isReadOnlyHere: bool flags
+       - d1Split, d2Split: proportional d1/d2 (number, rounded)
+  ──────────────────────────────────────────────────────────── */
+  const engsInProvDuringMonth=(prov,year,month,monthData)=>{
+    const out=[];
+    const dim=new Date(year,month,0).getDate();
+    const half2Len=dim-15;
+    const provs=Array.isArray(PROVS)?PROVS:[];
+    provs.forEach(p=>(monthData?.[p]||[]).forEach(eng=>{
+      const segs=engSegmentsInMonth(eng,year,month,p);
+      const seg=segs.find(s=>s.prov===prov);
+      if(!seg)return;
+      const daysSet=new Set(seg.days);
+      const inH1=seg.days.filter(d=>d<=15).length;
+      const inH2=seg.days.filter(d=>d>15).length;
+      const d1Ratio=inH1/15;
+      const d2Ratio=half2Len?inH2/half2Len:0;
+      const d1Split=Math.round((+eng.d1||0)*d1Ratio);
+      const d2Split=Math.round((+eng.d2||0)*d2Ratio);
+      const isReadOnlyHere=p!==prov; /* engineer's primary record is in another prov */
+      out.push({
+        ...eng,
+        currentProv:p,
+        daysInProvSet:daysSet,
+        daysInProv:seg.days,
+        firstDay:seg.first,
+        lastDay:seg.last,
+        inH1,inH2,d1Ratio,d2Ratio,
+        d1Split,d2Split,
+        hasTransfer:(eng.transfers||[]).length>0,
+        isReadOnlyHere,
+        splitInfo:isReadOnlyHere?{currentProv:p,days:seg.days}:null
+      });
+    }));
+    return out;
+  };
   const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{
     const inc=getIncomingExtra(e.id,p);
     const c=calc(e,cfg.rate,cfg.egp,inc);
@@ -6267,7 +6309,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             ))
           ),
           !search&&PROVS.filter(p=>!isProvince||p===userProv).map((prov,_,arr)=>{
-            const pi=PROVS.indexOf(prov),engs=data[prov]||[],T=totals[pi],color=PCOLS[pi],maxTv=!isProvince?maxT:T.tot||1;
+            const pi=PROVS.indexOf(prov),color=PCOLS[pi];
+            /* Use transfer-aware list: includes engineers transferred IN/OUT during this month with split d1/d2 */
+            const engs=engsInProvDuringMonth(prov,cfg.year,cfg.month,data);
+            /* Recompute prov totals from the split list (each engineer contributes only their portion) */
+            const T=engs.reduce((a,e)=>{
+              const dr=(+cfg.rate||300)/30;
+              const a1=(e.d1Split||0)*dr;
+              const a2=(e.d2Split||0)*dr;
+              const tot=a1+a2;
+              const egp=tot*(+cfg.egp||0);
+              return{p:prov,n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,tot:a.tot+tot,egp:a.egp+egp};
+            },{p:prov,n:0,a1:0,a2:0,tot:0,egp:0});
+            const maxTv=!isProvince?maxT:T.tot||1;
             return h("div",{key:prov,className:"card",style:{borderTop:`2.5px solid ${color}`}},
               h("div",{className:"prov-hdr"},
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
@@ -6282,15 +6336,22 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const inc=getIncomingExtra(e.id,prov);
-                    const c=calc(e,cfg.rate,cfg.egp,inc);
+                    /* For split engineers, use the d1Split/d2Split portions to calc instead of raw d1/d2 */
+                    const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
+                    const effD1=isSplit?e.d1Split:(+e.d1||0);
+                    const effD2=isSplit?e.d2Split:(+e.d2||0);
+                    const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:e.extra},cfg.rate,cfg.egp,isSplit?0:inc);
                     const p1=isP1(e),p2=isP2(e);
-                    const rowBg=p1&&p2?"rgba(52,211,153,.10)":(p1||p2)?"rgba(252,211,77,.06)":i%2===0?"rgba(255,255,255,.015)":"";
-                    return h("tr",{key:e.id,style:{background:rowBg}},
+                    const rowBg=e.isReadOnlyHere?"rgba(139,92,246,.05)":p1&&p2?"rgba(52,211,153,.10)":(p1||p2)?"rgba(252,211,77,.06)":i%2===0?"rgba(255,255,255,.015)":"";
+                    return h("tr",{key:e.id+'-'+prov,style:{background:rowBg}},
                       h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
-                        h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
+                        h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov:e.currentProv||prov});setEpTab('info');}},e.name),
                         (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})(),
-                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي"),
+                        /* Tenure badge: shows day range engineer was in this prov during the month */
+                        isSplit&&h("span",{title:`فى ${prov} من يوم ${e.firstDay} إلى ${e.lastDay} (${e.daysInProv.length} يوم)`,style:{display:"inline-block",fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"📅 يوم ",e.firstDay,"–",e.lastDay),
+                        e.isReadOnlyHere&&h("span",{title:`المهندس فى ${e.currentProv} حالياً — البيانات للقراءة فقط هنا`,style:{display:"inline-block",fontSize:9,padding:"2px 7px",borderRadius:100,background:"rgba(148,163,184,.15)",border:"1px solid rgba(148,163,184,.35)",color:"#94a3b8",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"🔒 قراءة فقط"),
+                        (+e.extra||0)>0&&!isSplit&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي"),
                         /* Recent transfer indicator (within current month) */
                         (()=>{
                           const ts=getTransfers(e);
@@ -6307,8 +6368,17 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
                       h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
-                        h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB"},min:0,max:15,value:e.d1,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d1",ev.target.value)}),
-                        inc>0&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
+                        h("input",{
+                          type:"number",className:"day-inp",
+                          style:{borderColor:isSplit?"#a78bfa":"#2563EB",opacity:isSplit?.85:1},
+                          min:0,max:isSplit?e.inH1:15,
+                          value:effD1,
+                          readOnly:isSplit||(!isAdmin&&!isProvince),
+                          disabled:isSplit||(!isAdmin&&!isProvince),
+                          title:isSplit?`d1 محسوب تلقائياً من ${e.inH1} يوم فى ${prov} × ${(e.d1Ratio*100).toFixed(0)}%`:undefined,
+                          onChange:ev=>updData(e.currentProv||prov,e.id,"d1",ev.target.value)
+                        }),
+                        inc>0&&!isSplit&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
                       )),
                       h("td",null,
                         h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
@@ -6317,12 +6387,21 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         )
                       ),
                       h("td",null,
-                        h("span",{className:`paid-badge ${p1?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid1(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
+                        h("span",{className:`paid-badge ${p1?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)&&!e.isReadOnlyHere?"pointer":"default",opacity:e.isReadOnlyHere?.6:1},onClick:(isAdmin||isProvince)&&!e.isReadOnlyHere?()=>togglePaid1(e.currentProv||prov,e.id):undefined,title:e.isReadOnlyHere?`الحالة تُدار من ${e.currentProv}`:(isAdmin||isProvince)?"اضغط للتغيير":""},
                           h(Ic,{n:p1?"paid":"clock",sz:11}),
                           p1?"مدفوع":"معلق"
                         )
                       ),
-                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#16A34A"},min:0,max:15,value:e.d2,readOnly:!isAdmin&&!isProvince,disabled:!isAdmin&&!isProvince,onChange:ev=>updData(prov,e.id,"d2",ev.target.value)})),
+                      h("td",null,h("input",{
+                        type:"number",className:"day-inp",
+                        style:{borderColor:isSplit?"#a78bfa":"#16A34A",opacity:isSplit?.85:1},
+                        min:0,max:isSplit?e.inH2:15,
+                        value:effD2,
+                        readOnly:isSplit||(!isAdmin&&!isProvince),
+                        disabled:isSplit||(!isAdmin&&!isProvince),
+                        title:isSplit?`d2 محسوب تلقائياً من ${e.inH2} يوم فى ${prov} × ${(e.d2Ratio*100).toFixed(0)}%`:undefined,
+                        onChange:ev=>updData(e.currentProv||prov,e.id,"d2",ev.target.value)
+                      })),
                       h("td",null,
                         h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                           h("span",{style:{color:"#16A34A",fontWeight:700,fontSize:12}},c.a2.toFixed(1)+" $"),
@@ -6330,16 +6409,16 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         )
                       ),
                       h("td",null,
-                        h("span",{className:`paid-badge ${p2?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)?"pointer":"default"},onClick:(isAdmin||isProvince)?()=>togglePaid2(prov,e.id):undefined,title:(isAdmin||isProvince)?"اضغط للتغيير":""},
+                        h("span",{className:`paid-badge ${p2?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)&&!e.isReadOnlyHere?"pointer":"default",opacity:e.isReadOnlyHere?.6:1},onClick:(isAdmin||isProvince)&&!e.isReadOnlyHere?()=>togglePaid2(e.currentProv||prov,e.id):undefined,title:e.isReadOnlyHere?`الحالة تُدار من ${e.currentProv}`:(isAdmin||isProvince)?"اضغط للتغيير":""},
                           h(Ic,{n:p2?"paid":"clock",sz:11}),
                           p2?"مدفوع":"معلق"
                         )
                       ),
                       h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
                       h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
-                      isAdmin&&h("td",null,h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
-                        h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
-                        h("button",{className:"btn-icon del",onClick:()=>delEng(prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
+                      isAdmin&&h("td",null,!e.isReadOnlyHere&&h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
+                        h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov:e.currentProv||prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
+                        h("button",{className:"btn-icon del",onClick:()=>delEng(e.currentProv||prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
                       ))
                     );
                   }),
@@ -6686,7 +6765,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const cfg=attCfg,data=attData,att=attAtt,mn=attMn;
           const daysInMonth=new Date(cfg.year,cfg.month,0).getDate();
           const days=Array.from({length:daysInMonth},(_,i)=>i+1);
-          const provEngs=data[attProv]||[];
+          /* Use transfer-aware list so engineers who were in this prov during the month
+             show up here (with day-cells limited to their tenure days). */
+          const provEngs=engsInProvDuringMonth(attProv,cfg.year,cfg.month,data);
           const isWknd=d=>new Date(cfg.year,cfg.month-1,d).getDay()===5; /* الجمعة فقط */
           const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
           const todayD=cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear()?now.getDate():null;
@@ -7081,7 +7162,14 @@ ${PROVS.map(prov=>{
                             h("div",{className:"att-td-name-inner"},
                               h("input",{type:"checkbox",className:"att-chk",checked:attSelected.has(eng.id),onChange:()=>toggleSel(eng.id)}),
                               h("div",{className:"att-td-name-body"},
-                                h("div",{className:"att-td-eng"},eng.name),
+                                h("div",{className:"att-td-eng",style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}},
+                                  eng.name,
+                                  /* Transfer indicator if engineer was transferred during this month */
+                                  eng.hasTransfer&&(eng.firstDay>1||eng.lastDay<daysInMonth)&&h("span",{
+                                    title:`المهندس فى ${attProv} من يوم ${eng.firstDay} إلى يوم ${eng.lastDay} (${eng.daysInProv.length} يوم)`,
+                                    style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,whiteSpace:"nowrap"}
+                                  },"🔄 ",eng.firstDay,"–",eng.lastDay)
+                                ),
                                 h("div",{className:"att-td-spec"},eng.spec),
                                 todayD&&h("div",{className:"att-qbtns"},
                                   ["P","A","AL"].map(function(st){
@@ -7105,6 +7193,17 @@ ${PROVS.map(prov=>{
                             const effectiveSt=st||autoSt;
                             const isAuto=!st&&!!autoSt;
                             const wk=isWknd(d);
+                            /* Day outside engineer's tenure in THIS prov → grey out */
+                            const inTenure=eng.daysInProvSet?eng.daysInProvSet.has(d):true;
+                            if(!inTenure){
+                              return h("td",{key:d,className:"att-td",style:{background:"rgba(148,163,184,.04)"}},
+                                h("div",{
+                                  className:"att-cell",
+                                  title:`المهندس لم يكن فى ${attProv} هذا اليوم (نُقل من/إلى محافظة أخرى)`,
+                                  style:{cursor:"not-allowed",opacity:.18,background:"transparent",border:"1px dashed rgba(148,163,184,.25)",color:"#64748b"}
+                                },"—")
+                              );
+                            }
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
