@@ -3214,7 +3214,7 @@ function App(){
   },[pendingPrint,page]);
 
 
-  const exportPDF=()=>{
+  const exportPDF=(mode='print')=>{
     const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     const PL=["#eff6ff","#f0fdf4","#fffbeb","#f5f3ff"];
     const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
@@ -3581,7 +3581,7 @@ function App(){
     const win=window.open('','_blank','width=1000,height=750');
     if(!win){msg("يرجى السماح بالنوافذ المنبثقة","err");return;}
     win.document.write(html);win.document.close();
-    setTimeout(()=>win.focus(),400);
+    setTimeout(()=>{win.focus();if(mode==='print')win.print();},mode==='print'?700:400);
     msg("تم فتح نافذة الطباعة ✓");
   };
 
@@ -4115,7 +4115,7 @@ ${provRows.length>1?`
   };
 
   /* ── Comprehensive monthly report (admin-only PDF) ── */
-  const generateMonthlyReport=()=>{
+  const generateMonthlyReport=(mode='print')=>{
     if(!isAdmin){msg('للأدمن فقط','err');return;}
     const w=window.open('','_blank','width=1000,height=800');
     if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
@@ -4307,7 +4307,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 </body></html>`;
     w.document.write(html);
     w.document.close();
-    setTimeout(()=>{try{w.focus();}catch(e){}},200);
+    setTimeout(()=>{try{w.focus();if(mode==='print')w.print();}catch(e){}},mode==='print'?700:200);
   };
 
   /* ─────────────────────────────────────────────────────
@@ -4465,22 +4465,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     _openPdfWin(html,mode);
   };
 
-  /* ── Wrappers for existing PDFs to support preview mode ── */
-  const printDisbursementPDF=(mode='print')=>{
-    if(mode==='preview'){
-      // For preview, intercept window.print to suppress auto-print
-      const orig=window.print;
-      window.print=()=>{};
-      try{exportPDF();}finally{setTimeout(()=>{window.print=orig;},2000);}
-    }else{
-      exportPDF();
-    }
-  };
-  const printComprehensivePDF=(mode='print')=>{
-    if(!isAdmin){msg('للأدمن فقط','err');return;}
-    generateMonthlyReport();
-    // generateMonthlyReport doesn't auto-print, so mode is mostly for parity
-  };
+  /* ── Wrappers for existing PDFs (now accept mode for preview/print) ── */
+  const printDisbursementPDF=(mode='print')=>exportPDF(mode);
+  const printComprehensivePDF=(mode='print')=>generateMonthlyReport(mode);
 
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
