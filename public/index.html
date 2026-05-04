@@ -154,16 +154,10 @@ html.light body::before{
   width:30px;height:30px;border-radius:9px;
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;transition:all .22s;
-  background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(139,92,246,.10));
-  border:1px solid rgba(99,102,241,.22);
+  background:var(--icon-bg, linear-gradient(135deg,rgba(99,102,241,.20),rgba(139,92,246,.10)));
+  border:1px solid var(--icon-bdr, rgba(99,102,241,.30));
   color:#fff;
-  box-shadow:0 4px 12px rgba(99,102,241,.18);
-}
-.nav-item .nav-item-icon{
-  background:linear-gradient(135deg,var(--c1)33,var(--c2)1a);
-  border-color:var(--c1)40;
-  color:#fff;
-  box-shadow:0 4px 12px var(--c1)2e;
+  box-shadow:0 4px 12px var(--icon-glow, rgba(99,102,241,.22));
 }
 .nav-item.on .nav-item-icon{
   background:rgba(255,255,255,.18);
@@ -5159,7 +5153,13 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             return h("div",{
               key:id,
               className:`nav-item ${page===id?"on":""}`,
-              style:{'--c1':cfg.c1,'--c2':cfg.c2},
+              style:{
+                '--c1':cfg.c1,
+                '--c2':cfg.c2,
+                '--icon-bg':`linear-gradient(135deg,${cfg.c1}33,${cfg.c2}1a)`,
+                '--icon-bdr':`${cfg.c1}55`,
+                '--icon-glow':`${cfg.c1}3a`
+              },
               onClick:()=>{setPage(id);setMobOpen(false);}
             },
               h("div",{className:"nav-item-icon"},h(Ic,{n:cfg.icon,sz:14})),
