@@ -4862,7 +4862,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             {id:"hist",n:"hist",lbl:"السجل التاريخي"},
             {id:"compare",n:"compare",lbl:"المقارنة"},
             {id:"report",n:"report",lbl:"التقارير"},
-          ].filter(({id})=>isAdmin||id!=="report").map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
+          ].filter(({id})=>!isProvince).map(({id,n,lbl})=>h("div",{key:id,className:`nav-item ${page===id?"on":""}`,onClick:()=>{setPage(id);setMobOpen(false);}},
             h("div",{className:"nav-item-icon"},h(Ic,{n,sz:15})),h("span",null,lbl)
           )),
           h("div",{className:"sb-section"},"المشروعات"),
