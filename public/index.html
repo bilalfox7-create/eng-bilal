@@ -2103,6 +2103,8 @@ function App(){
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
+  /* Engineer transfer modal: select engineer + target province + date */
+  const [engTransferForm,setEngTransferForm]=useState({engId:'',toProv:'',date:''});
   const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
   const [fixedRents,setFixedRents]=useState([
     {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0,prov:''},
@@ -2410,6 +2412,52 @@ function App(){
   /* Paid-status helpers: backwards compat with old `paid` field */
   const isP1=e=>e?.paid1!==undefined?!!e.paid1:!!e?.paid;
   const isP2=e=>e?.paid2!==undefined?!!e.paid2:!!e?.paid;
+
+  /* ── Engineer transfer helpers ────────────────────────
+     Each engineer has optional `transfers: [{from,to,date,by,at}]`.
+     Engineer's CURRENT prov is `eng.prov` (or where they sit in data[]).
+     The transfers array is the immutable history of moves.
+  ─────────────────────────────────────────────────────── */
+  const getTransfers=e=>(Array.isArray(e?.transfers)?e.transfers:[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  /* Returns the prov the engineer was in on a specific date (YYYY-MM-DD) */
+  const engProvAtDate=(eng,dateStr,currentProv)=>{
+    const ts=getTransfers(eng);
+    const cur=currentProv||eng.prov;
+    if(!ts.length)return cur;
+    if(dateStr<ts[0].date)return ts[0].from;
+    let prov=ts[0].to;
+    for(const t of ts){if(t.date<=dateStr)prov=t.to;else break;}
+    /* Final segment is current prov */
+    if(ts.length&&dateStr>=ts[ts.length-1].date)return ts[ts.length-1].to;
+    return prov;
+  };
+  /* Returns array of {prov, days[]} segments for a given month */
+  const engSegmentsInMonth=(eng,year,month,currentProv)=>{
+    const dim=new Date(year,month,0).getDate();
+    const segs={};
+    for(let d=1;d<=dim;d++){
+      const ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const p=engProvAtDate(eng,ds,currentProv);
+      if(!segs[p])segs[p]=[];
+      segs[p].push(d);
+    }
+    return Object.entries(segs).map(([prov,days])=>({prov,days,first:days[0],last:days[days.length-1]}));
+  };
+  /* Was this engineer in `prov` for ANY day in this month? */
+  const engInProvDuringMonth=(eng,prov,year,month,currentProv)=>{
+    const segs=engSegmentsInMonth(eng,year,month,currentProv);
+    return segs.some(s=>s.prov===prov);
+  };
+  /* d1/d2 split helpers — split count proportionally over [start..end] day range */
+  const splitDaysCountForProvInRange=(eng,prov,year,month,startDay,endDay,currentProv)=>{
+    let inProv=0,total=0;
+    for(let d=startDay;d<=endDay;d++){
+      const ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      total++;
+      if(engProvAtDate(eng,ds,currentProv)===prov)inProv++;
+    }
+    return total?inProv/total:0;
+  };
   const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{
     const inc=getIncomingExtra(e.id,p);
     const c=calc(e,cfg.rate,cfg.egp,inc);
@@ -2963,6 +3011,42 @@ function App(){
     queueSave(ak,updated);
     logActivity('حذف مهندس',`${name} — ${p.replace('محافظة ','')} — ${mn} ${cfg.year}`);
     msg("تم الحذف");
+  };
+
+  /* ── Transfer engineer between provinces ────────────────
+     Updates current month's data — moves engineer record from
+     `from` to `to` and appends to engineer's transfers[] history.
+     Also updates ALL future months that have a record of this
+     engineer (so the engineer's province field is consistent).
+  ──────────────────────────────────────────────────────── */
+  const transferEngineer=(engId,toProv,dateStr)=>{
+    if(!isAdmin){msg('للأدمن فقط','err');return;}
+    if(lockGuard())return;
+    /* Find current location of engineer in active month */
+    let fromProv=null,engRec=null;
+    PROVS.forEach(p=>{const found=(data[p]||[]).find(e=>e.id===engId);if(found){fromProv=p;engRec=found;}});
+    if(!engRec){msg('المهندس غير موجود فى الشهر الحالى','err');return;}
+    if(fromProv===toProv){msg('المهندس بالفعل فى '+toProv,'err');return;}
+    if(!toProv||!PROVS.includes(toProv)){msg('اختار المحافظة الجديدة','err');return;}
+    if(!dateStr){msg('اختار تاريخ النقل','err');return;}
+    const today=new Date();today.setHours(12,0,0,0);
+    const tDate=new Date(dateStr+'T12:00');
+    if(tDate<today){
+      if(!confirm('تاريخ النقل فى الماضى — تصحيح بأثر رجعى. تأكيد؟'))return;
+    }
+    const transferEntry={from:fromProv,to:toProv,date:dateStr,by:user?.username||'admin',at:new Date().toISOString()};
+    const nd=dc(data);
+    /* Remove from old prov, push to new prov with updated transfers + prov */
+    nd[fromProv]=(nd[fromProv]||[]).filter(e=>e.id!==engId);
+    const updatedEng={...engRec,prov:toProv,transfers:[...(engRec.transfers||[]),transferEntry]};
+    nd[toProv]=[...(nd[toProv]||[]),updatedEng];
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    logActivity('نقل مهندس',`${engRec.name} — من ${fromProv.replace('محافظة ','')} إلى ${toProv.replace('محافظة ','')} بتاريخ ${dateStr}`);
+    msg(`تم نقل ${engRec.name} إلى ${toProv}`);
+    setModal(null);
+    setEngTransferForm({engId:'',toProv:'',date:''});
   };
 
   const togglePaidHalf=(p,id,half)=>{
@@ -4980,6 +5064,87 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("button",{className:"btn blue",onClick:submitExp},expForm.id?"حفظ التعديلات":"إضافة")
         )
       ),
+      modal==="eng-transfer"&&h("div",{className:"modal",style:{width:480}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"🔄 نقل مهندس بين المحافظات"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+          /* Engineer dropdown */
+          h("div",{className:"fld"},
+            h("label",null,"المهندس *"),
+            h("select",{
+              value:engTransferForm.engId,
+              onChange:ev=>setEngTransferForm(f=>({...f,engId:ev.target.value}))
+            },
+              h("option",{value:""},"— اختار المهندس —"),
+              ...PROVS.flatMap(p=>{
+                const engs=(data[p]||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+                return engs.length>0?[h("optgroup",{key:p,label:p.replace('محافظة ','')},engs.map(e=>h("option",{key:e.id,value:e.id},e.name)))]:[];
+              })
+            )
+          ),
+          /* Current province (read-only) */
+          (()=>{
+            if(!engTransferForm.engId)return null;
+            let curProv='';
+            PROVS.forEach(p=>(data[p]||[]).forEach(e=>{if(e.id===engTransferForm.engId)curProv=p;}));
+            return h("div",{className:"fld"},
+              h("label",null,"المحافظة الحالية"),
+              h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(99,102,241,.10)",border:"1px solid rgba(99,102,241,.25)",fontSize:13,fontWeight:700,color:"#a5b4fc"}},"📍 "+(curProv||'—'))
+            );
+          })(),
+          /* Target province */
+          h("div",{className:"fld"},
+            h("label",null,"المحافظة الجديدة *"),
+            h("select",{
+              value:engTransferForm.toProv,
+              onChange:ev=>setEngTransferForm(f=>({...f,toProv:ev.target.value}))
+            },
+              h("option",{value:""},"— اختار —"),
+              ...PROVS.map(p=>{
+                /* Hide current prov from options */
+                let curProv='';
+                if(engTransferForm.engId)PROVS.forEach(pp=>(data[pp]||[]).forEach(e=>{if(e.id===engTransferForm.engId)curProv=pp;}));
+                return p===curProv?null:h("option",{key:p,value:p},p);
+              }).filter(Boolean)
+            )
+          ),
+          /* Transfer date */
+          h("div",{className:"fld"},
+            h("label",null,"تاريخ النقل *"),
+            h("input",{
+              type:"date",
+              value:engTransferForm.date||(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})(),
+              onChange:ev=>setEngTransferForm(f=>({...f,date:ev.target.value}))
+            })
+          ),
+          /* Show transfer history if engineer selected */
+          engTransferForm.engId&&(()=>{
+            let eng=null;
+            PROVS.forEach(p=>(data[p]||[]).forEach(e=>{if(e.id===engTransferForm.engId)eng=e;}));
+            const ts=getTransfers(eng||{});
+            if(ts.length===0)return h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:13}),"المهندس لم يتم نقله من قبل");
+            return h("div",{style:{padding:"10px 14px",background:"rgba(139,92,246,.06)",border:"1px solid rgba(139,92,246,.18)",borderRadius:10}},
+              h("div",{style:{fontSize:11,fontWeight:800,color:"#a5b4fc",marginBottom:6}},"📍 تنقلات سابقة (",ts.length,")"),
+              ts.map((t,i)=>h("div",{key:i,style:{fontSize:10.5,color:"var(--sub)",lineHeight:1.6}},
+                `• ${t.date}: ${t.from.replace('محافظة ','')} → ${t.to.replace('محافظة ','')}`
+              ))
+            );
+          })()
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+          h("button",{
+            className:"btn blue",
+            disabled:!engTransferForm.engId||!engTransferForm.toProv,
+            onClick:()=>{
+              const date=engTransferForm.date||(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
+              transferEngineer(engTransferForm.engId,engTransferForm.toProv,date);
+            }
+          },"🔄 تأكيد النقل")
+        )
+      ),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
         h("div",{className:"modal-hdr"},h("h3",null,"تأكيد الاستيراد"),h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setImportPrev(null);}},h(Ic,{n:"del",sz:12}))),
         h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:10}},
@@ -5369,8 +5534,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const btns=[];
           if(page==='eng'){
             if(isAdmin) btns.push(
-              {key:'eng-search',cls:'btn',onClick:()=>setGOpen(true),icon:'srch',label:'بحث'},
               {key:'eng-add',cls:'btn blue',onClick:()=>{setForm({prov:isProvince?userProv:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");},icon:'plus',label:'+ مهندس'},
+              {key:'eng-transfer',cls:'btn',style:{background:"rgba(139,92,246,.10)",border:"1px solid rgba(139,92,246,.30)",color:"#a78bfa",fontWeight:800},onClick:()=>{setEngTransferForm({engId:'',toProv:'',date:''});setModal("eng-transfer");},icon:'compare',label:'🔄 نقل مهندس'},
               {key:'eng-save',cls:`btn ${isSaved?"":"green"}`,onClick:saveMonth,icon:'save',label:isSaved?"إعادة حفظ":"حفظ الشهر"},
               {key:'eng-pdf',cls:'btn',onClick:handlePdfClick,icon:'pdf',label:'PDF'},
               {key:'eng-xl',cls:'btn',onClick:exportXLSX,icon:'xl',label:'Excel'}
@@ -6125,7 +6290,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       h("td",{className:"l",style:{fontWeight:600,minWidth:110}},
                         h("span",{className:"eng-link",onClick:()=>{setEngProfile({eng:e,prov});setEpTab('info');}},e.name),
                         (()=>{const st=getEngStatus(e.id);const cycle={'active':'ended','ended':'active','on_leave':'on_leave'};return h("span",{className:`eng-status eng-status-${st}`,title:isAdmin?"اضغط لتغيير الحالة":"",style:{cursor:isAdmin&&st!=='on_leave'?'pointer':'default'},onClick:isAdmin&&st!=='on_leave'?()=>setEngStatus(e.id,cycle[st]):undefined},ENG_ST_LABEL[st]);})(),
-                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي")
+                        (+e.extra||0)>0&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي"),
+                        /* Recent transfer indicator (within current month) */
+                        (()=>{
+                          const ts=getTransfers(e);
+                          if(!ts.length)return null;
+                          const last=ts[ts.length-1];
+                          const lastDate=new Date(last.date+'T12:00');
+                          const cm=cfg.month||(now.getMonth()+1),cy=cfg.year||now.getFullYear();
+                          /* Only show badge if transferred in or before current month + still relevant */
+                          if(lastDate.getFullYear()===cy&&lastDate.getMonth()+1===cm){
+                            return h("span",{title:`نُقل من ${last.from} بتاريخ ${last.date}`,style:{display:"inline-flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 8px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"🔄 منقول من ",last.from.replace('محافظة ',''));
+                          }
+                          return null;
+                        })()
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
                       h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
@@ -6184,7 +6362,33 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     isAdmin&&h("td",null,"")
                   )
                 )
-              ))
+              )),
+              /* ─── Transferred-out section: engineers who LEFT this province ─── */
+              (()=>{
+                const cm=cfg.month||(now.getMonth()+1),cy=cfg.year||now.getFullYear();
+                const transferredOut=allE.filter(eng=>{
+                  const ts=getTransfers(eng);
+                  if(!ts.length)return false;
+                  const last=ts[ts.length-1];
+                  /* Engineer is currently somewhere else AND was last transferred FROM this prov */
+                  return last.from===prov && eng.prov!==prov;
+                });
+                if(transferredOut.length===0)return null;
+                return h("div",{style:{padding:"12px 18px",margin:"4px 12px 12px",background:"linear-gradient(135deg,rgba(139,92,246,.08),rgba(99,102,241,.04))",border:"1px solid rgba(139,92,246,.20)",borderRadius:12}},
+                  h("div",{style:{fontSize:11,fontWeight:800,color:"#a78bfa",marginBottom:8,letterSpacing:".5px"}},"📤 منقولون من هذه المحافظة (",transferredOut.length,")"),
+                  h("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+                    transferredOut.map(eng=>{
+                      const ts=getTransfers(eng);
+                      const last=ts[ts.length-1];
+                      return h("div",{key:eng.id,style:{padding:"7px 12px",background:"rgba(15,23,42,.4)",border:"1px solid rgba(139,92,246,.18)",borderRadius:10,fontSize:11,display:"flex",alignItems:"center",gap:8}},
+                        h("span",{style:{fontWeight:700,color:"var(--text)"}},eng.name),
+                        h("span",{style:{fontSize:9,color:"var(--sub)"}},last.date),
+                        h("span",{style:{fontSize:9,color:"#34d399",fontWeight:700}},"→ "+last.to.replace('محافظة ',''))
+                      );
+                    })
+                  )
+                );
+              })()
             );
           })
         ),
@@ -7604,7 +7808,7 @@ ${PROVS.map(prov=>{
             )
           ),
           h("div",{className:"ep-tab-bar"},
-            [["info","بيانات"],["allowance","الإعاشة"],["att","الحضور"],["leaves","الإجازات"]].map(([k,lbl])=>
+            [["info","بيانات"],["allowance","الإعاشة"],["att","الحضور"],["leaves","الإجازات"],["transfers","📍 التنقلات"]].map(([k,lbl])=>
               h("button",{key:k,className:`ep-tab ${epTab===k?"on":""}`,onClick:()=>setEpTab(k)},lbl)
             )
           ),
@@ -7670,7 +7874,37 @@ ${PROVS.map(prov=>{
                     l.notes&&h("div",{style:{fontSize:11,color:"var(--sub)"}},l.notes)
                   ))
                 )
-            )
+            ),
+            epTab==="transfers"&&(()=>{
+              const ts=getTransfers(engProfile.eng);
+              return h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
+                /* Current province badge */
+                h("div",{style:{padding:"14px 16px",borderRadius:12,background:"linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.08))",border:"1px solid rgba(139,92,246,.30)",display:"flex",alignItems:"center",gap:10}},
+                  h("span",{style:{fontSize:18}},"📍"),
+                  h("div",{style:{flex:1}},
+                    h("div",{style:{fontSize:10,fontWeight:800,color:"#a5b4fc",letterSpacing:"1px",marginBottom:2}},"الموقع الحالى"),
+                    h("div",{style:{fontSize:14,fontWeight:900,color:"var(--text)"}},engProfile.prov)
+                  )
+                ),
+                /* Timeline */
+                ts.length===0
+                  ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد تنقلات سابقة — المهندس فى محافظته الأولى منذ التسجيل")
+                  :h("div",{style:{display:"flex",flexDirection:"column",gap:0,position:"relative",paddingRight:18}},
+                      h("div",{style:{position:"absolute",right:6,top:6,bottom:6,width:2,background:"linear-gradient(180deg,rgba(139,92,246,.45),rgba(99,102,241,.18))"}}),
+                      ts.slice().reverse().map((t,i)=>h("div",{key:i,style:{position:"relative",padding:"10px 14px 14px 0",marginBottom:6}},
+                        h("div",{style:{position:"absolute",right:-3,top:14,width:14,height:14,borderRadius:"50%",background:i===0?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#475569",border:"2px solid var(--bg)",boxShadow:i===0?"0 0 12px rgba(139,92,246,.6)":"none"}}),
+                        h("div",{style:{padding:"10px 14px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--bdr)"}},
+                          h("div",{style:{fontSize:11,color:"var(--sub)",marginBottom:4,fontWeight:700}},"📅 "+t.date+(t.by?" · بواسطة "+t.by:"")),
+                          h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)"}},
+                            h("span",{style:{color:"#94a3b8"}},t.from.replace('محافظة ','')),
+                            h("span",{style:{margin:"0 8px",color:"#a78bfa",fontWeight:900}},"→"),
+                            h("span",{style:{color:"#34d399"}},t.to.replace('محافظة ',''))
+                          )
+                        )
+                      ))
+                    )
+              );
+            })()
           )
         )
       ),
