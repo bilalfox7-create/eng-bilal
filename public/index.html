@@ -2108,6 +2108,8 @@ function App(){
   /* Debounce flag for transfer button (2s lock after each submit) */
   const [transferring,setTransferring]=useState(false);
   const transferringRef=useRef(false);
+  /* Undo confirmation modal: holds {eng:{id,name}, transfer:{id,from,to,date,by,at}} */
+  const [undoConfirm,setUndoConfirm]=useState(null);
   const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
   const [fixedRents,setFixedRents]=useState([
     {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0,prov:''},
@@ -3092,7 +3094,7 @@ function App(){
     transferringRef.current=true;
     setTransferring(true);
     setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
-    const transferEntry={from:fromProv,to:toProv,date:dateStr,by:user?.username||'admin',at:new Date().toISOString()};
+    const transferEntry={id:'tr_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),from:fromProv,to:toProv,date:dateStr,by:user?.username||'admin',at:new Date().toISOString()};
     const nd=dc(data);
     /* Remove from old prov, push to new prov with updated transfers + prov */
     nd[fromProv]=(nd[fromProv]||[]).filter(e=>e.id!==engId);
@@ -3105,6 +3107,73 @@ function App(){
     msg(`تم نقل ${engRec.name} إلى ${toProv}`);
     setModal(null);
     setEngTransferForm({engId:'',toProv:'',date:''});
+  };
+
+  /* ── Undo a transfer ────────────────────────────────────
+     Removes the transfer entry from eng.transfers AND moves the
+     engineer back to transfer.from. Activity log entry is deleted
+     too, so it's a clean undo (not a counter-transfer).
+
+     Permissions:
+       - admin: any transfer
+       - province: only own transfers (transfer.by === username)
+                   and only within 24h of the transfer
+       - viewer: blocked
+
+     Constraint: only the LATEST transfer can be undone (chronological).
+     Earlier transfers are immutable history once a newer transfer exists.
+  ──────────────────────────────────────────────────────── */
+  const undoTransfer=(engId,transferId)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    /* Find engineer in active month */
+    let curProv=null,engRec=null;
+    PROVS.forEach(p=>{const found=(data[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
+    if(!engRec){msg('المهندس غير موجود — لا يمكن التراجع','err');return;}
+    const ts=getTransfers(engRec);
+    if(ts.length===0){msg('لا يوجد نقل لهذا المهندس','err');return;}
+    /* Find transfer by id (or fall back to `at` for legacy) */
+    const tIdx=ts.findIndex(t=>(t.id||t.at)===transferId);
+    if(tIdx===-1){msg('النقل غير موجود','err');return;}
+    /* Only undo the LATEST (chronological — last in sorted array) */
+    if(tIdx!==ts.length-1){
+      msg('⚠️ يمكن التراجع عن آخر نقل فقط — هذا النقل تتبعه نقلات أخرى','err');
+      return;
+    }
+    const tr=ts[tIdx];
+    /* Province perm: must own + within 24h */
+    if(!isAdmin){
+      if(tr.by!==user?.username){msg('غير مصرح — هذا النقل ليس من قِبَلك','err');return;}
+      const ageMs=Date.now()-new Date(tr.at).getTime();
+      if(ageMs>24*60*60*1000){msg('انتهت مهلة التراجع (٢٤ ساعة) — تواصل مع الأدمن','err');return;}
+    }
+    /* Confirmation already shown in UI — proceed */
+    const nd=dc(data);
+    nd[curProv]=(nd[curProv]||[]).filter(e=>e.id!==engId);
+    const newTransfers=ts.filter((_,i)=>i!==tIdx);
+    const updatedEng={...engRec,prov:tr.from,transfers:newTransfers};
+    nd[tr.from]=[...(nd[tr.from]||[]),updatedEng];
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    /* Clean the matching activity log entry — fetch logs, find by detail, delete by id */
+    fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(d=>{
+      const matches=(d.logs||[]).filter(l=>
+        l.action==='نقل مهندس' &&
+        l.detail.includes(engRec.name) &&
+        l.detail.includes(tr.date) &&
+        l.detail.includes(tr.from.replace('محافظة ','')) &&
+        l.detail.includes(tr.to.replace('محافظة ',''))
+      );
+      if(matches.length>0){
+        return fetch('/api/activity',{
+          method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'include',
+          body:JSON.stringify({ids:matches.map(m=>m.id)})
+        });
+      }
+    }).catch(()=>{});
+    msg(`✓ تم التراجع — ${engRec.name} رجع إلى ${tr.from}`);
+    setUndoConfirm(null);
   };
 
   const togglePaidHalf=(p,id,half)=>{
@@ -5219,6 +5288,53 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       )
     ),
 
+    /* ── UNDO TRANSFER CONFIRM MODAL ──────────────────── */
+    undoConfirm&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setUndoConfirm(null);}},
+      h("div",{className:"modal",style:{width:480}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"↩️ تراجع عن النقل"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setUndoConfirm(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:14}},
+          h("div",{style:{fontSize:13,fontWeight:700,color:"var(--text)"}},"هل أنت متأكد من التراجع عن هذا النقل؟"),
+          h("div",{style:{padding:"14px 16px",background:"linear-gradient(135deg,rgba(99,102,241,.10),rgba(139,92,246,.06))",border:"1px solid rgba(139,92,246,.25)",borderRadius:12,display:"flex",flexDirection:"column",gap:8}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11.5}},
+              h("span",{style:{color:"var(--sub)",fontWeight:700}},"المهندس"),
+              h("span",{style:{color:"var(--text)",fontWeight:800}},undoConfirm.eng.name)
+            ),
+            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:11.5}},
+              h("span",{style:{color:"var(--sub)",fontWeight:700}},"النقل"),
+              h("span",null,
+                h("span",{style:{color:"#94a3b8",fontWeight:700}},undoConfirm.transfer.from.replace('محافظة ','')),
+                h("span",{style:{margin:"0 8px",color:"#a78bfa",fontWeight:900}},"→"),
+                h("span",{style:{color:"#34d399",fontWeight:700}},undoConfirm.transfer.to.replace('محافظة ',''))
+              )
+            ),
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11.5}},
+              h("span",{style:{color:"var(--sub)",fontWeight:700}},"التاريخ"),
+              h("span",{style:{color:"var(--text)",fontWeight:700}},undoConfirm.transfer.date)
+            ),
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11.5}},
+              h("span",{style:{color:"var(--sub)",fontWeight:700}},"تم بواسطة"),
+              h("span",{style:{color:"var(--text)",fontWeight:700}},undoConfirm.transfer.by||"—")
+            )
+          ),
+          h("div",{className:"info amber",style:{fontSize:11}},
+            h(Ic,{n:"warn",sz:14}),
+            "⚠️ سيتم مسح هذا النقل بالكامل. سيرجع المهندس لمحافظته السابقة كأن النقل لم يحدث."
+          )
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setUndoConfirm(null)},"إلغاء"),
+          h("button",{
+            className:"btn",
+            style:{background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(245,158,11,.4)"},
+            onClick:()=>undoTransfer(undoConfirm.eng.id,undoConfirm.transfer.id||undoConfirm.transfer.at)
+          },"↩️ نعم، تراجع")
+        )
+      )
+    ),
+
     /* ── FIXED RENTS SETTINGS MODAL (admin) ───────────── */
     editingRent&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingRent(null);}},
       h("div",{className:"modal",style:{width:560}},
@@ -6384,7 +6500,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           const cm=cfg.month||(now.getMonth()+1),cy=cfg.year||now.getFullYear();
                           /* Only show badge if transferred in or before current month, in the DESTINATION prov */
                           if(lastDate.getFullYear()===cy&&lastDate.getMonth()+1===cm&&last.to===prov){
-                            return h("span",{title:`نُقل من ${last.from} بتاريخ ${last.date}`,style:{display:"inline-flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 8px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"🔄 منقول من ",last.from.replace('محافظة ',''));
+                            const canUndo=isAdmin||(isProvince&&last.by===user?.username&&(Date.now()-new Date(last.at).getTime())<24*60*60*1000);
+                            return h("span",{style:{display:"inline-flex",alignItems:"center",gap:4,marginRight:4}},
+                              h("span",{title:`نُقل من ${last.from} بتاريخ ${last.date}`,style:{display:"inline-flex",alignItems:"center",gap:4,fontSize:9,padding:"2px 8px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,whiteSpace:"nowrap"}},"🔄 منقول من ",last.from.replace('محافظة ','')),
+                              canUndo&&h("button",{
+                                title:"تراجع عن النقل",
+                                onClick:(ev)=>{ev.stopPropagation();setUndoConfirm({eng:e,transfer:last});},
+                                style:{padding:"2px 6px",fontSize:11,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",fontWeight:800,cursor:"pointer",lineHeight:1}
+                              },"↩️")
+                            );
                           }
                           return null;
                         })()
@@ -7896,13 +8020,45 @@ ${PROVS.map(prov=>{
                     const d=new Date(log.ts);
                     const dateStr=d.toLocaleDateString("ar-EG",{day:"numeric",month:"short",year:"numeric"});
                     const timeStr=d.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"});
-                    const actionCol=log.action.includes("حذف")?"#F87171":log.action.includes("إضافة")?"#34D399":"#60A5FA";
+                    const actionCol=log.action.includes("حذف")?"#F87171":log.action.includes("إضافة")?"#34D399":log.action==="نقل مهندس"?"#A78BFA":"#60A5FA";
+                    /* Detect transfer log entry → resolve engineer + transfer entry → undo button */
+                    let undoBtn=null;
+                    if(log.action==='نقل مهندس'&&isAdmin){
+                      /* Detail format: ${engName} — من ${shortFrom} إلى ${shortTo} بتاريخ ${date} */
+                      const m=(log.detail||'').match(/^(.+?)\s—\sمن\s(.+?)\sإلى\s(.+?)\sبتاريخ\s(.+)$/);
+                      if(m){
+                        const[,name,shortFrom,shortTo,date]=m;
+                        const fromProv='محافظة '+shortFrom.trim();
+                        const toProv='محافظة '+shortTo.trim();
+                        /* Find engineer + matching transfer in current month */
+                        let foundEng=null;
+                        PROVS.forEach(p=>(data[p]||[]).forEach(e=>{if(e.name===name)foundEng=e;}));
+                        if(foundEng){
+                          const ts=getTransfers(foundEng);
+                          const tIdx=ts.findIndex(t=>t.from===fromProv&&t.to===toProv&&t.date===date.trim());
+                          /* Only allow undo if it's the LATEST transfer */
+                          if(tIdx===ts.length-1&&tIdx!==-1){
+                            const tr=ts[tIdx];
+                            undoBtn=h("button",{
+                              title:"تراجع عن النقل",
+                              onClick:()=>setUndoConfirm({eng:foundEng,transfer:tr}),
+                              style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
+                            },"↩️ تراجع");
+                          }
+                        }
+                      }
+                    }
                     return h("tr",{key:log.id,style:{borderBottom:"1px solid var(--bdr)",background:i%2===0?"transparent":"var(--bg2)"}},
                       h("td",{style:{padding:"9px 14px",fontWeight:600}},log.username),
                       h("td",{style:{padding:"9px 14px"}},
-                        h("span",{style:{background:`rgba(${actionCol==="#F87171"?"248,113,113":actionCol==="#34D399"?"52,211,153":"96,165,250"},.12)`,color:actionCol,padding:"2px 10px",borderRadius:100,fontWeight:700,fontSize:11}},log.action)
+                        h("span",{style:{background:`rgba(${actionCol==="#F87171"?"248,113,113":actionCol==="#34D399"?"52,211,153":actionCol==="#A78BFA"?"167,139,250":"96,165,250"},.12)`,color:actionCol,padding:"2px 10px",borderRadius:100,fontWeight:700,fontSize:11}},log.action)
                       ),
-                      h("td",{style:{padding:"9px 14px",color:"var(--sub)"}},log.detail||"—"),
+                      h("td",{style:{padding:"9px 14px",color:"var(--sub)"}},
+                        h("div",{style:{display:"flex",alignItems:"center",gap:8,justifyContent:"space-between"}},
+                          h("span",null,log.detail||"—"),
+                          undoBtn
+                        )
+                      ),
                       h("td",{style:{padding:"9px 14px",color:"var(--sub)",whiteSpace:"nowrap",fontSize:11}},dateStr+" · "+timeStr)
                     );
                   })
@@ -8014,17 +8170,29 @@ ${PROVS.map(prov=>{
                   ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد تنقلات سابقة — المهندس فى محافظته الأولى منذ التسجيل")
                   :h("div",{style:{display:"flex",flexDirection:"column",gap:0,position:"relative",paddingRight:18}},
                       h("div",{style:{position:"absolute",right:6,top:6,bottom:6,width:2,background:"linear-gradient(180deg,rgba(139,92,246,.45),rgba(99,102,241,.18))"}}),
-                      ts.slice().reverse().map((t,i)=>h("div",{key:i,style:{position:"relative",padding:"10px 14px 14px 0",marginBottom:6}},
-                        h("div",{style:{position:"absolute",right:-3,top:14,width:14,height:14,borderRadius:"50%",background:i===0?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#475569",border:"2px solid var(--bg)",boxShadow:i===0?"0 0 12px rgba(139,92,246,.6)":"none"}}),
-                        h("div",{style:{padding:"10px 14px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--bdr)"}},
-                          h("div",{style:{fontSize:11,color:"var(--sub)",marginBottom:4,fontWeight:700}},"📅 "+t.date+(t.by?" · بواسطة "+t.by:"")),
-                          h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)"}},
-                            h("span",{style:{color:"#94a3b8"}},t.from.replace('محافظة ','')),
-                            h("span",{style:{margin:"0 8px",color:"#a78bfa",fontWeight:900}},"→"),
-                            h("span",{style:{color:"#34d399"}},t.to.replace('محافظة ',''))
+                      ts.slice().reverse().map((t,i)=>{
+                        const isLatest=i===0; /* slice().reverse() puts latest first */
+                        return h("div",{key:t.id||t.at||i,style:{position:"relative",padding:"10px 14px 14px 0",marginBottom:6}},
+                          h("div",{style:{position:"absolute",right:-3,top:14,width:14,height:14,borderRadius:"50%",background:isLatest?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#475569",border:"2px solid var(--bg)",boxShadow:isLatest?"0 0 12px rgba(139,92,246,.6)":"none"}}),
+                          h("div",{style:{padding:"10px 14px",borderRadius:10,background:"var(--bg2)",border:"1px solid var(--bdr)",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}},
+                            h("div",null,
+                              h("div",{style:{fontSize:11,color:"var(--sub)",marginBottom:4,fontWeight:700}},"📅 "+t.date+(t.by?" · بواسطة "+t.by:"")),
+                              h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)"}},
+                                h("span",{style:{color:"#94a3b8"}},t.from.replace('محافظة ','')),
+                                h("span",{style:{margin:"0 8px",color:"#a78bfa",fontWeight:900}},"→"),
+                                h("span",{style:{color:"#34d399"}},t.to.replace('محافظة ',''))
+                              )
+                            ),
+                            /* Undo button — only on the LATEST transfer, admin or province (with own+24h) */
+                            isLatest&&(isAdmin||(isProvince&&t.by===user?.username&&(Date.now()-new Date(t.at).getTime())<24*60*60*1000))&&
+                            h("button",{
+                              title:"تراجع عن هذا النقل",
+                              style:{padding:"6px 12px",border:"1px solid rgba(245,158,11,.4)",borderRadius:8,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",fontSize:11,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0},
+                              onClick:()=>setUndoConfirm({eng:engProfile.eng,transfer:t})
+                            },"↩️ تراجع")
                           )
-                        )
-                      ))
+                        );
+                      })
                     )
               );
             })()
