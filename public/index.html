@@ -1452,6 +1452,52 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .content>*{animation:pageIn .2s ease}
 .month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
 .warn-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#D97706;font-size:12px;font-weight:600;margin-bottom:8px}
+/* ── Unified header (logo + name + clock + 4 badges) ── */
+.unified-header{position:relative;overflow:hidden;background:#0a0e1a;border:1px solid #1e293b;border-radius:16px;padding:24px 28px;margin-bottom:14px}
+.unified-header-glow{position:absolute;top:-80px;left:-80px;width:250px;height:250px;background:radial-gradient(circle,rgba(99,102,241,.15) 0%,transparent 70%);pointer-events:none}
+.uh-row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.uh-row-top{padding-bottom:14px}
+.uh-row-badges{padding-top:14px;border-top:1px solid #1e293b;gap:10px}
+.uh-brand{display:flex;align-items:center;gap:16px;min-width:0;flex:1}
+.uh-logo-box{flex-shrink:0;width:78px;height:78px;border-radius:16px;background:#fff;padding:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.uh-logo-img{width:100%;height:100%;object-fit:contain;display:block}
+.uh-logo-fallback{font-size:36px}
+.uh-brand-text{min-width:0}
+.uh-brand-title{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.uh-brand-sub{font-size:13px;color:#94a3b8;font-weight:600;margin-top:6px}
+.uh-clock{flex-shrink:0;min-width:120px;padding:10px 18px;background:linear-gradient(135deg,rgba(6,182,212,.15) 0%,rgba(6,182,212,.05) 100%);border:1px solid rgba(6,182,212,.3);border-radius:12px;text-align:center}
+.uh-clock-time{font-size:26px;font-weight:800;font-family:'Cairo',monospace,'Segoe UI Mono',monospace;color:#fff;line-height:1;letter-spacing:1.5px}
+.uh-clock-date{font-size:11px;color:#67e8f9;margin-top:4px;font-weight:700}
+.uh-badge{flex:1;min-width:0;padding:12px 16px;border-radius:12px;display:flex;align-items:center;gap:10px}
+.uh-badge-icon{font-size:20px;flex-shrink:0;line-height:1}
+.uh-badge-text{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uh-badge-indigo{background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(99,102,241,.05));border:1px solid rgba(99,102,241,.3)}
+.uh-badge-emerald{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(16,185,129,.05));border:1px solid rgba(16,185,129,.3)}
+.uh-badge-amber{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.05));border:1px solid rgba(245,158,11,.3)}
+.uh-badge-pink{background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(236,72,153,.05));border:1px solid rgba(236,72,153,.3)}
+
+/* ── Single page title row (replaces topbar duplicate) ── */
+.page-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px 14px;flex-wrap:wrap}
+.page-title-main{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.page-title-icon{font-size:22px;line-height:1;filter:drop-shadow(0 2px 6px rgba(99,102,241,.4))}
+.page-title-text{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.page-title-month-select{padding:7px 14px;background:rgba(255,255,255,.05);color:var(--text);border:1px solid rgba(139,92,246,.3);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;font-family:inherit;backdrop-filter:blur(10px)}
+.page-title-month-select:hover{border-color:rgba(139,92,246,.6);background:rgba(139,92,246,.10)}
+html.light .page-title-month-select{background:#fff;border-color:#C7D2FE;color:#1e293b}
+
+@media(max-width:768px){
+  .unified-header{padding:18px 18px}
+  .uh-logo-box{width:60px;height:60px;padding:6px}
+  .uh-brand-title{font-size:18px;white-space:normal}
+  .uh-brand-sub{font-size:11px}
+  .uh-row-top{flex-direction:column;align-items:flex-start;gap:14px}
+  .uh-clock{align-self:stretch;width:100%}
+  .uh-row-badges{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .uh-badge{flex:none}
+  .uh-badge-text{font-size:12px}
+  .page-title-text{font-size:18px}
+}
+
 .page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px;margin-bottom:14px;background:linear-gradient(135deg,rgba(99,102,241,.16) 0%,rgba(139,92,246,.10) 50%,rgba(34,211,238,.06) 100%);border:1px solid rgba(139,92,246,.25);border-radius:18px;backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:0 8px 28px rgba(99,102,241,.16),inset 0 1px 0 rgba(255,255,255,.05);position:relative;overflow:hidden}
 .page-header::before{content:'';position:absolute;top:-30px;left:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(139,92,246,.32),transparent 70%);pointer-events:none}
 .page-header::after{content:'';position:absolute;bottom:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(34,211,238,.20),transparent 70%);pointer-events:none}
@@ -2112,6 +2158,8 @@ function App(){
   const transferringRef=useRef(false);
   /* Undo confirmation modal: holds {eng:{id,name}, transfer:{id,from,to,date,by,at}} */
   const [undoConfirm,setUndoConfirm]=useState(null);
+  /* Live clock — ticks every second for the unified header */
+  const [clockNow,setClockNow]=useState(()=>new Date());
   const [expFilters,setExpFilters]=useState({dateFrom:'',dateTo:'',prov:'',type:'',category:''});
   const [fixedRents,setFixedRents]=useState([
     {id:'r1',desc:'سكن رقم 1',day:1,lyd:5000,usd:0,prov:''},
@@ -2821,6 +2869,12 @@ function App(){
     document.addEventListener('click',close);
     return()=>document.removeEventListener('click',close);
   },[qaOpen]);
+
+  /* ── Live clock — tick every second for the unified header ── */
+  useEffect(()=>{
+    const id=setInterval(()=>setClockNow(new Date()),1000);
+    return()=>clearInterval(id);
+  },[]);
 
   const engProfileData=useMemo(()=>{
     if(!engProfile)return null;
@@ -5879,10 +5933,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       ),
       h("div",{className:"topbar"},
         h("div",{className:"topbar-left"},
-          h("span",{className:"page-title"},pageTitle[page]||page),
-          h("span",{className:"sep"}),
-          h("span",{className:"page-sub"},`${mn} ${cfg.year} · ${G.n} مهندس`),
-          autoSaving&&h("span",{style:{fontSize:10,color:"var(--blue)",fontWeight:700,display:"flex",alignItems:"center",gap:4,marginRight:8,opacity:.8}},
+          autoSaving&&h("span",{style:{fontSize:10,color:"var(--blue)",fontWeight:700,display:"flex",alignItems:"center",gap:4,opacity:.8}},
             h("span",{style:{width:6,height:6,borderRadius:"50%",background:"var(--blue)",display:"inline-block",animation:"pulse 1s infinite"}}),
             "جارٍ الحفظ..."
           )
@@ -5980,30 +6031,74 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("span",null,`أنت تعمل على ${mn} ${cfg.year} — `+(isLocked?"هذا الشهر مقفول 🔒":"هذا ليس الشهر النشط")),
           h("button",{className:"btn",style:{padding:"3px 10px",fontSize:10,marginRight:"auto"},onClick:()=>switchMonth(expectedAk)},"الرجوع للشهر الحالي")
         ),
-        /* ── Page header (page name + month + selector) ── */
-        ['eng','att','expenses','dash','stats','leaves'].includes(page)&&(()=>{
-          const ICONS={eng:'📋',att:'✅',expenses:'💰',dash:'📊',stats:'📈',leaves:'✈️'};
+        /* ══ UNIFIED HEADER — shown on every page ══ */
+        (()=>{
+          const ICONS={dash:'📊',eng:'📋',att:'✅',leaves:'✈️',expenses:'💰',stats:'📈',hist:'🕐',compare:'⚖️',report:'📄',org:'🏢',backup:'💾',activity:'📜'};
+          const pageIcon=ICONS[page]||'📌';
+          /* Project count from orgData.cities aggregated */
+          const projectCount=(orgData?.cities||[]).reduce((a,c)=>a+(c.projects?.length||0),0);
+          /* Live time formatting */
+          const pad=n=>String(n).padStart(2,'0');
+          const timeStr=`${pad(clockNow.getHours())}:${pad(clockNow.getMinutes())}`;
+          const dateStr=clockNow.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+          /* Month dropdown — preserved for pages that had a month selector */
           const usingAttKey=page==='att';
+          const showMonthSelect=['eng','att','expenses','dash','stats','leaves'].includes(page);
           const curKey=usingAttKey?attKey:ak;
-          const curMonth=usingAttKey?attMn:mn;
-          const curYear=usingAttKey?attCfg.year:cfg.year;
           const setKey=usingAttKey?setAttKey:setAk;
           const monthOpts=Object.keys(months).filter(k=>k!=='leaves').sort();
-          // Include current key even if not in saved months yet
           if(!monthOpts.includes(curKey))monthOpts.push(curKey);
-          return h("div",{className:"page-header"},
-            h("div",{className:"page-header-info"},
-              h("span",{className:"page-header-icon"},ICONS[page]||'📅'),
-              h("span",{className:"page-header-title"},pageTitle[page]||page),
-              h("span",{className:"page-header-month"},curMonth+" "+curYear)
+          return [
+            /* ── Unified Header ── */
+            h("div",{key:"unified-header",className:"unified-header"},
+              h("div",{className:"unified-header-glow"}),
+              h("div",{className:"uh-row uh-row-top"},
+                h("div",{className:"uh-brand"},
+                  h("div",{className:"uh-logo-box"},
+                    logo
+                      ?h("img",{src:logo,alt:"الرائد",className:"uh-logo-img"})
+                      :h("div",{className:"uh-logo-fallback"},"🏗️")
+                  ),
+                  h("div",{className:"uh-brand-text"},
+                    h("div",{className:"uh-brand-title"},"شركة الرائد للاستشارات الهندسية"),
+                    h("div",{className:"uh-brand-sub"},"مشروعات ليبيا")
+                  )
+                ),
+                h("div",{className:"uh-clock"},
+                  h("div",{className:"uh-clock-time"},timeStr),
+                  h("div",{className:"uh-clock-date"},dateStr)
+                )
+              ),
+              h("div",{className:"uh-row uh-row-badges"},
+                h("div",{className:"uh-badge uh-badge-indigo"},
+                  h("span",{className:"uh-badge-icon"},"📅"),
+                  h("span",{className:"uh-badge-text"},"الشهر: "+mn+" "+cfg.year)
+                ),
+                h("div",{className:"uh-badge uh-badge-emerald"},
+                  h("span",{className:"uh-badge-icon"},"👥"),
+                  h("span",{className:"uh-badge-text"},"المهندسين: "+G.n)
+                ),
+                h("div",{className:"uh-badge uh-badge-amber"},
+                  h("span",{className:"uh-badge-icon"},"📍"),
+                  h("span",{className:"uh-badge-text"},"المحافظات: "+(isProvince?1:PROVS.length))
+                ),
+                h("div",{className:"uh-badge uh-badge-pink"},
+                  h("span",{className:"uh-badge-icon"},"📊"),
+                  h("span",{className:"uh-badge-text"},"المشاريع: "+(projectCount||"—"))
+                )
+              )
             ),
-            isAdmin&&h("select",{className:"page-header-select",value:curKey,onChange:ev=>setKey(ev.target.value),title:"تغيير الشهر"},
-              monthOpts.sort().map(k=>{
-                const[y,m]=k.split('-');
-                return h("option",{key:k,value:k},MONTHS[+m-1]+" "+y);
-              })
+            /* ── Single page title row (replaces both topbar duplicate + old page-header) ── */
+            h("div",{key:"page-title-row",className:"page-title-row"},
+              h("div",{className:"page-title-main"},
+                h("span",{className:"page-title-icon"},pageIcon),
+                h("span",{className:"page-title-text"},pageTitle[page]||page)
+              ),
+              showMonthSelect&&isAdmin&&h("select",{className:"page-title-month-select",value:curKey,onChange:ev=>setKey(ev.target.value),title:"تغيير الشهر"},
+                monthOpts.sort().map(k=>{const[y,m]=k.split('-');return h("option",{key:k,value:k},MONTHS[+m-1]+" "+y);})
+              )
             )
-          );
+          ];
         })(),
 
         /* ── Page-level action toolbar (per-page buttons row) ── */
