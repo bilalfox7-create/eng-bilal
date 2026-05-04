@@ -397,9 +397,11 @@ html.light body::before{
 }
 .card-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:9px}
 .card-title-icon{
-  width:28px;height:28px;border-radius:8px;
+  width:32px;height:32px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
+  box-shadow:0 4px 14px rgba(99,102,241,.25),inset 0 1px 0 rgba(255,255,255,.12);
+  background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(139,92,246,.10))!important;
+  border:1px solid rgba(139,92,246,.25);
 }
 .card-title-icon svg{width:14px;height:14px}
 .card-badge{
@@ -1369,16 +1371,20 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .content>*{animation:pageIn .2s ease}
 .month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
 .warn-banner{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#D97706;font-size:12px;font-weight:600;margin-bottom:8px}
-.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;margin-bottom:10px;background:linear-gradient(135deg,rgba(96,165,250,.10),rgba(167,139,250,.06));border:1px solid rgba(96,165,250,.25);border-radius:12px}
-.page-header-info{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.page-header-icon{font-size:22px;line-height:1}
-.page-header-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.3px}
-.page-header-month{font-size:13px;font-weight:700;color:var(--blue);background:rgba(96,165,250,.12);padding:3px 12px;border-radius:100px;border:1px solid rgba(96,165,250,.25)}
-.page-header-select{padding:6px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bdr);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;outline:none;font-family:inherit}
-.page-header-select:hover{border-color:var(--blue)}
-.page-header-select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(96,165,250,.2)}
-html.light .page-header{background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-color:#BFDBFE}
-html.light .page-header-month{background:#DBEAFE;color:#1d4ed8;border-color:#93C5FD}
+.page-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px;margin-bottom:14px;background:linear-gradient(135deg,rgba(99,102,241,.16) 0%,rgba(139,92,246,.10) 50%,rgba(34,211,238,.06) 100%);border:1px solid rgba(139,92,246,.25);border-radius:18px;backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:0 8px 28px rgba(99,102,241,.16),inset 0 1px 0 rgba(255,255,255,.05);position:relative;overflow:hidden}
+.page-header::before{content:'';position:absolute;top:-30px;left:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(139,92,246,.32),transparent 70%);pointer-events:none}
+.page-header::after{content:'';position:absolute;bottom:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(34,211,238,.20),transparent 70%);pointer-events:none}
+.page-header>*{position:relative}
+.page-header-info{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.page-header-icon{font-size:26px;line-height:1;filter:drop-shadow(0 4px 8px rgba(139,92,246,.4))}
+.page-header-title{font-size:18px;font-weight:900;color:var(--text);letter-spacing:-.4px}
+.page-header-month{font-size:13px;font-weight:800;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:5px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.15);box-shadow:0 4px 14px rgba(99,102,241,.4)}
+.page-header-select{padding:8px 14px;background:rgba(255,255,255,.05);color:var(--text);border:1px solid rgba(139,92,246,.3);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;outline:none;font-family:inherit;backdrop-filter:blur(10px)}
+.page-header-select:hover{border-color:rgba(139,92,246,.6);background:rgba(139,92,246,.10)}
+.page-header-select:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.2)}
+html.light .page-header{background:linear-gradient(135deg,#EEF2FF,#F5F3FF,#ECFEFF);border-color:#C7D2FE}
+html.light .page-header-month{background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+html.light .page-header-select{background:#fff;border-color:#C7D2FE;color:#1e293b}
 .att-popup{position:fixed;background:var(--bg2);border:1px solid var(--bdr2);border-radius:10px;padding:6px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:9999;display:flex;flex-direction:column;gap:3px;min-width:130px}
 .att-popup-hdr{padding:3px 8px 5px;font-size:10px;color:var(--sub);font-weight:700;border-bottom:1px solid var(--bdr);margin-bottom:2px}
 .att-popup-btn{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;text-align:right;transition:opacity .15s;width:100%}
@@ -5647,25 +5653,27 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const totalH1USD=paidStats.paid1USD+paidStats.unpaid1USD;
             const totalH2USD=paidStats.paid2USD+paidStats.unpaid2USD;
             return [
-              h("div",{key:"egp-summary",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}},
-                h("div",{style:{padding:"14px 18px",background:"linear-gradient(135deg,#EFF6FF 0%,#DBEAFE 100%)",border:"2px solid #2563EB",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
-                  h("div",{style:{display:"flex",flexDirection:"column",gap:4}},
-                    h("span",{style:{fontSize:12,fontWeight:700,color:"#1d4ed8"}},"إجمالى النصف الأول"),
-                    h("span",{style:{fontSize:14,fontWeight:800,color:"#0f172a"}},f$(totalH1USD)+" بالدولار")
+              h("div",{key:"egp-summary",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:6}},
+                h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(99,102,241,.18) 0%,rgba(59,130,246,.10) 100%)",border:"1px solid rgba(99,102,241,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(99,102,241,.20)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+                  h("div",{style:{position:"absolute",top:-20,right:-20,width:100,height:100,background:"radial-gradient(circle,rgba(99,102,241,.30),transparent 70%)",pointerEvents:"none"}}),
+                  h("div",{style:{position:"relative",display:"flex",flexDirection:"column",gap:5}},
+                    h("span",{style:{fontSize:11,fontWeight:800,color:"#A5B4FC",letterSpacing:".5px"}},"النصف الأول"),
+                    h("span",{style:{fontSize:14,fontWeight:800,color:"var(--text)"}},f$(totalH1USD)+" بالدولار")
                   ),
-                  h("div",{style:{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}},
-                    h("span",{style:{fontSize:10,fontWeight:700,color:"#1d4ed8",letterSpacing:".3px"}},"بالجنيه المصري"),
-                    h("span",{style:{fontSize:24,fontWeight:900,color:"#1d4ed8",letterSpacing:"-0.5px",lineHeight:1}},fE(totalH1USD*rate))
+                  h("div",{style:{position:"relative",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}},
+                    h("span",{style:{fontSize:10,fontWeight:700,color:"#A5B4FC",letterSpacing:"1px"}},"بالجنيه المصري"),
+                    h("span",{style:{fontSize:26,fontWeight:900,background:"linear-gradient(135deg,#818cf8,#a78bfa)",backgroundClip:"text",WebkitBackgroundClip:"text",color:"transparent",letterSpacing:"-1px",lineHeight:1}},fE(totalH1USD*rate))
                   )
                 ),
-                h("div",{style:{padding:"14px 18px",background:"linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%)",border:"2px solid #16A34A",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
-                  h("div",{style:{display:"flex",flexDirection:"column",gap:4}},
-                    h("span",{style:{fontSize:12,fontWeight:700,color:"#15803d"}},"إجمالى النصف التاني"),
-                    h("span",{style:{fontSize:14,fontWeight:800,color:"#0f172a"}},f$(totalH2USD)+" بالدولار")
+                h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(16,185,129,.16) 0%,rgba(34,211,238,.08) 100%)",border:"1px solid rgba(16,185,129,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(16,185,129,.18)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+                  h("div",{style:{position:"absolute",top:-20,right:-20,width:100,height:100,background:"radial-gradient(circle,rgba(16,185,129,.30),transparent 70%)",pointerEvents:"none"}}),
+                  h("div",{style:{position:"relative",display:"flex",flexDirection:"column",gap:5}},
+                    h("span",{style:{fontSize:11,fontWeight:800,color:"#6EE7B7",letterSpacing:".5px"}},"النصف الثاني"),
+                    h("span",{style:{fontSize:14,fontWeight:800,color:"var(--text)"}},f$(totalH2USD)+" بالدولار")
                   ),
-                  h("div",{style:{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}},
-                    h("span",{style:{fontSize:10,fontWeight:700,color:"#15803d",letterSpacing:".3px"}},"بالجنيه المصري"),
-                    h("span",{style:{fontSize:24,fontWeight:900,color:"#15803d",letterSpacing:"-0.5px",lineHeight:1}},fE(totalH2USD*rate))
+                  h("div",{style:{position:"relative",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}},
+                    h("span",{style:{fontSize:10,fontWeight:700,color:"#6EE7B7",letterSpacing:"1px"}},"بالجنيه المصري"),
+                    h("span",{style:{fontSize:26,fontWeight:900,background:"linear-gradient(135deg,#34d399,#22d3ee)",backgroundClip:"text",WebkitBackgroundClip:"text",color:"transparent",letterSpacing:"-1px",lineHeight:1}},fE(totalH2USD*rate))
                   )
                 )
               ),
