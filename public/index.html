@@ -4310,6 +4310,178 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     setTimeout(()=>{try{w.focus();}catch(e){}},200);
   };
 
+  /* ─────────────────────────────────────────────────────
+     LIBRARY-TAB DIRECT PDF GENERATORS
+     Each builds a complete white-template PDF without
+     navigating away. mode='print' auto-opens print dialog,
+     mode='preview' just opens window for viewing.
+  ────────────────────────────────────────────────────── */
+  const _openPdfWin=(html,mode)=>{
+    const w=window.open('','_blank','width=1100,height=820');
+    if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return null;}
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>{try{w.focus();if(mode==='print')w.print();}catch(e){}},mode==='print'?700:200);
+    return w;
+  };
+
+  const _pdfHeaderHtml=(title,subtitle)=>{
+    const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
+    const logoHtml=logo?`<img src="${logo}" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #BFDBFE"/>`:'<div style="width:60px;height:60px;border-radius:8px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:24px">🏗️</div>';
+    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border:1px solid #BFDBFE;border-radius:10px;margin-bottom:16px">
+      ${logoHtml}
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:900;color:#1E3A8A;line-height:1.3">${title}</div>
+        <div style="font-size:11px;color:#3B82F6;font-weight:700;margin-top:3px">${subtitle}</div>
+        <div style="font-size:10px;color:#64748B;margin-top:3px">${cfg.company||'شركة الرائد للاستشارات الهندسية'} · صدر: ${today}</div>
+      </div>
+    </div>`;
+  };
+
+  const _pdfShellCss=()=>`@page{size:A4;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;padding:18px;line-height:1.5}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35)}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #E2E8F0;padding:6px 8px;text-align:right}th{background:#F8FAFC;font-weight:800;color:#475569}.empty{padding:30px;text-align:center;color:#94A3B8;font-style:italic;font-size:12px;border:1.5px dashed #CBD5E1;border-radius:10px;margin:20px 0}.section{margin-bottom:18px}.section-title{font-size:14px;font-weight:900;color:#1E3A8A;padding:8px 12px;background:#F8FAFC;border-right:4px solid #2563EB;border-radius:4px;margin-bottom:10px}`;
+
+  /* ── Attendance PDF (current month) ── */
+  const printAttendancePDF=(mode='print')=>{
+    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+    const monthLabel=MONTHS[M-1]+' '+Y;
+    const daysInMonth=new Date(Y,M,0).getDate();
+    const days=Array.from({length:daysInMonth},(_,i)=>i+1);
+    const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
+    const isFri=d=>new Date(Y,M-1,d).getDay()===5;
+    const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#EFF6FF',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
+    const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#1D4ED8',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
+    const visibleProvs=isProvince?[userProv]:PROVS;
+    let totalP=0,totalA=0,totalLv=0;
+    const provBlocks=visibleProvs.map(prov=>{
+      const engs=data[prov]||[];
+      if(!engs.length)return '';
+      const rows=engs.map(eng=>{
+        const eAtt=att[eng.id]||{};
+        let p=0,a=0,lv=0;
+        const cells=days.map(d=>{
+          const dd=eAtt[d];const st=dd?.s;const fri=isFri(d);
+          if(st==='P')p++;else if(st==='A')a++;else if(['AL','SL','EL'].includes(st))lv++;
+          if(fri)return '<td style="background:#F1F5F9;color:#94A3B8;text-align:center;font-size:9px;font-weight:700">ع</td>';
+          if(!st)return '<td></td>';
+          return `<td style="background:${S_BG[st]};color:${S_COL[st]};text-align:center;font-size:9px;font-weight:800">${st}</td>`;
+        }).join('');
+        totalP+=p;totalA+=a;totalLv+=lv;
+        return `<tr><td style="font-weight:700">${eng.name}<br><span style="font-size:9px;color:#64748B">${eng.spec||''}</span></td>${cells}<td style="text-align:center;background:#FAFAFA"><span style="color:#059669;font-weight:800">${p}</span> · <span style="color:#DC2626;font-weight:800">${a}</span>${lv>0?' · <span style="color:#2563EB;font-weight:800">'+lv+'</span>':''}</td></tr>`;
+      }).join('');
+      const header=`<tr><th style="min-width:130px">المهندس</th>${days.map(d=>`<th style="min-width:24px;font-size:9px${isFri(d)?';background:#F1F5F9;color:#94A3B8':''}">${d}<br>${DAY_AR[new Date(Y,M-1,d).getDay()]}</th>`).join('')}<th style="min-width:90px">الملخص</th></tr>`;
+      return `<div class="section"><div class="section-title">📍 ${prov} (${engs.length} مهندس)</div><table>${header}${rows}</table></div>`;
+    }).join('');
+    const summary=`<div style="display:flex;gap:8px;margin-bottom:16px"><div style="flex:1;padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${totalP}</div><div style="font-size:10px;color:#065F46;font-weight:700">إجمالى الحضور</div></div><div style="flex:1;padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${totalA}</div><div style="font-size:10px;color:#991B1B;font-weight:700">إجمالى الغياب</div></div><div style="flex:1;padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${totalLv}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">إجمالى الإجازات</div></div></div>`;
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الحضور — ${monthLabel}</title><style>${_pdfShellCss()}@page{size:A4 landscape;margin:8mm}body{padding:14px;font-size:10px}table{font-size:10px}th,td{padding:4px 6px}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الحضور والانصراف','تفصيل أيام الحضور والغياب لكل مهندس · '+monthLabel)}${summary}${provBlocks||'<div class="empty">لا توجد بيانات حضور</div>'}</body></html>`;
+    _openPdfWin(html,mode);
+  };
+
+  /* ── Expenses PDF (custody + items + transfers, all months for admin) ── */
+  const printExpensesPDF=(mode='print')=>{
+    const fmt=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtN=n=>(+n||0).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const cust=isProvince?aggCustody.filter(c=>c.prov===userProv):aggCustody;
+    const items=isProvince?aggExpItems.filter(e=>e.prov===userProv):aggExpItems;
+    const trfs=isProvince?aggTransfers.filter(t=>t.prov===userProv):aggTransfers;
+    const totC_USD=cust.reduce((a,c)=>a+(+c.usd||0),0);
+    const totC_LYD=cust.reduce((a,c)=>a+(+c.lyd||0),0);
+    const totI_USD=items.reduce((a,e)=>a+(+e.usd||0),0);
+    const totI_LYD=items.reduce((a,e)=>a+(+e.lyd||0),0);
+    const totT_USD=trfs.reduce((a,t)=>a+(+t.usd||0),0);
+    const totT_LYD=trfs.reduce((a,t)=>a+(+t.lyd||0),0);
+    const balUSD=totC_USD-totI_USD-totT_USD;
+    const balLYD=totC_LYD+totT_LYD-totI_LYD;
+    const summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:9px;color:#065F46;font-weight:800;margin-bottom:4px">العهد المستلمة</div><div style="font-size:14px;font-weight:900;color:#059669">${fmt(totC_USD)} $</div><div style="font-size:11px;font-weight:800;color:#15803D">${fmtN(totC_LYD)} د.ل</div></div>
+      <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:9px;color:#991B1B;font-weight:800;margin-bottom:4px">المصروفات</div><div style="font-size:14px;font-weight:900;color:#DC2626">${fmt(totI_USD)} $</div><div style="font-size:11px;font-weight:800;color:#B91C1C">${fmtN(totI_LYD)} د.ل</div></div>
+      <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:9px;color:#78350F;font-weight:800;margin-bottom:4px">التحويلات ($→د.ل)</div><div style="font-size:14px;font-weight:900;color:#D97706">${fmt(totT_USD)} $</div><div style="font-size:11px;font-weight:800;color:#92400E">${fmtN(totT_LYD)} د.ل</div></div>
+      <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:9px;color:#1E40AF;font-weight:800;margin-bottom:4px">الرصيد المتبقى</div><div style="font-size:14px;font-weight:900;color:${balUSD<0?'#DC2626':'#2563EB'}">${fmt(balUSD)} $</div><div style="font-size:11px;font-weight:800;color:${balLYD<0?'#DC2626':'#1E40AF'}">${fmtN(balLYD)} د.ل</div></div>
+    </div>`;
+    const sCust=cust.length?`<div class="section"><div class="section-title">💰 العهد المستلمة (${cust.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th>المصدر</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th><th>ملاحظات</th></tr></thead><tbody>${cust.map(c=>`<tr><td>${c.date||'—'}</td><td>${(c.prov||'').replace('محافظة ','')}</td><td>${c.responsible||'—'}</td><td>${c.source||'—'}</td><td style="text-align:center;font-weight:700;color:#059669">${fmt(c.usd||0)}</td><td style="text-align:center;font-weight:700;color:#15803D">${fmtN(c.lyd||0)}</td><td style="font-size:10px;color:#64748B">${c.notes||''}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="4">الإجمالى</td><td style="text-align:center;color:#059669">${fmt(totC_USD)} $</td><td style="text-align:center;color:#15803D">${fmtN(totC_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
+    const sItems=items.length?`<div class="section"><div class="section-title">💸 المصروفات والإيجارات (${items.length})</div><table><thead><tr><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>الوصف</th><th>المحافظة</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th></tr></thead><tbody>${items.map(e=>`<tr><td>${e.date||'—'}</td><td><span style="background:${e.type==='إيجار'?'#FEF3C7':'#FEE2E2'};color:${e.type==='إيجار'?'#92400E':'#991B1B'};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${e.type||'—'}</span></td><td>${e.category||'—'}</td><td>${e.desc||'—'}</td><td>${(e.prov||'').replace('محافظة ','')}</td><td style="text-align:center;font-weight:700;color:#DC2626">${fmt(e.usd||0)}</td><td style="text-align:center;font-weight:700;color:#B91C1C">${fmtN(e.lyd||0)}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="5">الإجمالى</td><td style="text-align:center;color:#DC2626">${fmt(totI_USD)} $</td><td style="text-align:center;color:#B91C1C">${fmtN(totI_LYD)} د.ل</td></tr></tbody></table></div>`:'';
+    const sTrfs=trfs.length?`<div class="section"><div class="section-title">🔄 التحويلات (${trfs.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th style="text-align:center">من ($)</th><th style="text-align:center">إلى (د.ل)</th><th style="text-align:center">السعر</th></tr></thead><tbody>${trfs.map(t=>`<tr><td>${t.date||'—'}</td><td>${(t.prov||'').replace('محافظة ','')}</td><td>${t.responsible||'—'}</td><td style="text-align:center;font-weight:700;color:#D97706">${fmt(t.usd||0)}</td><td style="text-align:center;font-weight:700;color:#92400E">${fmtN(t.lyd||0)}</td><td style="text-align:center;font-size:10px;color:#64748B">${t.usd>0?(t.lyd/t.usd).toFixed(2):'—'}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="3">الإجمالى</td><td style="text-align:center;color:#D97706">${fmt(totT_USD)} $</td><td style="text-align:center;color:#92400E">${fmtN(totT_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير المصروفات</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير العهدة والمصروفات','العهد + الإيجارات + التحويلات + الرصيد المتبقى')}${summary}${sCust||'<div class="empty">لا توجد عهد مسجلة</div>'}${sItems}${sTrfs}</body></html>`;
+    _openPdfWin(html,mode);
+  };
+
+  /* ── Leaves PDF (all leaves with status) ── */
+  const printLeavesPDF=(mode='print')=>{
+    const fmtN=n=>(+n||0).toLocaleString('ar-EG');
+    const list=isProvince?leaves.filter(l=>l.prov===userProv):leaves;
+    const approved=list.filter(l=>l.status==='approved');
+    const pending=list.filter(l=>l.status==='pending');
+    const cancelled=list.filter(l=>l.status==='cancelled'||l.status==='rejected');
+    const today=new Date();today.setHours(12,0,0,0);
+    const onLeaveNow=approved.filter(l=>{
+      if(!l.travelDate)return false;
+      const t=new Date(l.travelDate+'T12:00'),r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
+      return t<=today&&(!r||today<=r);
+    });
+    const summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${approved.length}</div><div style="font-size:10px;color:#065F46;font-weight:700">معتمدة</div></div>
+      <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#D97706">${pending.length}</div><div style="font-size:10px;color:#78350F;font-weight:700">معلقة</div></div>
+      <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${onLeaveNow.length}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">في إجازة الآن</div></div>
+      <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${cancelled.length}</div><div style="font-size:10px;color:#991B1B;font-weight:700">ملغية / مرفوضة</div></div>
+    </div>`;
+    const stBadge=st=>{const m={'approved':['#ECFDF5','#059669','معتمدة'],'pending':['#FFFBEB','#D97706','معلقة'],'cancelled':['#FEF2F2','#DC2626','ملغية'],'rejected':['#FEF2F2','#DC2626','مرفوضة']};const x=m[st]||['#F1F5F9','#64748B',st||'—'];return `<span style="background:${x[0]};color:${x[1]};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${x[2]}</span>`;};
+    const renderTable=(arr,title)=>arr.length?`<div class="section"><div class="section-title">${title} (${arr.length})</div><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th style="text-align:center">المدة</th><th>السبب</th><th>الحالة</th></tr></thead><tbody>${arr.map(l=>`<tr><td style="font-weight:700">${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td style="text-align:center;font-weight:700">${l.durationDays||'—'} ${l.durationDays?'يوم':''}</td><td style="font-size:10px;color:#64748B">${l.reason||'—'}</td><td>${stBadge(l.status)}</td></tr>`).join('')}</tbody></table></div>`:'';
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الإجازات</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الإجازات','كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ والمدة')}${summary}${renderTable(onLeaveNow,'✈️ في إجازة الآن')}${renderTable(approved.filter(l=>!onLeaveNow.includes(l)),'✅ إجازات معتمدة')}${renderTable(pending,'⏳ إجازات معلقة')}${renderTable(cancelled,'❌ إجازات ملغية / مرفوضة')}${list.length===0?'<div class="empty">لا توجد إجازات</div>':''}</body></html>`;
+    _openPdfWin(html,mode);
+  };
+
+  /* ── Org/Provinces PDF (org structure + per-province stats) ── */
+  const printOrgPDF=(mode='print')=>{
+    const od=orgData||{director:{name:'—',title:'مدير المشروعات'},cities:[]};
+    const dirName=od.director?.name||'—';
+    const dirTitle=od.director?.title||'مدير المشروعات';
+    const cityBlocks=(od.cities||[]).map(city=>{
+      const totalEngs=(city.managers?.length||0)+(city.team?.length||0);
+      const engs=data['محافظة '+city.name]||data[city.name]||[];
+      const liveCount=engs.length;
+      const projects=city.projects||[];
+      const mgrRows=(city.managers||[]).map(m=>`<tr><td style="font-weight:700">${m.name}</td><td style="font-size:10px;color:#64748B">${m.role||'—'}</td><td><span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">مدير</span></td></tr>`).join('');
+      const teamRows=(city.team||[]).map(m=>`<tr><td>${m.name}</td><td style="font-size:10px;color:#64748B">${m.role||'—'}</td><td><span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">فريق</span></td></tr>`).join('');
+      const projHtml=projects.length?`<div style="margin-top:8px;padding:10px;background:#F8FAFC;border-radius:6px;border:1px solid #E2E8F0"><div style="font-size:11px;font-weight:800;color:#475569;margin-bottom:6px">📋 المشاريع (${projects.length})</div>${projects.map(p=>`<div style="font-size:10px;padding:3px 0;color:#334155">• ${p.name||p}</div>`).join('')}</div>`:'';
+      return `<div class="section" style="border:1.5px solid #E2E8F0;border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${city.color||'#3B82F6'}">
+          <div>
+            <div style="font-size:16px;font-weight:900;color:${city.color||'#3B82F6'}">📍 ${city.name}</div>
+            <div style="font-size:11px;color:#64748B;margin-top:2px">${liveCount} مهندس · ${(city.managers||[]).length} مدير · ${(city.team||[]).length} فني · ${projects.length} مشروع</div>
+          </div>
+        </div>
+        ${(mgrRows+teamRows)?`<table style="font-size:10.5px"><thead><tr><th>الاسم</th><th>الدور</th><th style="width:80px;text-align:center">المستوى</th></tr></thead><tbody>${mgrRows}${teamRows}</tbody></table>`:'<div style="padding:14px;text-align:center;color:#94A3B8;font-size:11px">لا توجد بيانات</div>'}
+        ${projHtml}
+      </div>`;
+    }).join('');
+    const totalDirector=`<div style="background:linear-gradient(135deg,#1E3A8A,#3730A3);color:#fff;padding:16px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
+      <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900">👤</div>
+      <div>
+        <div style="font-size:18px;font-weight:900">${dirName}</div>
+        <div style="font-size:12px;opacity:.85;margin-top:3px">${dirTitle}</div>
+        <div style="font-size:10px;opacity:.7;margin-top:5px">${od.company||cfg.company||'شركة الرائد للاستشارات الهندسية'}</div>
+      </div>
+    </div>`;
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الهيكل التنظيمي</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الهيكل التنظيمي والمحافظات','إحصائيات كل محافظة (مهندسين، مشاريع، فِرَق)')}${totalDirector}${cityBlocks||'<div class="empty">لا توجد بيانات تنظيمية</div>'}</body></html>`;
+    _openPdfWin(html,mode);
+  };
+
+  /* ── Wrappers for existing PDFs to support preview mode ── */
+  const printDisbursementPDF=(mode='print')=>{
+    if(mode==='preview'){
+      // For preview, intercept window.print to suppress auto-print
+      const orig=window.print;
+      window.print=()=>{};
+      try{exportPDF();}finally{setTimeout(()=>{window.print=orig;},2000);}
+    }else{
+      exportPDF();
+    }
+  };
+  const printComprehensivePDF=(mode='print')=>{
+    if(!isAdmin){msg('للأدمن فقط','err');return;}
+    generateMonthlyReport();
+    // generateMonthlyReport doesn't auto-print, so mode is mostly for parity
+  };
+
   /* ── Nav items ────────────────────────────────────── */
   const navs=[
     {id:"dash",n:"dash",lbl:"لوحة التحكم"},
@@ -6881,19 +7053,22 @@ ${PROVS.map(prov=>{
           /* ─── TAB 1: LIBRARY ─── */
           reportTab==='library'&&h("div",{key:"rep-lib",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
             [
-              {id:'comprehensive',title:'التقرير الشامل',icon:'📊',desc:'ملخص شامل لمهندسين وحضور وإعاشة ومصروفات وإجازات',c1:'#6366f1',c2:'#8b5cf6',action:generateMonthlyReport},
-              {id:'attendance',title:'تقرير الحضور',icon:'✅',desc:'تفصيل أيام الحضور والغياب لكل مهندس بالشهر',c1:'#10b981',c2:'#059669',action:()=>{setPage('att');setTimeout(()=>handlePdfClick(),700);}},
-              {id:'disbursement',title:'تقرير الإعاشة',icon:'💵',desc:'d1 + d2 + الإضافات لكل مهندس مع الإجمالى',c1:'#f59e0b',c2:'#d97706',action:()=>{setPage('eng');setTimeout(()=>handlePdfClick(),700);}},
-              {id:'expenses',title:'تقرير المصروفات',icon:'💰',desc:'العهد والإيجارات والتحويلات والرصيد المتبقى',c1:'#ec4899',c2:'#db2777',action:()=>{setPage('expenses');setTimeout(()=>handlePdfClick(),700);}},
-              {id:'leaves',title:'تقرير الإجازات',icon:'✈️',desc:'كل الإجازات (محجوزة، مؤجلة، ملغية) مع التواريخ',c1:'#7F77DD',c2:'#5b51c7',action:()=>{setPage('leaves');setTimeout(()=>handlePdfClick(),700);}},
-              {id:'provinces',title:'تقرير المحافظات',icon:'🏢',desc:'إحصائيات كل محافظة (مهندسين، مشاريع، حضور)',c1:'#14b8a6',c2:'#0d9488',action:()=>{setPage('org');setTimeout(()=>{if(orgPrintRef.current)orgPrintRef.current('all');},700);}}
-            ].map(r=>h("div",{key:r.id,style:{padding:"20px",background:`linear-gradient(135deg,${r.c1}15,${r.c2}08)`,border:`1px solid ${r.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden",boxShadow:`0 8px 28px ${r.c1}20`}},
+              {id:'comprehensive',title:'التقرير الشامل',icon:'📊',desc:'ملخص شامل لمهندسين وحضور وإعاشة ومصروفات وإجازات',c1:'#6366f1',c2:'#8b5cf6',gen:printComprehensivePDF,adminOnly:true},
+              {id:'attendance',title:'تقرير الحضور',icon:'✅',desc:'تفصيل أيام الحضور والغياب لكل مهندس بالشهر',c1:'#10b981',c2:'#059669',gen:printAttendancePDF},
+              {id:'disbursement',title:'تقرير الإعاشة',icon:'💵',desc:'d1 + d2 + الإضافات لكل مهندس مع الإجمالى',c1:'#f59e0b',c2:'#d97706',gen:printDisbursementPDF},
+              {id:'expenses',title:'تقرير المصروفات',icon:'💰',desc:'العهد والإيجارات والتحويلات والرصيد المتبقى',c1:'#ec4899',c2:'#db2777',gen:printExpensesPDF},
+              {id:'leaves',title:'تقرير الإجازات',icon:'✈️',desc:'كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ',c1:'#7F77DD',c2:'#5b51c7',gen:printLeavesPDF},
+              {id:'provinces',title:'تقرير المحافظات',icon:'🏢',desc:'إحصائيات كل محافظة (مهندسين، مشاريع، فِرَق)',c1:'#14b8a6',c2:'#0d9488',gen:printOrgPDF}
+            ].filter(r=>!r.adminOnly||isAdmin).map(r=>h("div",{key:r.id,style:{padding:"20px",background:`linear-gradient(135deg,${r.c1}15,${r.c2}08)`,border:`1px solid ${r.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden",boxShadow:`0 8px 28px ${r.c1}20`}},
               h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${r.c1}30,transparent 70%)`,pointerEvents:"none"}}),
               h("div",{style:{position:"relative"}},
                 h("div",{style:{width:54,height:54,borderRadius:14,background:`linear-gradient(135deg,${r.c1},${r.c2})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12,boxShadow:`0 8px 22px ${r.c1}50`}},r.icon),
                 h("div",{style:{fontSize:15,fontWeight:900,color:"var(--text)",marginBottom:6}},r.title),
                 h("div",{style:{fontSize:11,color:"var(--sub)",lineHeight:1.6,marginBottom:14,minHeight:48}},r.desc),
-                h("button",{onClick:r.action,style:{width:"100%",padding:"9px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${r.c1},${r.c2})`,color:"#fff",boxShadow:`0 6px 18px ${r.c1}40`}},"📄 إنشاء PDF")
+                h("div",{style:{display:"flex",gap:6}},
+                  h("button",{onClick:()=>r.gen('print'),title:"إنشاء وطباعة PDF",style:{flex:1,padding:"9px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:`linear-gradient(135deg,${r.c1},${r.c2})`,color:"#fff",boxShadow:`0 6px 18px ${r.c1}40`}},"📄 إنشاء PDF"),
+                  h("button",{onClick:()=>r.gen('preview'),title:"معاينة قبل التحميل",style:{flexShrink:0,width:42,padding:"9px 0",border:`1px solid ${r.c1}55`,borderRadius:10,fontFamily:"inherit",fontSize:14,fontWeight:800,cursor:"pointer",background:"rgba(255,255,255,.06)",color:r.c1}},"👁")
+                )
               )
             ))
           ),
