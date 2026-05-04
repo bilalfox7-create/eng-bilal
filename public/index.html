@@ -2105,6 +2105,8 @@ function App(){
   const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
   /* Engineer transfer modal: select engineer + target province + date */
   const [engTransferForm,setEngTransferForm]=useState({engId:'',toProv:'',date:''});
+  /* Egypt transfer modal: select engineer + date + notes */
+  const [egyptTransferForm,setEgyptTransferForm]=useState({engId:'',date:'',notes:''});
   /* Debounce flag for transfer button (2s lock after each submit) */
   const [transferring,setTransferring]=useState(false);
   const transferringRef=useRef(false);
@@ -2398,7 +2400,15 @@ function App(){
 
   /* ── Computed ─────────────────────────────────────── */
   const am=useMemo(()=>months[ak]||null,[months,ak]);
-  const data=useMemo(()=>am?.data||dc(BASE),[am]);
+  /* dataRaw: full month data including egypt-transferred engineers (used by PDFs / undo / activity log) */
+  const dataRaw=useMemo(()=>am?.data||dc(BASE),[am]);
+  /* data: filtered view — engineers transferred to Egypt are HIDDEN from active UI everywhere */
+  const data=useMemo(()=>{
+    const raw=am?.data||dc(BASE);
+    const filtered={};
+    Object.keys(raw).forEach(p=>{filtered[p]=(raw[p]||[]).filter(e=>!e.egyptTransfer);});
+    return filtered;
+  },[am]);
   const cfg=useMemo(()=>am?.cfg||{month:now.getMonth()+1,year:now.getFullYear(),rate:300,egp:52.5,company:"شركة المشاريع الليبية"},[am]);
   /* Previous month key — used to look up "incoming" extra days (carried over from late arrivals) */
   const prevAk=useMemo(()=>{
@@ -2537,7 +2547,12 @@ function App(){
   },[am]);
   const att=useMemo(()=>am?.attendance||{},[am]);
   const attAm=useMemo(()=>months[attKey]||null,[months,attKey]);
-  const attData=useMemo(()=>attAm?.data||dc(BASE),[attAm]);
+  const attData=useMemo(()=>{
+    const raw=attAm?.data||dc(BASE);
+    const filtered={};
+    Object.keys(raw).forEach(p=>{filtered[p]=(raw[p]||[]).filter(e=>!e.egyptTransfer);});
+    return filtered;
+  },[attAm]);
   const attCfg=useMemo(()=>attAm?.cfg||{month:now.getMonth()+1,year:now.getFullYear(),rate:300,egp:52.5,company:"شركة المشاريع الليبية"},[attAm]);
   const attAtt=useMemo(()=>attAm?.attendance||{},[attAm]);
   const attMn=MONTHS[attCfg.month-1];
@@ -3109,6 +3124,46 @@ function App(){
     setEngTransferForm({engId:'',toProv:'',date:''});
   };
 
+  /* ── Transfer engineer to Egypt (final return) ─────────
+     Engineer is removed from the active workforce. Their record
+     stays in the month data with `egyptTransfer` set, but the UI
+     filters them out via the `data` useMemo. Past months remain
+     untouched (snapshots). Activity log records the action.
+  ──────────────────────────────────────────────────────── */
+  const egyptTransferEngineer=(engId,dateStr,notes)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    if(transferringRef.current){msg('جارٍ تنفيذ نقل سابق...','err');return;}
+    /* Find engineer in active month (use dataRaw so we don't filter out anyone) */
+    let fromProv=null,engRec=null;
+    PROVS.forEach(p=>{const found=(dataRaw[p]||[]).find(e=>e.id===engId);if(found){fromProv=p;engRec=found;}});
+    if(!engRec){msg('المهندس غير موجود','err');return;}
+    if(engRec.egyptTransfer){msg('المهندس بالفعل منقول لمصر','err');return;}
+    /* Province permission: must be their own engineer */
+    if(!isAdmin&&fromProv!==userProv){msg('يمكنك نقل مهندسى محافظتك فقط','err');return;}
+    if(!dateStr){msg('اختار تاريخ النقل','err');return;}
+    transferringRef.current=true;setTransferring(true);
+    setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
+    const egyptEntry={
+      id:'eg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      date:dateStr,
+      by:user?.username||'admin',
+      at:new Date().toISOString(),
+      notes:notes||'',
+      fromProv
+    };
+    /* Mutate data: mark engineer with egyptTransfer */
+    const nd=dc(dataRaw);
+    nd[fromProv]=(nd[fromProv]||[]).map(e=>e.id===engId?{...e,egyptTransfer:egyptEntry}:e);
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    logActivity('نقل لمصر',`${engRec.name} — من ${fromProv.replace('محافظة ','')} بتاريخ ${dateStr}${notes?' · '+notes:''}`);
+    msg(`🇪🇬 تم نقل ${engRec.name} لمصر — خرج من ${fromProv}`);
+    setModal(null);
+    setEgyptTransferForm({engId:'',date:'',notes:''});
+  };
+
   /* ── Undo a transfer ────────────────────────────────────
      Removes the transfer entry from eng.transfers AND moves the
      engineer back to transfer.from. Activity log entry is deleted
@@ -3126,10 +3181,37 @@ function App(){
   const undoTransfer=(engId,transferId)=>{
     if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
     if(lockGuard())return;
-    /* Find engineer in active month */
+    /* Find engineer in active month — use dataRaw so we can find egypt-transferred engineers too */
     let curProv=null,engRec=null;
-    PROVS.forEach(p=>{const found=(data[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
+    PROVS.forEach(p=>{const found=(dataRaw[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
     if(!engRec){msg('المهندس غير موجود — لا يمكن التراجع','err');return;}
+    /* ── Egypt-transfer undo: special path — restore engineer (remove egyptTransfer field) ── */
+    if(engRec.egyptTransfer&&engRec.egyptTransfer.id===transferId){
+      const tr=engRec.egyptTransfer;
+      if(!isAdmin){
+        if(tr.by!==user?.username){msg('غير مصرح','err');return;}
+        const ageMs=Date.now()-new Date(tr.at).getTime();
+        if(ageMs>24*60*60*1000){msg('انتهت مهلة التراجع (٢٤ ساعة)','err');return;}
+      }
+      const nd=dc(dataRaw);
+      nd[curProv]=(nd[curProv]||[]).map(e=>{
+        if(e.id!==engId)return e;
+        const{egyptTransfer,...rest}=e;
+        return rest;
+      });
+      const updated={...mkMonthBase(),data:nd,savedAt:null};
+      setMonths(prev=>({...prev,[ak]:updated}));
+      queueSave(ak,updated);
+      fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(d=>{
+        const matches=(d.logs||[]).filter(l=>l.action==='نقل لمصر'&&l.detail.includes(engRec.name)&&l.detail.includes(tr.date));
+        if(matches.length>0){
+          return fetch('/api/activity',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({ids:matches.map(m=>m.id)})});
+        }
+      }).catch(()=>{});
+      msg(`✓ تم التراجع — ${engRec.name} رجع إلى ${curProv}`);
+      setUndoConfirm(null);
+      return;
+    }
     const ts=getTransfers(engRec);
     if(ts.length===0){msg('لا يوجد نقل لهذا المهندس','err');return;}
     /* Find transfer by id (or fall back to `at` for legacy) */
@@ -4701,6 +4783,28 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   })()}
 </div>
 
+<div class="section">
+  <h2>🇪🇬 المهندسون المنقولون لمصر هذا الشهر — ${monthLabel}</h2>
+  ${(()=>{
+    /* Use raw data (dataRaw via useM.data) so egypt-transferred engineers show up */
+    const egyptTransfers=[];
+    Object.entries(useM?.data||{}).forEach(([prov,engs])=>(engs||[]).forEach(e=>{
+      const eg=e.egyptTransfer;
+      if(!eg)return;
+      const egDate=new Date((eg.date||'')+'T12:00');
+      if(egDate.getFullYear()===Y&&(egDate.getMonth()+1)===M){
+        egyptTransfers.push({eng:e.name,fromProv:eg.fromProv||prov,date:eg.date,by:eg.by||'—',notes:eg.notes||''});
+      }
+    }));
+    egyptTransfers.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    if(egyptTransfers.length===0)return '<div class="empty">لم يُنقل أى مهندس لمصر هذا الشهر</div>';
+    return `<table>
+      <thead><tr><th>المهندس</th><th>من المحافظة</th><th>التاريخ</th><th>تم بواسطة</th><th>ملاحظات</th></tr></thead>
+      <tbody>${egyptTransfers.map(t=>`<tr><td style="font-weight:700">${t.eng}</td><td>${t.fromProv.replace('محافظة ','')}</td><td>${t.date}</td><td style="color:#6B7280;font-size:11px">${t.by}</td><td style="color:#6B7280;font-size:11px">${t.notes||'—'}</td></tr>`).join('')}</tbody>
+    </table>`;
+  })()}
+</div>
+
 <div class="footer">
   تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${_cfg.company||''}
 </div>
@@ -5404,6 +5508,73 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           },transferring?"⏳ جارٍ النقل...":"🔄 تأكيد النقل")
         )
       ),
+      /* ── EGYPT TRANSFER MODAL ───────────────────────────── */
+      modal==="egypt-transfer"&&h("div",{className:"modal",style:{width:480}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"🇪🇬 نقل مهندس لمصر"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+          h("div",{className:"fld"},
+            h("label",null,"المهندس *"),
+            h("select",{
+              value:egyptTransferForm.engId,
+              onChange:ev=>setEgyptTransferForm(f=>({...f,engId:ev.target.value}))
+            },
+              h("option",{value:""},"— اختار المهندس —"),
+              ...PROVS.flatMap(p=>{
+                if(isProvince&&p!==userProv)return [];
+                const engs=(dataRaw[p]||[]).filter(e=>!e.egyptTransfer).slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+                return engs.length>0?[h("optgroup",{key:p,label:p.replace('محافظة ','')},engs.map(e=>h("option",{key:e.id,value:e.id},e.name)))]:[];
+              })
+            )
+          ),
+          /* Current province (read-only) */
+          (()=>{
+            if(!egyptTransferForm.engId)return null;
+            let curProv='';
+            PROVS.forEach(p=>(dataRaw[p]||[]).forEach(e=>{if(e.id===egyptTransferForm.engId)curProv=p;}));
+            return h("div",{className:"fld"},
+              h("label",null,"المحافظة الحالية"),
+              h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(99,102,241,.10)",border:"1px solid rgba(99,102,241,.25)",fontSize:13,fontWeight:700,color:"#a5b4fc"}},"📍 "+(curProv||'—'))
+            );
+          })(),
+          h("div",{className:"fld"},
+            h("label",null,"تاريخ النقل لمصر *"),
+            h("input",{
+              type:"date",
+              value:egyptTransferForm.date||(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})(),
+              onChange:ev=>setEgyptTransferForm(f=>({...f,date:ev.target.value}))
+            })
+          ),
+          h("div",{className:"fld"},
+            h("label",null,"ملاحظات (اختيارى)"),
+            h("textarea",{
+              rows:2,
+              placeholder:"سبب النقل، ملاحظات إضافية...",
+              style:{resize:"vertical",fontFamily:"inherit"},
+              value:egyptTransferForm.notes,
+              onChange:ev=>setEgyptTransferForm(f=>({...f,notes:ev.target.value}))
+            })
+          ),
+          h("div",{className:"info amber",style:{fontSize:11,padding:"10px 14px",background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.30)",color:"#F87171",borderRadius:10,display:"flex",alignItems:"center",gap:8}},
+            "⚠️ هذا المهندس سيتم إخراجه من جميع البيانات الحالية. الشهور السابقة محفوظة بالكامل، ويمكن التراجع عن النقل لمدة ٢٤ ساعة من السجل."
+          )
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+          h("button",{
+            className:"btn",
+            disabled:!egyptTransferForm.engId||transferring,
+            style:{background:transferring?"#94a3b8":"linear-gradient(135deg,#dc2626,#b91c1c)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(220,38,38,.4)",opacity:!egyptTransferForm.engId||transferring?.5:1,cursor:!egyptTransferForm.engId||transferring?"not-allowed":"pointer"},
+            onClick:()=>{
+              if(transferring)return;
+              const date=egyptTransferForm.date||(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
+              egyptTransferEngineer(egyptTransferForm.engId,date,egyptTransferForm.notes);
+            }
+          },transferring?"⏳ جارٍ النقل...":"🇪🇬 تأكيد النقل لمصر")
+        )
+      ),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
         h("div",{className:"modal-hdr"},h("h3",null,"تأكيد الاستيراد"),h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setImportPrev(null);}},h(Ic,{n:"del",sz:12}))),
         h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:10}},
@@ -5842,9 +6013,13 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             if(isAdmin) btns.push(
               {key:'eng-add',cls:'btn blue',onClick:()=>{setForm({prov:isProvince?userProv:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");},icon:'plus',label:'+ مهندس'},
               {key:'eng-transfer',cls:'btn',style:{background:"rgba(139,92,246,.10)",border:"1px solid rgba(139,92,246,.30)",color:"#a78bfa",fontWeight:800},onClick:()=>{setEngTransferForm({engId:'',toProv:'',date:''});setModal("eng-transfer");},icon:'compare',label:'🔄 نقل مهندس'},
+              {key:'eng-egypt',cls:'btn',style:{background:"rgba(220,38,38,.10)",border:"1px solid rgba(220,38,38,.30)",color:"#f87171",fontWeight:800},onClick:()=>{setEgyptTransferForm({engId:'',date:'',notes:''});setModal("egypt-transfer");},icon:'plane',label:'🇪🇬 نقل لمصر'},
               {key:'eng-save',cls:`btn ${isSaved?"":"green"}`,onClick:saveMonth,icon:'save',label:isSaved?"إعادة حفظ":"حفظ الشهر"},
               {key:'eng-pdf',cls:'btn',onClick:handlePdfClick,icon:'pdf',label:'PDF'},
               {key:'eng-xl',cls:'btn',onClick:exportXLSX,icon:'xl',label:'Excel'}
+            );
+            if(isProvince) btns.push(
+              {key:'eng-egypt-p',cls:'btn',style:{background:"rgba(220,38,38,.10)",border:"1px solid rgba(220,38,38,.30)",color:"#f87171",fontWeight:800},onClick:()=>{setEgyptTransferForm({engId:'',date:'',notes:''});setModal("egypt-transfer");},icon:'plane',label:'🇪🇬 نقل لمصر'}
             );
           }else if(page==='att'){
             if(isAdmin) btns.push(
