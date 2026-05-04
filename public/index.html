@@ -4369,7 +4369,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     setTimeout(()=>setPage("att"),0);
   }
   /* ── Viewer page guard ─────────────────────────────── */
-  if(user?.role==='viewer'&&["backup","report"].includes(page)){
+  if(user?.role==='viewer'&&["backup"].includes(page)){
     setTimeout(()=>setPage("dash"),0);
   }
 
