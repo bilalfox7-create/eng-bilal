@@ -938,9 +938,9 @@ html.light body::before{
 /* sidebar stays dark in light mode — elegant contrast */
 html.light .sidebar{background:linear-gradient(160deg,#1a2540 0%,#0f1729 100%)}
 html.light .sidebar::before{background:linear-gradient(180deg,transparent,rgba(59,130,246,.35),rgba(139,92,246,.2),transparent)}
-html.light .nav-item{color:rgba(255,255,255,.4)}
-html.light .nav-item:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.06)}
-html.light .nav-item.on{color:#93C5FD;background:rgba(96,165,250,.15)}
+html.light .nav-item{color:rgba(255,255,255,.55)}
+html.light .nav-item:hover{color:#fff;background:rgba(255,255,255,.06)}
+html.light .nav-item.on{color:#fff}
 html.light .sb-ver{color:rgba(255,255,255,.2)}
 html.light .logout-btn{color:rgba(255,255,255,.35)}
 html.light .logout-btn:hover{background:rgba(248,113,113,.1);color:#F87171}
@@ -1453,7 +1453,7 @@ html.light .att-vac-bar-wrap{background:#e2e8f0}
 .ticket-notBooked{color:#9CA3AF;font-weight:600}
 .att-cell{border-radius:6px!important;font-weight:800}
 .bn-item.on::before{content:'';display:block;width:20px;height:3px;border-radius:2px;background:var(--blue);margin:-4px auto 3px;box-shadow:0 0 8px var(--blue)}
-.nav-item.on{background:linear-gradient(90deg,rgba(96,165,250,.22),rgba(99,102,241,.1))!important;box-shadow:0 2px 16px rgba(96,165,250,.15)!important}
+/* (override removed — colors now driven by per-item --c1/--c2 in main .nav-item rules) */
 @keyframes pageIn{from{opacity:.7}to{opacity:1}}
 .content>*{animation:pageIn .2s ease}
 .month-cur-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:default;border:1px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.22),rgba(99,102,241,.12));color:var(--fg);white-space:nowrap;flex-shrink:0}
