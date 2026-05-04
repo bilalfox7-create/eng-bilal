@@ -8325,7 +8325,7 @@ ${PROVS.map(prov=>{
                     const d=new Date(log.ts);
                     const dateStr=d.toLocaleDateString("ar-EG",{day:"numeric",month:"short",year:"numeric"});
                     const timeStr=d.toLocaleTimeString("ar-EG",{hour:"2-digit",minute:"2-digit"});
-                    const actionCol=log.action.includes("حذف")?"#F87171":log.action.includes("إضافة")?"#34D399":log.action==="نقل مهندس"?"#A78BFA":"#60A5FA";
+                    const actionCol=log.action.includes("حذف")?"#F87171":log.action.includes("إضافة")?"#34D399":log.action==="نقل مهندس"?"#A78BFA":log.action==="نقل لمصر"?"#F87171":"#60A5FA";
                     /* Detect transfer log entry → resolve engineer + transfer entry → undo button */
                     let undoBtn=null;
                     if(log.action==='نقل مهندس'&&isAdmin){
@@ -8350,6 +8350,22 @@ ${PROVS.map(prov=>{
                               style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
                             },"↩️ تراجع");
                           }
+                        }
+                      }
+                    }else if(log.action==='نقل لمصر'&&isAdmin){
+                      /* Detail format: ${engName} — من ${shortFrom} بتاريخ ${date}[ · ${notes}] */
+                      const m=(log.detail||'').match(/^(.+?)\s—\sمن\s(.+?)\sبتاريخ\s([^\s·]+)/);
+                      if(m){
+                        const[,name,,date]=m;
+                        /* Find engineer with egypt-transfer in dataRaw (ignoring filter) */
+                        let foundEng=null;
+                        PROVS.forEach(p=>(dataRaw[p]||[]).forEach(e=>{if(e.name===name&&e.egyptTransfer&&e.egyptTransfer.date===date.trim())foundEng=e;}));
+                        if(foundEng&&foundEng.egyptTransfer){
+                          undoBtn=h("button",{
+                            title:"تراجع عن النقل لمصر",
+                            onClick:()=>setUndoConfirm({eng:foundEng,transfer:{...foundEng.egyptTransfer,from:foundEng.egyptTransfer.fromProv,to:'مصر 🇪🇬'}}),
+                            style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
+                          },"↩️ تراجع");
                         }
                       }
                     }
