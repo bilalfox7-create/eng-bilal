@@ -6308,10 +6308,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               h("tbody",null,filtered.map((e,i)=>{const inc=getIncomingExtra(e.id,e.prov);const c=calc(e,cfg.rate,cfg.egp,inc);return h("tr",{key:e.id},h("td",{style:{color:"var(--sub)"}},i+1),h("td",{className:"l",style:{fontWeight:600}},e.name),h("td",{className:"l",style:{color:"var(--sub)"}},e.spec),h("td",{className:"l",style:{fontSize:11}},e.prov.replace("محافظة ","")),h("td",{style:{fontWeight:700,color:"#2563EB"}},f$(c.tot)));})  )
             ))
           ),
-          !search&&PROVS.filter(p=>!isProvince||p===userProv).map((prov,_,arr)=>{
+          !search&&(()=>{
+            /* Build engsByProv ONCE per render (rather than 4× per-prov loop) */
+            const allProvsList=PROVS.filter(p=>!isProvince||p===userProv);
+            const engsByProv={};
+            allProvsList.forEach(p=>{engsByProv[p]=engsInProvDuringMonth(p,cfg.year,cfg.month,data);});
+            return allProvsList.map((prov,_,arr)=>{
             const pi=PROVS.indexOf(prov),color=PCOLS[pi];
             /* Use transfer-aware list: includes engineers transferred IN/OUT during this month with split d1/d2 */
-            const engs=engsInProvDuringMonth(prov,cfg.year,cfg.month,data);
+            const engs=engsByProv[prov];
             /* Recompute prov totals from the split list (each engineer contributes only their portion) */
             const T=engs.reduce((a,e)=>{
               const dr=(+cfg.rate||300)/30;
@@ -6469,7 +6474,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 );
               })()
             );
-          })
+          });
+          })()
         ),
 
         /* ══ STATS ══ */

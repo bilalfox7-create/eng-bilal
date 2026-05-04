@@ -148,12 +148,19 @@ router.put('/months/:key', (req, res) => {
       const existingExp  = existing.expenses ? JSON.parse(existing.expenses) : null;
       const existingAtt  = existing.attendance ? JSON.parse(existing.attendance) : null;
       const conflicts = [];
+      /* Total engineer count across all provs (transfers move; not delete) */
+      const totalBefore = Object.keys(existingData).reduce((a, p) => a + (existingData[p] || []).length, 0);
+      const totalAfter  = Object.keys(data         ).reduce((a, p) => a + (data         [p] || []).length, 0);
+      const isTransferLikeChange = totalBefore === totalAfter; // count preserved → likely transfer
       // Compare engineer counts per province (no province should silently lose engineers)
-      for (const prov of Object.keys(existingData)) {
-        const before = (existingData[prov] || []).length;
-        const after  = (data[prov]         || []).length;
-        if (before > 0 && after < before) {
-          conflicts.push(`المهندسين فى ${prov}: ${before} → ${after}`);
+      // — but skip per-prov check when total count is preserved (transfer scenario)
+      if (!isTransferLikeChange) {
+        for (const prov of Object.keys(existingData)) {
+          const before = (existingData[prov] || []).length;
+          const after  = (data[prov]         || []).length;
+          if (before > 0 && after < before) {
+            conflicts.push(`المهندسين فى ${prov}: ${before} → ${after}`);
+          }
         }
       }
       // Expenses: never silently null out non-empty data
