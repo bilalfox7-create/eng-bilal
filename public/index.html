@@ -1270,6 +1270,7 @@ html.light .att-cell-e{background:#f1f5f9;border-color:#e2e8f0;color:#cbd5e1}
 .att-cell-AL{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.4);color:#60A5FA}
 .att-cell-SL{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.4);color:#FCD34D}
 .att-cell-EL{background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.4);color:#FB923C}
+.att-cell-EGL{background:rgba(234,88,12,.22);border-color:rgba(234,88,12,.5);color:#EA580C;font-weight:900}
 .att-cell-H{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.28);color:#94A3B8}
 .att-cell-wknd{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.1);color:rgba(239,68,68,.3);cursor:default}
 
@@ -2153,6 +2154,8 @@ function App(){
   const [engTransferForm,setEngTransferForm]=useState({engId:'',toProv:'',date:''});
   /* Egypt transfer modal: select engineer + date + notes */
   const [egyptTransferForm,setEgyptTransferForm]=useState({engId:'',date:'',notes:''});
+  /* Egypt leave/return modal — type='depart' for departure, type='return' for return */
+  const [egyptLeaveForm,setEgyptLeaveForm]=useState({engId:'',type:'depart',date:'',notes:''});
   /* Debounce flag for transfer button (2s lock after each submit) */
   const [transferring,setTransferring]=useState(false);
   const transferringRef=useRef(false);
@@ -2511,6 +2514,33 @@ function App(){
     const segs=engSegmentsInMonth(eng,year,month,currentProv);
     return segs.some(s=>s.prov===prov);
   };
+  /* ── Egypt Leave helpers ────────────────────────────────
+     Each engineer can have egyptLeaves[]: array of leave entries.
+     Each entry: {id, departureDate, returnDate, notes, createdBy, createdAt}.
+     returnDate=null means leave is still ongoing.
+  ──────────────────────────────────────────────────────── */
+  const getEgyptLeaves=e=>(Array.isArray(e?.egyptLeaves)?e.egyptLeaves:[]).slice();
+  /* Returns the active (open-ended) leave for an engineer, or null */
+  const getActiveEgyptLeave=e=>getEgyptLeaves(e).find(l=>!l.returnDate)||null;
+  /* True if engineer is on egypt leave on a specific YYYY-MM-DD */
+  const isOnEgyptLeaveDate=(eng,dateStr)=>{
+    const ls=getEgyptLeaves(eng);
+    return ls.some(l=>l.departureDate&&l.departureDate<=dateStr&&(!l.returnDate||l.returnDate>dateStr));
+  };
+  /* Returns "EGL" if engineer is on leave on (Y,M,D), else null. Used by attendance grid. */
+  const getEgyptLeaveAutoState=(eng,year,month,day)=>{
+    const ds=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    return isOnEgyptLeaveDate(eng,ds)?'EGL':null;
+  };
+  /* Count leave days for an engineer in a given month range [startDay..endDay] */
+  const countEgyptLeaveDaysInRange=(eng,year,month,startDay,endDay)=>{
+    let n=0;
+    for(let d=startDay;d<=endDay;d++){
+      if(getEgyptLeaveAutoState(eng,year,month,d))n++;
+    }
+    return n;
+  };
+
   /* d1/d2 split helpers — split count proportionally over [start..end] day range */
   const splitDaysCountForProvInRange=(eng,prov,year,month,startDay,endDay,currentProv)=>{
     let inProv=0,total=0;
@@ -3218,6 +3248,119 @@ function App(){
     setEgyptTransferForm({engId:'',date:'',notes:''});
   };
 
+  /* ── Record an egypt leave (engineer goes to Egypt for vacation) ──
+     Adds a new entry to eng.egyptLeaves with returnDate=null.
+     Auto-decrements d1/d2 in the current month for the days already
+     covered by this new leave (so the disbursement reflects the leave
+     immediately).
+  ───────────────────────────────────────────────────────────── */
+  const recordEgyptLeave=(engId,departureDate,notes)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    if(transferringRef.current){msg('جارٍ تنفيذ عملية سابقة...','err');return;}
+    let curProv=null,engRec=null;
+    PROVS.forEach(p=>{const found=(dataRaw[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
+    if(!engRec){msg('المهندس غير موجود','err');return;}
+    if(!isAdmin&&curProv!==userProv){msg('يمكنك تسجيل إجازة لمهندسى محافظتك فقط','err');return;}
+    if(!departureDate){msg('اختار تاريخ النزول','err');return;}
+    /* Validate against arrivalDate */
+    if(engRec.arrivalDate&&departureDate<engRec.arrivalDate){
+      msg('تاريخ النزول لا يمكن أن يكون قبل تاريخ القدوم','err');return;
+    }
+    /* Reject if engineer already has an active (open) leave */
+    const active=getActiveEgyptLeave(engRec);
+    if(active){
+      msg(`⚠️ هذا المهندس فى إجازة بالفعل من ${active.departureDate}`,'err');return;
+    }
+    transferringRef.current=true;setTransferring(true);
+    setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
+    const leaveEntry={
+      id:'el_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      departureDate,
+      returnDate:null,
+      notes:notes||'',
+      createdBy:user?.username||'admin',
+      createdAt:new Date().toISOString()
+    };
+    /* Compute leave days in current month for d1/d2 decrement */
+    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+    const dim=new Date(Y,M,0).getDate();
+    const monthEnd=`${Y}-${String(M).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
+    const monthStart=`${Y}-${String(M).padStart(2,'0')}-01`;
+    let leaveDaysH1=0,leaveDaysH2=0;
+    if(departureDate<=monthEnd){
+      const leaveStartDay=departureDate>=monthStart?+departureDate.split('-')[2]:1;
+      for(let d=leaveStartDay;d<=dim;d++){
+        if(d<=15)leaveDaysH1++;else leaveDaysH2++;
+      }
+    }
+    const newD1=Math.max(0,(+engRec.d1||0)-leaveDaysH1);
+    const newD2=Math.max(0,(+engRec.d2||0)-leaveDaysH2);
+    const nd=dc(dataRaw);
+    nd[curProv]=(nd[curProv]||[]).map(e=>e.id===engId?{
+      ...e,
+      egyptLeaves:[...(e.egyptLeaves||[]),leaveEntry],
+      d1:newD1,d2:newD2,
+      _d1Before:e.d1,_d2Before:e.d2  /* preserve originals for undo */
+    }:e);
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    logActivity('تسجيل نزول إجازة',`${engRec.name} — من ${curProv.replace('محافظة ','')} بتاريخ ${departureDate}${notes?' · '+notes:''}`);
+    msg(`✈️ ${engRec.name} نزل إجازة فى ${departureDate}`);
+    setModal(null);
+    setEgyptLeaveForm({engId:'',date:'',notes:''});
+  };
+
+  /* ── Record return from egypt leave ─────────────────
+     Updates the active leave entry with returnDate. Restores d1/d2
+     for days from returnDate to end of month (engineer is back).
+  ───────────────────────────────────────────────────── */
+  const recordEgyptReturn=(engId,returnDate,notes)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    if(transferringRef.current){msg('جارٍ تنفيذ عملية سابقة...','err');return;}
+    let curProv=null,engRec=null;
+    PROVS.forEach(p=>{const found=(dataRaw[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
+    if(!engRec){msg('المهندس غير موجود','err');return;}
+    if(!isAdmin&&curProv!==userProv){msg('يمكنك تسجيل عودة لمهندسى محافظتك فقط','err');return;}
+    if(!returnDate){msg('اختار تاريخ العودة','err');return;}
+    const active=getActiveEgyptLeave(engRec);
+    if(!active){msg('هذا المهندس ليس فى إجازة حالياً','err');return;}
+    if(returnDate<=active.departureDate){msg('تاريخ العودة يجب أن يكون بعد تاريخ النزول','err');return;}
+    transferringRef.current=true;setTransferring(true);
+    setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
+    /* Compute days in current month from return-date to end-of-month → restore as P-eligible */
+    const M=cfg.month||(now.getMonth()+1),Y=cfg.year||now.getFullYear();
+    const dim=new Date(Y,M,0).getDate();
+    const monthEnd=`${Y}-${String(M).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
+    const monthStart=`${Y}-${String(M).padStart(2,'0')}-01`;
+    let restoreH1=0,restoreH2=0;
+    if(returnDate<=monthEnd&&returnDate>=monthStart){
+      const startD=+returnDate.split('-')[2];
+      for(let d=startD;d<=dim;d++){
+        if(d<=15)restoreH1++;else restoreH2++;
+      }
+    }else if(returnDate<monthStart){
+      /* Return before this month started; nothing to restore in current month */
+    }
+    const newD1=Math.min(15,(+engRec.d1||0)+restoreH1);
+    const newD2=Math.min(15,(+engRec.d2||0)+restoreH2);
+    const nd=dc(dataRaw);
+    nd[curProv]=(nd[curProv]||[]).map(e=>{
+      if(e.id!==engId)return e;
+      const newLeaves=(e.egyptLeaves||[]).map(l=>l.id===active.id?{...l,returnDate,returnNotes:notes||'',returnAt:new Date().toISOString()}:l);
+      return{...e,egyptLeaves:newLeaves,d1:newD1,d2:newD2};
+    });
+    const updated={...mkMonthBase(),data:nd,savedAt:null};
+    setMonths(prev=>({...prev,[ak]:updated}));
+    queueSave(ak,updated);
+    logActivity('تسجيل عودة من إجازة',`${engRec.name} — رجع فى ${returnDate} (نزل ${active.departureDate})${notes?' · '+notes:''}`);
+    msg(`🟢 ${engRec.name} رجع من إجازة فى ${returnDate}`);
+    setModal(null);
+    setEgyptLeaveForm({engId:'',date:'',notes:''});
+  };
+
   /* ── Undo a transfer ────────────────────────────────────
      Removes the transfer entry from eng.transfers AND moves the
      engineer back to transfer.from. Activity log entry is deleted
@@ -3239,6 +3382,42 @@ function App(){
     let curProv=null,engRec=null;
     PROVS.forEach(p=>{const found=(dataRaw[p]||[]).find(e=>e.id===engId);if(found){curProv=p;engRec=found;}});
     if(!engRec){msg('المهندس غير موجود — لا يمكن التراجع','err');return;}
+    /* ── Egypt-leave undo: remove the entry, restore d1/d2, optionally re-open closed leave ── */
+    const leaves=getEgyptLeaves(engRec);
+    const leaveIdx=leaves.findIndex(l=>l.id===transferId);
+    if(leaveIdx!==-1){
+      const lv=leaves[leaveIdx];
+      const isClosedReturn=!!lv.returnDate;
+      if(!isAdmin){
+        const tBy=lv.createdBy;
+        if(tBy!==user?.username){msg('غير مصرح','err');return;}
+        const ageMs=Date.now()-new Date(lv.createdAt||0).getTime();
+        if(ageMs>24*60*60*1000){msg('انتهت مهلة التراجع (٢٤ ساعة)','err');return;}
+      }
+      const nd=dc(dataRaw);
+      nd[curProv]=(nd[curProv]||[]).map(e=>{
+        if(e.id!==engId)return e;
+        /* Remove the leave entry entirely (clean undo) */
+        const newLeaves=(e.egyptLeaves||[]).filter(l=>l.id!==transferId);
+        const out={...e,egyptLeaves:newLeaves};
+        /* Restore d1/d2 if we had stored originals */
+        if(e._d1Before!==undefined){out.d1=e._d1Before;delete out._d1Before;}
+        if(e._d2Before!==undefined){out.d2=e._d2Before;delete out._d2Before;}
+        return out;
+      });
+      const updated={...mkMonthBase(),data:nd,savedAt:null};
+      setMonths(prev=>({...prev,[ak]:updated}));
+      queueSave(ak,updated);
+      fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(d=>{
+        const matches=(d.logs||[]).filter(l=>(l.action==='تسجيل نزول إجازة'||l.action==='تسجيل عودة من إجازة')&&l.detail.includes(engRec.name)&&(l.detail.includes(lv.departureDate)||(lv.returnDate&&l.detail.includes(lv.returnDate))));
+        if(matches.length>0){
+          return fetch('/api/activity',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({ids:matches.map(m=>m.id)})});
+        }
+      }).catch(()=>{});
+      msg(`✓ تم التراجع عن ${isClosedReturn?'العودة':'النزول'} — ${engRec.name}`);
+      setUndoConfirm(null);
+      return;
+    }
     /* ── Egypt-transfer undo: special path — restore engineer (remove egyptTransfer field) ── */
     if(engRec.egyptTransfer&&engRec.egyptTransfer.id===transferId){
       const tr=engRec.egyptTransfer;
@@ -3347,10 +3526,10 @@ function App(){
 
   /* ── Attendance helpers ─────────────────────────────── */
   const ATT_CYCLE=[null,'P','EG','A','AL','SL','EL','H'];
-  const ATT_LABEL={P:'حاضر',EG:'مصر',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة'};
-  const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع'};
-  const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8'};
-  const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)'};
+  const ATT_LABEL={P:'حاضر',EG:'لم يصل',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)'};
+  const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع',EGL:'م'};
+  const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8',EGL:'#EA580C'};
+  const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)',EGL:'rgba(234,88,12,.18)'};
 
   const attCycleStatus=(engId,day)=>{
     if(attLockGuard())return;
@@ -4838,6 +5017,37 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 </div>
 
 <div class="section">
+  <h2>✈️ المهندسون فى إجازة (مصر) هذا الشهر — ${monthLabel}</h2>
+  ${(()=>{
+    /* Collect ALL active leaves OR leaves overlapping this month */
+    const monthStart=`${Y}-${String(M).padStart(2,'0')}-01`;
+    const dimComp=new Date(Y,M,0).getDate();
+    const monthEnd=`${Y}-${String(M).padStart(2,'0')}-${String(dimComp).padStart(2,'0')}`;
+    const onLeave=[];
+    Object.entries(useM?.data||{}).forEach(([prov,engs])=>(engs||[]).forEach(e=>{
+      (e.egyptLeaves||[]).forEach(l=>{
+        const overlaps=l.departureDate<=monthEnd&&(!l.returnDate||l.returnDate>=monthStart);
+        if(overlaps){
+          /* Compute leave days in this month */
+          let daysInMonth=0;
+          for(let d=1;d<=dimComp;d++){
+            const ds=`${Y}-${String(M).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            if(l.departureDate<=ds&&(!l.returnDate||l.returnDate>ds))daysInMonth++;
+          }
+          onLeave.push({eng:e.name,prov:prov.replace('محافظة ',''),dep:l.departureDate,ret:l.returnDate||'لم يرجع بعد',days:daysInMonth,fromPrev:l.departureDate<monthStart});
+        }
+      });
+    }));
+    onLeave.sort((a,b)=>(a.dep||'').localeCompare(b.dep||''));
+    if(onLeave.length===0)return '<div class="empty">لا يوجد مهندسون فى إجازة هذا الشهر</div>';
+    return `<table>
+      <thead><tr><th>المهندس</th><th>المحافظة</th><th>تاريخ النزول</th><th>تاريخ العودة</th><th>أيام الإجازة (فى الشهر)</th></tr></thead>
+      <tbody>${onLeave.map(t=>`<tr><td style="font-weight:700">${t.eng}${t.fromPrev?' <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:100px;font-weight:700">⚠️ من شهر سابق</span>':''}</td><td>${t.prov}</td><td>${t.dep}</td><td style="${!t.ret||t.ret==='لم يرجع بعد'?'color:#EA580C;font-weight:700':''}">${t.ret==='لم يرجع بعد'?'⏳ لم يرجع بعد':t.ret}</td><td style="font-weight:700;color:#EA580C">${t.days} يوم</td></tr>`).join('')}</tbody>
+    </table>`;
+  })()}
+</div>
+
+<div class="section">
   <h2>🇪🇬 المهندسون المنقولون لمصر هذا الشهر — ${monthLabel}</h2>
   ${(()=>{
     /* Use raw data (dataRaw via useM.data) so egypt-transferred engineers show up */
@@ -4915,7 +5125,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#EFF6FF',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
     const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#1D4ED8',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
     const visibleProvs=isProvince?[userProv]:PROVS;
-    let totalP=0,totalA=0,totalLv=0;
+    let totalP=0,totalA=0,totalLv=0,totalEgL=0;
+    /* PDF colors for egypt leave (orange) */
+    const PDF_EGL_BG='#FFEDD5',PDF_EGL_COL='#C2410C';
     const provBlocks=visibleProvs.map(prov=>{
       /* Use transfer-aware list: shows both currently-here engs AND those who passed through this prov this month */
       const provEngs=engsInProvDuringMonth(prov,Y,M,_data);
@@ -4923,7 +5135,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       const rows=provEngs.map(eng=>{
         const eAtt=_att[eng.id]||{};
         const isSplit=eng.hasTransfer&&(eng.firstDay>1||eng.lastDay<daysInMonth);
-        let p=0,a=0,lv=0;
+        let p=0,a=0,lv=0,egL=0;
         const cells=days.map(d=>{
           const fri=isFri(d);
           const inTenure=eng.daysInProvSet.has(d);
@@ -4931,12 +5143,16 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           if(!inTenure){
             return '<td style="background:#FAFAFA;color:#CBD5E1;text-align:center;font-size:11px;font-weight:600;border:1px dashed #E2E8F0">—</td>';
           }
+          /* Egypt-leave override (highest priority) */
+          const onLeave=getEgyptLeaveAutoState(eng,Y,M,d);
+          if(onLeave){egL++;return `<td style="background:${PDF_EGL_BG};color:${PDF_EGL_COL};text-align:center;font-size:9px;font-weight:800">م</td>`;}
           const dd=eAtt[d];const st=dd?.s;
           if(st==='P')p++;else if(st==='A')a++;else if(['AL','SL','EL'].includes(st))lv++;
           if(fri)return '<td style="background:#F1F5F9;color:#94A3B8;text-align:center;font-size:9px;font-weight:700">ع</td>';
           if(!st)return '<td></td>';
           return `<td style="background:${S_BG[st]};color:${S_COL[st]};text-align:center;font-size:9px;font-weight:800">${st}</td>`;
         }).join('');
+        totalEgL+=egL;
         totalP+=p;totalA+=a;totalLv+=lv;
         /* Tenure / transfer badges */
         let badges='';
@@ -4953,7 +5169,12 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             badges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;font-weight:700;margin-right:4px">🔄 منقول من ${last.from.replace('محافظة ','')} · ${last.date}</span>`;
           }
         }
-        return `<tr><td style="font-weight:700">${eng.name}${badges?'<br>'+badges:''}<br><span style="font-size:9px;color:#64748B">${eng.spec||''}</span></td>${cells}<td style="text-align:center;background:#FAFAFA"><span style="color:#059669;font-weight:800">${p}</span> · <span style="color:#DC2626;font-weight:800">${a}</span>${lv>0?' · <span style="color:#2563EB;font-weight:800">'+lv+'</span>':''}</td></tr>`;
+        /* Egypt-leave badge if engineer is currently on leave */
+        const activeLeave=getActiveEgyptLeave(eng);
+        if(activeLeave){
+          badges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#FFEDD5;color:#C2410C;border:1px solid #FED7AA;font-weight:700;margin-right:4px">🇪🇬 إجازة منذ ${activeLeave.departureDate}</span>`;
+        }
+        return `<tr><td style="font-weight:700">${eng.name}${badges?'<br>'+badges:''}<br><span style="font-size:9px;color:#64748B">${eng.spec||''}</span></td>${cells}<td style="text-align:center;background:#FAFAFA"><span style="color:#059669;font-weight:800">${p}</span> · <span style="color:#DC2626;font-weight:800">${a}</span>${lv>0?' · <span style="color:#2563EB;font-weight:800">'+lv+'</span>':''}${egL>0?' · <span style="color:#C2410C;font-weight:800">'+egL+' م</span>':''}</td></tr>`;
       }).join('');
       const header=`<tr><th style="min-width:130px">المهندس</th>${days.map(d=>`<th style="min-width:24px;font-size:9px${isFri(d)?';background:#F1F5F9;color:#94A3B8':''}">${d}<br>${DAY_AR[new Date(Y,M-1,d).getDay()]}</th>`).join('')}<th style="min-width:90px">الملخص</th></tr>`;
       /* Transferred-OUT section (engineers who left this prov during this month) */
@@ -5629,6 +5850,56 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           },transferring?"⏳ جارٍ النقل...":"🇪🇬 تأكيد النقل لمصر")
         )
       ),
+      /* ── EGYPT LEAVE / RETURN MODAL ──────────────────── */
+      modal==="egypt-leave"&&(()=>{
+        const isReturn=egyptLeaveForm.type==='return';
+        const engRec=egyptLeaveForm.engId?(()=>{let r=null;PROVS.forEach(p=>(dataRaw[p]||[]).forEach(e=>{if(e.id===egyptLeaveForm.engId)r=e;}));return r;})():null;
+        const engProv=engRec?(()=>{let p='';PROVS.forEach(pp=>(dataRaw[pp]||[]).forEach(e=>{if(e.id===engRec.id)p=pp;}));return p;})():'';
+        const active=engRec?getActiveEgyptLeave(engRec):null;
+        const today=new Date(),pad=n=>String(n).padStart(2,'0');
+        const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+        const leaveDuration=isReturn&&active?Math.max(0,Math.round((new Date(todayStr)-new Date(active.departureDate))/(1000*60*60*24))):0;
+        return h("div",{className:"modal",style:{width:480}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,isReturn?"🟢 تسجيل العودة من إجازة":"✈️ تسجيل نزول إجازة"),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+            !engRec?h("div",{className:"info amber"},h(Ic,{n:"warn",sz:14}),"اختار المهندس من زرار النزول/العودة بجانب اسمه فى صفحة الحضور"):
+            [
+              h("div",{key:"name",className:"fld"},h("label",null,"المهندس"),
+                h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(99,102,241,.10)",border:"1px solid rgba(99,102,241,.25)",fontSize:13,fontWeight:700,color:"#a5b4fc"}},"📍 "+engRec.name+(engProv?' · '+engProv:''))
+              ),
+              isReturn&&active&&h("div",{key:"dep",className:"fld"},h("label",null,"تاريخ النزول"),
+                h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(234,88,12,.10)",border:"1px solid rgba(234,88,12,.25)",fontSize:12,fontWeight:700,color:"#fb923c"}},"✈️ نزل فى "+active.departureDate+" · "+leaveDuration+" يوم")
+              ),
+              h("div",{key:"date",className:"fld"},h("label",null,isReturn?"تاريخ العودة *":"تاريخ النزول *"),
+                h("input",{type:"date",value:egyptLeaveForm.date||todayStr,onChange:ev=>setEgyptLeaveForm(f=>({...f,date:ev.target.value}))})
+              ),
+              h("div",{key:"notes",className:"fld"},h("label",null,"ملاحظات (اختيارى)"),
+                h("textarea",{rows:2,placeholder:isReturn?"ملاحظات على العودة...":"سبب النزول، تفاصيل إضافية...",style:{resize:"vertical",fontFamily:"inherit"},value:egyptLeaveForm.notes,onChange:ev=>setEgyptLeaveForm(f=>({...f,notes:ev.target.value}))})
+              ),
+              !isReturn&&h("div",{key:"warn",className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),
+                "ℹ️ الأيام من تاريخ النزول لحد العودة هتتسجل (مصر) وهتمتد تلقائياً للشهور التالية لحد ما تسجل العودة."
+              )
+            ]
+          ),
+          engRec&&h("div",{className:"modal-ftr"},
+            h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+            h("button",{
+              className:"btn",
+              disabled:transferring,
+              style:{background:transferring?"#94a3b8":(isReturn?"linear-gradient(135deg,#10b981,#059669)":"linear-gradient(135deg,#ea580c,#c2410c)"),color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:isReturn?"0 6px 18px rgba(16,185,129,.4)":"0 6px 18px rgba(234,88,12,.4)",opacity:transferring?.5:1,cursor:transferring?"not-allowed":"pointer"},
+              onClick:()=>{
+                if(transferring)return;
+                const date=egyptLeaveForm.date||todayStr;
+                if(isReturn)recordEgyptReturn(engRec.id,date,egyptLeaveForm.notes);
+                else recordEgyptLeave(engRec.id,date,egyptLeaveForm.notes);
+              }
+            },transferring?"⏳ جارٍ التسجيل...":(isReturn?"🟢 تأكيد العودة":"✈️ تأكيد النزول"))
+          )
+        );
+      })(),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
         h("div",{className:"modal-hdr"},h("h3",null,"تأكيد الاستيراد"),h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setImportPrev(null);}},h(Ic,{n:"del",sz:12}))),
         h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:10}},
@@ -7716,7 +7987,9 @@ ${PROVS.map(prov=>{
                                   eng.hasTransfer&&(eng.firstDay>1||eng.lastDay<daysInMonth)&&h("span",{
                                     title:`المهندس فى ${attProv} من يوم ${eng.firstDay} إلى يوم ${eng.lastDay} (${eng.daysInProv.length} يوم)`,
                                     style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,whiteSpace:"nowrap"}
-                                  },"🔄 ",eng.firstDay,"–",eng.lastDay)
+                                  },"🔄 ",eng.firstDay,"–",eng.lastDay),
+                                  /* Egypt-leave indicator */
+                                  (()=>{const ac=getActiveEgyptLeave(eng);if(!ac)return null;return h("span",{title:`فى إجازة منذ ${ac.departureDate}`,style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(234,88,12,.20),rgba(234,88,12,.06))",border:"1px solid rgba(234,88,12,.40)",color:"#fb923c",fontWeight:800,whiteSpace:"nowrap"}},"🇪🇬 إجازة منذ ",ac.departureDate);})()
                                 ),
                                 h("div",{className:"att-td-spec"},eng.spec),
                                 todayD&&h("div",{className:"att-qbtns"},
@@ -7726,8 +7999,24 @@ ${PROVS.map(prov=>{
                                     return h("button",{key:st,className:"att-qbtn att-qbtn-"+st+(cur===st?" on":""),onClick:function(e){e.stopPropagation();attSetStatus(eng.id,todayD,st);}},lbl);
                                   })
                                 ),
-                                h("div",{style:{display:"flex",gap:4,marginTop:4,alignItems:"center"}},
+                                h("div",{style:{display:"flex",gap:4,marginTop:4,alignItems:"center",flexWrap:"wrap"}},
                                   h("button",{onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"⏰ الأوقات"),
+                                  /* Egypt-leave depart/return button — admin or province (own prov) */
+                                  (isAdmin||(isProvince&&attProv===userProv))&&(()=>{
+                                    const active=getActiveEgyptLeave(eng);
+                                    if(active){
+                                      return h("button",{
+                                        title:"تسجيل العودة من الإجازة",
+                                        onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'return',date:'',notes:''});setModal('egypt-leave');},
+                                        style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"linear-gradient(135deg,rgba(16,185,129,.18),rgba(16,185,129,.04))",color:"#34d399",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                      },"🟢 تسجيل العودة");
+                                    }
+                                    return h("button",{
+                                      title:"تسجيل نزول إجازة",
+                                      onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'depart',date:'',notes:''});setModal('egypt-leave');},
+                                      style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(234,88,12,.4)",background:"linear-gradient(135deg,rgba(234,88,12,.18),rgba(234,88,12,.04))",color:"#fb923c",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                    },"✈️ تسجيل نزول");
+                                  })(),
                                   attHovEng===eng.id&&h("span",{className:"att-kb-tip"},"ح=حاضر · غ=غائب · ا=إجازة")
                                 )
                               )
@@ -7738,8 +8027,11 @@ ${PROVS.map(prov=>{
                             const dd=eAtt[d];
                             const st=dd?.s||null;
                             const autoSt=getAutoState(eng,d);
-                            const effectiveSt=st||autoSt;
-                            const isAuto=!st&&!!autoSt;
+                            /* Egypt-leave override (highest priority — read-only) */
+                            const leaveSt=getEgyptLeaveAutoState(eng,cfg.year,cfg.month,d);
+                            const effectiveSt=leaveSt||st||autoSt;
+                            const isAuto=!st&&!leaveSt&&!!autoSt;
+                            const isLeave=!!leaveSt;
                             const wk=isWknd(d);
                             /* Day outside engineer's tenure in THIS prov → grey out */
                             const inTenure=eng.daysInProvSet?eng.daysInProvSet.has(d):true;
@@ -7755,9 +8047,9 @@ ${PROVS.map(prov=>{
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
-                                onClick:(e)=>{if(!isAdmin&&!isProvince)return;if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
-                                title:effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
-                                style:{cursor:wk||isAuto?"default":"pointer"}
+                                onClick:(e)=>{if(!isAdmin&&!isProvince)return;if(isLeave)return;if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
+                                title:isLeave?(ATT_LABEL.EGL+" — read-only"):effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
+                                style:{cursor:wk||isAuto||isLeave?"default":"pointer"}
                               },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
                               effectiveSt==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
                                 (dd.in||"?"),"→",(dd.out||"?")
