@@ -2190,6 +2190,8 @@ function App(){
   const [attSelected,setAttSelected]=useState(()=>new Set());
   const [attHovEng,setAttHovEng]=useState(null);
   const [attPopup,setAttPopup]=useState(null);   // {engId,day,x,y}
+  /* Late-time input modal: holds {engId, day, engName, lateH, lateM, dayLabel} */
+  const [lateInputModal,setLateInputModal]=useState(null);
   const [dayPopup,setDayPopup]=useState(null);   // {day,x,y}
   const [activityLogs,setActivityLogs]=useState([]);
   const [leaveTab,setLeaveTab]=useState('pending');
@@ -8960,11 +8962,22 @@ ${PROVS.map(prov=>{
       ),
 
       /* ── ATT CELL POPUP ─────────────────────────────────── */
-      attPopup&&(()=>{const PH=290,PW=145;const showAbove=attPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,attPopup.cellTop-4-PH):attPopup.y+4;const left=Math.max(4,Math.min(attPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
+      attPopup&&(()=>{const PH=320,PW=145;const showAbove=attPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,attPopup.cellTop-4-PH):attPopup.y+4;const left=Math.max(4,Math.min(attPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
         h("div",{className:"att-popup-hdr"},"تسجيل الحالة"),
         ATT_CYCLE.filter(s=>s!==null).map(s=>
           h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
-            onClick:()=>{attSetStatus(attPopup.engId,attPopup.day,s);setAttPopup(null);}
+            onClick:()=>{
+              if(s==='TXR'){
+                /* Open late-input modal instead of setting status directly */
+                const eng=PROVS.flatMap(p=>(attData[p]||[])).find(e=>e.id===attPopup.engId);
+                const cur=(attAtt[attPopup.engId]||{})[attPopup.day]||{};
+                setLateInputModal({engId:attPopup.engId,day:attPopup.day,engName:eng?.name||'مهندس',lateH:+cur.lateH||0,lateM:+cur.lateM||0});
+                setAttPopup(null);
+                return;
+              }
+              attSetStatus(attPopup.engId,attPopup.day,s);
+              setAttPopup(null);
+            }
           },
             h("span",{style:{fontWeight:900,minWidth:16}},ATT_SHORT[s]),
             h("span",null,ATT_LABEL[s])
@@ -8974,6 +8987,62 @@ ${PROVS.map(prov=>{
           onClick:()=>{attClearCell(attPopup.engId,attPopup.day);setAttPopup(null);}
         },"✕  مسح")
       );})(),
+
+      /* ── LATE TIME INPUT MODAL ───────────────────────────── */
+      lateInputModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setLateInputModal(null);}},
+        h("div",{className:"modal",style:{width:380}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,"⚠️ تسجيل تأخير"),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setLateInputModal(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:14}},
+            h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(245,158,11,.10)",border:"1px solid rgba(245,158,11,.25)",fontSize:13,fontWeight:700,color:"#fbbf24"}},
+              "📅 يوم "+lateInputModal.day+" · "+lateInputModal.engName
+            ),
+            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
+              h("div",{className:"fld"},
+                h("label",null,"الساعات (0-12)"),
+                h("input",{
+                  type:"number",min:0,max:12,
+                  style:{textAlign:"center",fontSize:18,fontWeight:800,fontFamily:"monospace"},
+                  value:lateInputModal.lateH,
+                  onChange:ev=>setLateInputModal(m=>({...m,lateH:Math.max(0,Math.min(12,+ev.target.value||0))}))
+                })
+              ),
+              h("div",{className:"fld"},
+                h("label",null,"الدقائق (0-59)"),
+                h("input",{
+                  type:"number",min:0,max:59,
+                  style:{textAlign:"center",fontSize:18,fontWeight:800,fontFamily:"monospace"},
+                  value:lateInputModal.lateM,
+                  onChange:ev=>setLateInputModal(m=>({...m,lateM:Math.max(0,Math.min(59,+ev.target.value||0))}))
+                })
+              )
+            ),
+            h("div",{style:{padding:"12px 16px",borderRadius:10,background:"linear-gradient(135deg,rgba(245,158,11,.18),rgba(245,158,11,.05))",border:"1px solid rgba(245,158,11,.35)",textAlign:"center"}},
+              h("div",{style:{fontSize:10,color:"#fbbf24",fontWeight:800,marginBottom:4,letterSpacing:".5px"}},"⏰ إجمالى التأخير"),
+              h("div",{style:{fontSize:32,fontWeight:900,fontFamily:"monospace",color:"#F59E0B",letterSpacing:2}},
+                String(lateInputModal.lateH).padStart(2,'0')+":"+String(lateInputModal.lateM).padStart(2,'0')
+              )
+            ),
+            h("div",{className:"info amber",style:{fontSize:11}},
+              h(Ic,{n:"info",sz:14}),
+              "ℹ️ يخضع للخصم بناءً على ساعات التأخير (يحدد بواسطة HR فى مصر)"
+            )
+          ),
+          h("div",{className:"modal-ftr"},
+            h("button",{className:"btn",onClick:()=>setLateInputModal(null)},"إلغاء"),
+            h("button",{
+              className:"btn",
+              style:{background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(245,158,11,.4)"},
+              onClick:()=>{
+                attSetLate(lateInputModal.engId,lateInputModal.day,lateInputModal.lateH,lateInputModal.lateM);
+                setLateInputModal(null);
+              }
+            },"⚠️ تسجيل التأخير")
+          )
+        )
+      ),
 
       /* ── DAY POPUP ───────────────────────────────────────── */
       dayPopup&&(()=>{const PH=320,PW=145;const showAbove=dayPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,dayPopup.cellTop-4-PH):dayPopup.y+4;const left=Math.max(4,Math.min(dayPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
