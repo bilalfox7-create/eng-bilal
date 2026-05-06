@@ -3545,6 +3545,40 @@ function App(){
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
   };
 
+  /* ── Attendance day object schema ────────────────────────
+     Attendance is stored as JSON inside months.attendance:
+       attendance[engId][day] = {
+         s:  'P'|'A'|'AL'|'SL'|'EL'|'EG'|'H'|'TXR' (status code),
+         in:  'HH:MM' (optional check-in time),
+         out: 'HH:MM' (optional check-out time),
+         lateH: 0-12 (late hours, only when s === 'TXR'),
+         lateM: 0-59 (late minutes, only when s === 'TXR')
+       }
+     New fields lateH/lateM are no-op when status isn't 'TXR'.
+     No SQL migration needed — attendance column is a JSON blob.
+  ──────────────────────────────────────────────────────── */
+  /* Format late time as HH:MM or "—" if no late time */
+  const formatLate=(h,m)=>{
+    const hh=+h||0,mm=+m||0;
+    if(hh===0&&mm===0)return '—';
+    return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+  };
+  /* Returns total late minutes for an engineer in a month (sum of all TXR days) */
+  const totalLateMinutes=(att,engId)=>{
+    const days=att?.[engId]||{};
+    let total=0;
+    Object.values(days).forEach(d=>{
+      if(d?.s==='TXR')total+=((+d.lateH||0)*60)+(+d.lateM||0);
+    });
+    return total;
+  };
+  /* Format total minutes as HH:MM */
+  const formatTotalLate=(mins)=>{
+    if(!mins)return '00:00';
+    const h=Math.floor(mins/60),m=mins%60;
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  };
+
   const attSetStatus=(engId,day,status)=>{
     if(attLockGuard())return;
     const existing=mkAttMonthBase();
@@ -3554,6 +3588,22 @@ function App(){
     else na[engId][day]={...(na[engId]?.[day]||{}),s:status};
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
+  };
+
+  /* Set late time for a specific day. Status must be 'TXR' first. */
+  const attSetLate=(engId,day,lateH,lateM)=>{
+    if(attLockGuard())return;
+    const existing=mkAttMonthBase();
+    const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+    if(!na[engId])na[engId]={};
+    const cur=na[engId][day]||{};
+    /* Only allow setting late when status is TXR (or auto-promote if not set) */
+    const newCell={...cur,s:'TXR',lateH:Math.max(0,Math.min(12,+lateH||0)),lateM:Math.max(0,Math.min(59,+lateM||0))};
+    /* If both are 0, treat as cleared late but keep TXR status */
+    na[engId][day]=newCell;
+    const upd={...existing,attendance:na};
+    setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
+    logActivity('تسجيل تأخير',`يوم ${day} — ${formatLate(lateH,lateM)}`);
   };
 
   const attFillMonth=(provFilter)=>{
