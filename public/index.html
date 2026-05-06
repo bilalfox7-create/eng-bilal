@@ -1271,6 +1271,7 @@ html.light .att-cell-e{background:#f1f5f9;border-color:#e2e8f0;color:#cbd5e1}
 .att-cell-SL{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.4);color:#FCD34D}
 .att-cell-EL{background:rgba(249,115,22,.16);border-color:rgba(249,115,22,.4);color:#FB923C}
 .att-cell-EGL{background:rgba(234,88,12,.22);border-color:rgba(234,88,12,.5);color:#EA580C;font-weight:900}
+.att-cell-TXR{background:rgba(245,158,11,.20);border-color:rgba(245,158,11,.5);color:#F59E0B;font-weight:900}
 .att-cell-H{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.28);color:#94A3B8}
 .att-cell-wknd{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.1);color:rgba(239,68,68,.3);cursor:default}
 
@@ -3525,11 +3526,11 @@ function App(){
   };
 
   /* ── Attendance helpers ─────────────────────────────── */
-  const ATT_CYCLE=[null,'P','EG','A','AL','SL','EL','H'];
-  const ATT_LABEL={P:'حاضر',EG:'لم يصل',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)'};
-  const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع',EGL:'م'};
-  const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8',EGL:'#EA580C'};
-  const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)',EGL:'rgba(234,88,12,.18)'};
+  const ATT_CYCLE=[null,'P','EG','A','AL','SL','EL','TXR','H'];
+  const ATT_LABEL={P:'حاضر',EG:'لم يصل',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)',TXR:'متأخر'};
+  const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع',EGL:'م',TXR:'⚠'};
+  const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8',EGL:'#EA580C',TXR:'#F59E0B'};
+  const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)',EGL:'rgba(234,88,12,.18)',TXR:'rgba(245,158,11,.18)'};
 
   const attCycleStatus=(engId,day)=>{
     if(attLockGuard())return;
@@ -8137,7 +8138,7 @@ ${PROVS.map(prov=>{
               h("div",{style:{padding:"12px 16px"}},
                 h("div",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",marginBottom:10,letterSpacing:".5px"}},"دليل الرموز"),
                 h("div",{className:"att-legend"},
-                  [['P','ح'],['EG','م'],['A','غ'],['AL','س'],['SL','مر'],['EL','ط'],['H','ع']].map(([s,sh])=>
+                  [['P','ح'],['EG','م'],['EGL','م'],['TXR','⚠'],['A','غ'],['AL','س'],['SL','مر'],['EL','ط'],['H','ع']].map(([s,sh])=>
                     h("div",{key:s,className:"att-leg-item"},
                       h("div",{className:"att-leg-box",style:{background:ATT_BG[s],borderColor:ATT_COL[s],color:ATT_COL[s]}},sh),
                       h("span",{style:{color:ATT_COL[s],fontWeight:700,fontSize:10}},ATT_LABEL[s])
