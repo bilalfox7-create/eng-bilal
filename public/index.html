@@ -8019,6 +8019,7 @@ ${PROVS.map(prov=>{
                         h("div",null,d),
                         h("div",{style:{fontSize:10,opacity:.7}},["أح","إث","ث","أر","خ","ج","س"][new Date(cfg.year,cfg.month-1,d).getDay()])
                       )),
+                      h("th",{className:"att-th att-th-late",title:"إجمالى التأخير لهذا الشهر"},"⏰ التأخير"),
                       h("th",{className:"att-th att-th-sum"},"الملخص")
                     )),
                     /* ── TBODY ── */
@@ -8097,18 +8098,38 @@ ${PROVS.map(prov=>{
                                 },"—")
                               );
                             }
+                            const lateLabel=effectiveSt==='TXR'&&(dd?.lateH||dd?.lateM)?formatLate(dd.lateH,dd.lateM):null;
                             return h("td",{key:d,className:"att-td",style:{background:wk?"rgba(148,163,184,.05)":""}},
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
                                 onClick:(e)=>{if(!isAdmin&&!isProvince)return;if(isLeave)return;if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
-                                title:isLeave?(ATT_LABEL.EGL+" — read-only"):effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
+                                title:isLeave?(ATT_LABEL.EGL+" — read-only"):effectiveSt==='TXR'&&lateLabel?(`متأخر ${lateLabel}`):effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
                                 style:{cursor:wk||isAuto||isLeave?"default":"pointer"}
                               },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
                               effectiveSt==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
                                 (dd.in||"?"),"→",(dd.out||"?")
-                              )
+                              ),
+                              effectiveSt==='TXR'&&lateLabel&&h("div",{className:"att-time",style:{color:"#F59E0B",fontWeight:800}},lateLabel)
                             );
                           }),
+                          /* Late summary column */
+                          (()=>{
+                            const eAttDays=att[eng.id]||{};
+                            const lateDays=Object.entries(eAttDays).filter(([d,v])=>v?.s==='TXR').map(([d,v])=>({d:+d,h:+v.lateH||0,m:+v.lateM||0}));
+                            const totalMins=lateDays.reduce((a,d)=>a+d.h*60+d.m,0);
+                            const total=formatTotalLate(totalMins);
+                            return h("td",{className:"att-td-late",style:{padding:"6px 10px",textAlign:"center",borderBottom:"1px solid var(--bdr)",borderRight:"2px solid var(--bdr2)",minWidth:120,verticalAlign:"middle",background:lateDays.length>0?"rgba(245,158,11,.06)":"transparent"}},
+                              lateDays.length===0
+                                ?h("div",{style:{fontSize:11,color:"var(--sub)"}},"—")
+                                :h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:3}},
+                                    h("div",{style:{fontSize:10,fontWeight:800,color:"#fbbf24",letterSpacing:".5px"}},lateDays.length+" يوم"),
+                                    h("div",{style:{fontSize:14,fontWeight:900,fontFamily:"monospace",color:"#F59E0B",letterSpacing:1}},total),
+                                    h("div",{style:{fontSize:9,color:"var(--sub)",lineHeight:1.4,marginTop:2,textAlign:"center"}},
+                                      lateDays.slice(0,4).map(d=>"يوم "+d.d+": "+formatLate(d.h,d.m)).join(' · ')+(lateDays.length>4?" · ...":'')
+                                    )
+                                  )
+                            );
+                          })(),
                           /* Summary */
                           h("td",{className:"att-td-sum"},
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
