@@ -3602,11 +3602,45 @@ function App(){
     const cur=na[engId][day]||{};
     /* Only allow setting late when status is TXR (or auto-promote if not set) */
     const newCell={...cur,s:'TXR',lateH:Math.max(0,Math.min(12,+lateH||0)),lateM:Math.max(0,Math.min(59,+lateM||0))};
-    /* If both are 0, treat as cleared late but keep TXR status */
     na[engId][day]=newCell;
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
-    logActivity('تسجيل تأخير',`يوم ${day} — ${formatLate(lateH,lateM)}`);
+    /* Find engineer name for nicer log + undo */
+    let engName='مهندس';
+    PROVS.forEach(p=>{const f=(attData[p]||[]).find(e=>e.id===engId);if(f)engName=f.name;});
+    /* Detail format must be parseable for undo: '<name> — يوم <day> (<key>) — <HH:MM>' */
+    logActivity('تسجيل تأخير',`${engName} — يوم ${day} (${attKey}) — ${formatLate(lateH,lateM)} [engId:${engId}]`);
+  };
+
+  /* Undo a late entry: clear lateH/lateM + remove cell entirely (back to empty) */
+  const undoLateEntry=(engId,monthKey,day)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    const existingM=months[monthKey];
+    if(!existingM){msg('الشهر غير موجود','err');return;}
+    const na=JSON.parse(JSON.stringify(existingM.attendance||{}));
+    if(na[engId]&&na[engId][day]){
+      const cur=na[engId][day];
+      if(cur.s==='TXR'){
+        delete na[engId][day];
+        if(Object.keys(na[engId]).length===0)delete na[engId];
+        const upd={...existingM,attendance:na,savedAt:null};
+        setMonths(prev=>({...prev,[monthKey]:upd}));
+        queueSave(monthKey,upd);
+        /* Delete matching activity log entries */
+        fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(d=>{
+          const matches=(d.logs||[]).filter(l=>l.action==='تسجيل تأخير'&&l.detail&&l.detail.includes(`[engId:${engId}]`)&&l.detail.includes(`(${monthKey})`)&&l.detail.includes(`يوم ${day} `));
+          if(matches.length>0){
+            return fetch('/api/activity',{method:'DELETE',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({ids:matches.map(m=>m.id)})});
+          }
+        }).catch(()=>{});
+        msg('✓ تم التراجع عن تسجيل التأخير');
+      }else{
+        msg('الخلية ليست متأخرة','err');
+      }
+    }else{
+      msg('لا يوجد تسجيل لهذا اليوم','err');
+    }
+    setUndoConfirm(null);
   };
 
   const attFillMonth=(provFilter)=>{
@@ -8881,6 +8915,32 @@ ${PROVS.map(prov=>{
                             onClick:()=>setUndoConfirm({eng:foundEng,transfer:{...foundEng.egyptTransfer,from:foundEng.egyptTransfer.fromProv,to:'مصر 🇪🇬'}}),
                             style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
                           },"↩️ تراجع");
+                        }
+                      }
+                    }else if(log.action==='تسجيل تأخير'&&(isAdmin||isProvince)){
+                      /* Detail format: '<engName> — يوم <day> (<monthKey>) — <HH:MM> [engId:<id>]' */
+                      const m=(log.detail||'').match(/يوم\s(\d+)\s\((\d{4}-\d{2})\)\s—\s([\d:]+)\s\[engId:([^\]]+)\]/);
+                      if(m){
+                        const[,dayStr,mKey,timeStr,engId]=m;
+                        /* Verify the late entry still exists in the data */
+                        const monthAtt=months[mKey]?.attendance||{};
+                        const cell=monthAtt[engId]?.[+dayStr];
+                        if(cell&&cell.s==='TXR'){
+                          /* For province user: only allow undo if they're in the same prov as the engineer */
+                          let engRec=null;
+                          PROVS.forEach(p=>{const f=(months[mKey]?.data?.[p]||[]).find(e=>e.id===engId);if(f)engRec={...f,prov:p};});
+                          const canUndo=isAdmin||(isProvince&&engRec&&engRec.prov===userProv);
+                          if(canUndo){
+                            undoBtn=h("button",{
+                              title:"تراجع عن تسجيل التأخير",
+                              onClick:()=>{
+                                if(window.confirm(`هل أنت متأكد من التراجع عن تسجيل تأخير يوم ${dayStr} (${timeStr})؟`)){
+                                  undoLateEntry(engId,mKey,+dayStr);
+                                }
+                              },
+                              style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
+                            },"↩️ تراجع");
+                          }
                         }
                       }
                     }
