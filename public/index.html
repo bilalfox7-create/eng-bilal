@@ -3958,17 +3958,24 @@ function App(){
   const confirmImport=async mode=>{
     const parsed=importPrev.parsed.months;
     const nm=mode==="replace"?parsed:{...months,...parsed};
-    setMonths(nm);setImportPrev(null);setModal(null);
+    /* Persist to server FIRST. Only update client state if everything succeeds —
+       prevents the inconsistency where browser closed mid-import leaves client with
+       new data but server with partial / nothing. */
     try{
       if(mode==="replace"){
-        await fetch("/api/data",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({months:parsed})});
+        const r=await fetch("/api/data",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({months:parsed})});
+        if(!r.ok)throw new Error('server '+r.status);
       }else{
+        const failed=[];
         for(const[k,v]of Object.entries(parsed)){
-          await fetch(`/api/months/${k}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)});
+          const r=await fetch(`/api/months/${k}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)});
+          if(!r.ok)failed.push(k);
         }
+        if(failed.length>0)throw new Error('فشل حفظ '+failed.length+' شهر — تعارضات');
       }
+      setMonths(nm);setImportPrev(null);setModal(null);
       msg("تم الاستيراد ✓");
-    }catch(e){msg("خطأ في الاستيراد","err");}
+    }catch(e){msg("خطأ في الاستيراد: "+(e.message||''),"err");}
   };
 
   const exportXLSX=()=>{
