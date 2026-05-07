@@ -7239,8 +7239,6 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h(Ic,{n:"report",sz:14,c:"#D97706"}),
             h("span",{style:{fontWeight:800,color:"#D97706",fontSize:13}},liveRate?(liveRate.toFixed(2)+" ج.م / $"):"جارٍ تحميل السعر..."),
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},rateAt?"آخر تحديث: "+new Date(rateAt).toLocaleTimeString("ar-EG"):""),
-            liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"|"),
-            liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},"السعر المحفوظ: "+cfg.egp+" ج.م/$"),
             (isAdmin||isProvince)&&h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
           ),
           (()=>{
