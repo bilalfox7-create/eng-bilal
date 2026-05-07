@@ -2207,6 +2207,10 @@ function App(){
   const [attPopup,setAttPopup]=useState(null);   // {engId,day,x,y}
   /* Late-time input modal: holds {engId, day, engName, lateH, lateM, dayLabel} */
   const [lateInputModal,setLateInputModal]=useState(null);
+  /* Egypt-leave edit modal: {engId, leaveId, departureDate, returnDate, engName, eng} or null */
+  const [egyptLeaveEditModal,setEgyptLeaveEditModal]=useState(null);
+  /* Egypt-leave cancel-confirmation: holds {engId, leaveId, dep, ret, engName, daysAction} or null */
+  const [egyptLeaveCancelModal,setEgyptLeaveCancelModal]=useState(null);
   const [dayPopup,setDayPopup]=useState(null);   // {day,x,y}
   const [activityLogs,setActivityLogs]=useState([]);
   const [leaveTab,setLeaveTab]=useState('pending');
@@ -3440,6 +3444,126 @@ function App(){
     setEgyptLeaveForm({engId:'',date:'',notes:''});
   };
 
+  /* ── Edit egypt-leave dates (cross-month sync) ──────────
+     Updates departureDate and/or returnDate of an existing leave entry
+     across all months. Validates end > start. d1/d2 NOT recomputed —
+     user is expected to manually adjust attendance days if dates shift. */
+  const editEgyptLeaveDates=(engId,leaveId,newDeparture,newReturn)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    if(!newDeparture){msg('تاريخ النزول مطلوب','err');return;}
+    if(newReturn&&newReturn<=newDeparture){msg('تاريخ العودة يجب أن يكون بعد تاريخ النزول','err');return;}
+    let engName='مهندس',engProv=null;
+    PROVS.forEach(p=>{const f=(dataRaw[p]||[]).find(e=>e.id===engId);if(f){engName=f.name;engProv=p;}});
+    if(!isAdmin&&engProv!==userProv){msg('يمكنك تعديل إجازات مهندسي محافظتك فقط','err');return;}
+    setMonths(prev=>{
+      const out={...prev};
+      Object.keys(out).forEach(k=>{
+        if(k==='leaves')return;
+        const md=out[k];
+        if(!md?.data)return;
+        let touched=false;
+        const newData={};
+        Object.keys(md.data).forEach(p=>{
+          newData[p]=(md.data[p]||[]).map(e=>{
+            if(e.id!==engId||!e.egyptLeaves)return e;
+            const newLeaves=(e.egyptLeaves||[]).map(l=>l.id===leaveId?{...l,departureDate:newDeparture,returnDate:newReturn||null}:l);
+            touched=true;
+            return{...e,egyptLeaves:newLeaves};
+          });
+        });
+        if(touched){
+          out[k]={...md,data:newData,savedAt:null};
+          queueSave(k,out[k]);
+        }
+      });
+      return out;
+    });
+    logActivity('تعديل إجازة مصر',`${engName} — تواريخ جديدة: ${newDeparture}${newReturn?' → '+newReturn:' (مفتوحة)'}`);
+    msg(`✏️ تم تعديل تواريخ إجازة ${engName}`);
+  };
+
+  /* ── Cancel/delete egypt-leave entirely ─────────────────
+     daysAction: 'empty' | 'present' | 'absent'
+       - empty: clear AL/SL/EL/TXR cells in the leave range (set to nothing)
+       - present: set those cells to 'P'
+       - absent: set those cells to 'A'
+     Also restores d1/d2 from _d1Before/_d2Before on the active month if available. */
+  const cancelEgyptLeave=(engId,leaveId,daysAction)=>{
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    if(lockGuard())return;
+    let engName='مهندس',engProv=null,leave=null;
+    PROVS.forEach(p=>{
+      const f=(dataRaw[p]||[]).find(e=>e.id===engId);
+      if(f){engName=f.name;engProv=p;leave=(f.egyptLeaves||[]).find(l=>l.id===leaveId);}
+    });
+    if(!leave){
+      /* Cross-month lookup */
+      Object.values(months).forEach(m=>{
+        if(leave||!m?.data)return;
+        Object.values(m.data).forEach(arr=>{
+          if(leave||!Array.isArray(arr))return;
+          const e=arr.find(x=>x?.id===engId);
+          if(e?.egyptLeaves)leave=e.egyptLeaves.find(l=>l.id===leaveId);
+        });
+      });
+    }
+    if(!leave){msg('الإجازة غير موجودة','err');return;}
+    if(!isAdmin&&engProv!==userProv){msg('يمكنك إلغاء إجازات مهندسي محافظتك فقط','err');return;}
+    const dep=leave.departureDate;
+    const ret=leave.returnDate;
+    /* Compute affected days range: dep → (ret-1) for closed, dep → today for open */
+    const todayIso=new Date().toISOString().slice(0,10);
+    const lastDay=ret?new Date(new Date(ret+'T00:00').getTime()-86400000).toISOString().slice(0,10):todayIso;
+    setMonths(prev=>{
+      const out={...prev};
+      Object.keys(out).forEach(k=>{
+        if(k==='leaves')return;
+        const md=out[k];
+        if(!md?.data)return;
+        let dataChanged=false,attChanged=false;
+        const newData={};
+        Object.keys(md.data).forEach(p=>{
+          newData[p]=(md.data[p]||[]).map(e=>{
+            if(e.id!==engId)return e;
+            const newLeaves=(e.egyptLeaves||[]).filter(l=>l.id!==leaveId);
+            const nextE={...e,egyptLeaves:newLeaves};
+            dataChanged=true;
+            /* Restore d1/d2 only on the active month where they were stored */
+            if(k===ak){
+              if(e._d1Before!==undefined){nextE.d1=e._d1Before;delete nextE._d1Before;}
+              if(e._d2Before!==undefined){nextE.d2=e._d2Before;delete nextE._d2Before;}
+            }
+            return nextE;
+          });
+        });
+        /* Update attendance cells in this month for the leave range */
+        const newAtt=md.attendance?{...md.attendance}:{};
+        if(daysAction!=='empty'||true){
+          const monthY=+k.split('-')[0],monthM=+k.split('-')[1];
+          const dim=new Date(monthY,monthM,0).getDate();
+          for(let d=1;d<=dim;d++){
+            const ds=`${monthY}-${String(monthM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            if(ds<dep||ds>lastDay)continue;
+            if(new Date(monthY,monthM-1,d).getDay()===5)continue;
+            if(!newAtt[engId])newAtt[engId]={};
+            else newAtt[engId]={...newAtt[engId]};
+            if(daysAction==='empty'){if(newAtt[engId][d]){delete newAtt[engId][d];attChanged=true;}}
+            else if(daysAction==='present'){newAtt[engId][d]={s:'P'};attChanged=true;}
+            else if(daysAction==='absent'){newAtt[engId][d]={s:'A'};attChanged=true;}
+          }
+        }
+        if(dataChanged||attChanged){
+          out[k]={...md,data:newData,attendance:newAtt,savedAt:null};
+          queueSave(k,out[k]);
+        }
+      });
+      return out;
+    });
+    logActivity('إلغاء إجازة مصر',`${engName} — ${dep}${ret?' → '+ret:' (كانت مفتوحة)'} · الأيام: ${{empty:'فارغة',present:'حاضر',absent:'غائب'}[daysAction]||daysAction}`);
+    msg(`🗑️ تم إلغاء إجازة ${engName}`);
+  };
+
   /* ── Undo a transfer ────────────────────────────────────
      Removes the transfer entry from eng.transfers AND moves the
      engineer back to transfer.from. Activity log entry is deleted
@@ -3787,10 +3911,17 @@ function App(){
   const attClearCell=(engId,day)=>{
     if(attLockGuard())return;
     const existing=mkAttMonthBase();
+    const prevSt=(existing.attendance||{})[engId]?.[day]?.s||null;
     const na=JSON.parse(JSON.stringify(existing.attendance||{}));
     if(na[engId])delete na[engId][day];
     const upd={...existing,attendance:na};
     setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
+    /* Log only if there was actually something to clear */
+    if(prevSt){
+      let engName='مهندس';
+      PROVS.forEach(p=>{const f=(attData[p]||[]).find(e=>e.id===engId);if(f)engName=f.name;});
+      logActivity('مسح حالة حضور',`${engName} — يوم ${day} (${attKey}) — كانت: ${ATT_LABEL[prevSt]||prevSt}`);
+    }
   };
 
   const saveLeaves=(list,statuses)=>{
@@ -8481,15 +8612,22 @@ ${PROVS.map(prov=>{
                                 ),
                                 h("div",{style:{display:"flex",gap:4,marginTop:4,alignItems:"center",flexWrap:"wrap"}},
                                   h("button",{onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"⏰ الأوقات"),
-                                  /* Egypt-leave depart/return button — admin or province (own prov) */
+                                  /* Egypt-leave depart/return + edit button — admin or province (own prov) */
                                   (isAdmin||(isProvince&&attProv===userProv))&&(()=>{
                                     const active=findActiveLeave(eng.id);
                                     if(active){
-                                      return h("button",{
-                                        title:"تسجيل العودة من الإجازة",
-                                        onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'return',date:'',notes:''});setModal('egypt-leave');},
-                                        style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"linear-gradient(135deg,rgba(16,185,129,.18),rgba(16,185,129,.04))",color:"#34d399",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
-                                      },"🟢 تسجيل العودة");
+                                      return h(React.Fragment,null,
+                                        h("button",{
+                                          title:"تسجيل العودة من الإجازة",
+                                          onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'return',date:'',notes:''});setModal('egypt-leave');},
+                                          style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"linear-gradient(135deg,rgba(16,185,129,.18),rgba(16,185,129,.04))",color:"#34d399",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                        },"🟢 تسجيل العودة"),
+                                        h("button",{
+                                          title:"تعديل تواريخ الإجازة",
+                                          onClick:e=>{e.stopPropagation();setEgyptLeaveEditModal({engId:eng.id,leaveId:active.id,departureDate:active.departureDate,returnDate:active.returnDate||'',engName:eng.name});},
+                                          style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(99,102,241,.4)",background:"linear-gradient(135deg,rgba(99,102,241,.18),rgba(99,102,241,.04))",color:"#818cf8",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                        },"✏️ تعديل")
+                                      );
                                     }
                                     return h("button",{
                                       title:"تسجيل نزول إجازة",
@@ -9478,8 +9616,12 @@ ${PROVS.map(prov=>{
           )
         ),
         h("button",{className:"att-popup-btn att-popup-clr",
-          onClick:()=>{attClearCell(attPopup.engId,attPopup.day);setAttPopup(null);}
-        },"✕  مسح")
+          onClick:()=>{
+            const cur=(attAtt[attPopup.engId]||{})[attPopup.day]?.s;
+            if(cur&&!confirm('مسح حالة يوم '+attPopup.day+'؟ ستعود الخلية فارغة.'))return;
+            attClearCell(attPopup.engId,attPopup.day);setAttPopup(null);
+          }
+        },"🗑️ مسح الحالة")
       );})(),
 
       /* ── LATE TIME INPUT MODAL ───────────────────────────── */
@@ -9524,7 +9666,21 @@ ${PROVS.map(prov=>{
               "ℹ️ يخضع للخصم بناءً على ساعات التأخير (يحدد بواسطة HR فى مصر)"
             )
           ),
-          h("div",{className:"modal-ftr"},
+          h("div",{className:"modal-ftr",style:{display:"flex",gap:6,flexWrap:"wrap"}},
+            /* Delete button — only when this cell already has a TXR set (editing existing) */
+            (()=>{
+              const cell=(attAtt[lateInputModal.engId]||{})[lateInputModal.day]||{};
+              if(cell.s!=='TXR')return null;
+              return h("button",{
+                className:"btn",
+                style:{background:"linear-gradient(135deg,#dc2626,#991b1b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 14px",borderRadius:10,boxShadow:"0 6px 18px rgba(220,38,38,.4)",marginLeft:"auto"},
+                onClick:()=>{
+                  if(!confirm('حذف تسجيل التأخير ليوم '+lateInputModal.day+'؟ ستعود الخلية إلى حالة فارغة.'))return;
+                  undoLateEntry(lateInputModal.engId,attKey,lateInputModal.day);
+                  setLateInputModal(null);
+                }
+              },"🗑️ حذف التأخير");
+            })(),
             h("button",{className:"btn",onClick:()=>setLateInputModal(null)},"إلغاء"),
             h("button",{
               className:"btn",
@@ -9534,6 +9690,95 @@ ${PROVS.map(prov=>{
                 setLateInputModal(null);
               }
             },"⚠️ تسجيل التأخير")
+          )
+        )
+      ),
+
+      /* ── EGYPT-LEAVE EDIT MODAL ──────────────────────────── */
+      egyptLeaveEditModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEgyptLeaveEditModal(null);}},
+        h("div",{className:"modal",style:{width:440}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,"✏️ تعديل إجازة مصر"),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEgyptLeaveEditModal(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:14}},
+            h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(99,102,241,.10)",border:"1px solid rgba(99,102,241,.25)",fontSize:13,fontWeight:700,color:"#a5b4fc"}},
+              "👤 ",egyptLeaveEditModal.engName
+            ),
+            h("div",{className:"fld"},
+              h("label",null,"تاريخ النزول *"),
+              h("input",{type:"date",value:egyptLeaveEditModal.departureDate,onChange:ev=>setEgyptLeaveEditModal(m=>({...m,departureDate:ev.target.value}))})
+            ),
+            h("div",{className:"fld"},
+              h("label",null,"تاريخ العودة (اتركه فارغاً لو لم يعد بعد)"),
+              h("input",{type:"date",value:egyptLeaveEditModal.returnDate,onChange:ev=>setEgyptLeaveEditModal(m=>({...m,returnDate:ev.target.value}))})
+            ),
+            h("div",{className:"info blue",style:{fontSize:11}},
+              h(Ic,{n:"info",sz:14}),
+              "ℹ️ تعديل التواريخ بيحدّث سجل الإجازة في كل الشهور. لو محتاج تعدل أيام الحضور (P/A) في الشيت، اعملها يدوياً."
+            )
+          ),
+          h("div",{className:"modal-ftr",style:{display:"flex",gap:6,flexWrap:"wrap"}},
+            h("button",{
+              className:"btn",
+              style:{background:"linear-gradient(135deg,#dc2626,#991b1b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 14px",borderRadius:10,boxShadow:"0 6px 18px rgba(220,38,38,.4)",marginLeft:"auto"},
+              onClick:()=>{
+                setEgyptLeaveCancelModal({...egyptLeaveEditModal,daysAction:'empty'});
+                setEgyptLeaveEditModal(null);
+              }
+            },"🗑️ إلغاء الإجازة كاملاً"),
+            h("button",{className:"btn",onClick:()=>setEgyptLeaveEditModal(null)},"تراجع"),
+            h("button",{
+              className:"btn blue",
+              style:{fontWeight:800,padding:"8px 18px"},
+              onClick:()=>{
+                editEgyptLeaveDates(egyptLeaveEditModal.engId,egyptLeaveEditModal.leaveId,egyptLeaveEditModal.departureDate,egyptLeaveEditModal.returnDate||null);
+                setEgyptLeaveEditModal(null);
+              }
+            },"💾 حفظ التعديلات")
+          )
+        )
+      ),
+
+      /* ── EGYPT-LEAVE CANCEL CONFIRMATION MODAL ──────────── */
+      egyptLeaveCancelModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEgyptLeaveCancelModal(null);}},
+        h("div",{className:"modal",style:{width:440}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,"🗑️ إلغاء إجازة مصر"),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEgyptLeaveCancelModal(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:14}},
+            h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(220,38,38,.08)",border:"1px solid rgba(220,38,38,.30)",fontSize:13,fontWeight:700,color:"#fca5a5"}},
+              "⚠️ بتلغي إجازة ",egyptLeaveCancelModal.engName,
+              h("div",{style:{fontSize:11,marginTop:4,color:"#fecaca"}},
+                "من ",egyptLeaveCancelModal.departureDate,
+                egyptLeaveCancelModal.returnDate?" إلى "+egyptLeaveCancelModal.returnDate:" (مفتوحة)"
+              )
+            ),
+            h("div",{className:"fld"},
+              h("label",null,"الأيام في شيت الحضور تتحول إلى:"),
+              h("div",{style:{display:"flex",flexDirection:"column",gap:6,marginTop:6}},
+                [
+                  {v:'empty',l:'⚪ خلية فارغة (تحديد يدوي لاحقاً)',c:'#94A3B8'},
+                  {v:'present',l:'✓ حاضر',c:'#10B981'},
+                  {v:'absent',l:'✗ غائب',c:'#EF4444'}
+                ].map(o=>h("label",{key:o.v,style:{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",border:"1px solid var(--bdr)",borderRadius:8,cursor:"pointer",background:egyptLeaveCancelModal.daysAction===o.v?`${o.c}22`:"transparent"}},
+                  h("input",{type:"radio",name:"daysAction",value:o.v,checked:egyptLeaveCancelModal.daysAction===o.v,onChange:()=>setEgyptLeaveCancelModal(m=>({...m,daysAction:o.v}))}),
+                  h("span",{style:{fontWeight:700,color:o.c}},o.l)
+                ))
+              )
+            )
+          ),
+          h("div",{className:"modal-ftr",style:{display:"flex",gap:6}},
+            h("button",{className:"btn",onClick:()=>setEgyptLeaveCancelModal(null),style:{marginLeft:"auto"}},"تراجع"),
+            h("button",{
+              className:"btn",
+              style:{background:"linear-gradient(135deg,#dc2626,#991b1b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(220,38,38,.4)"},
+              onClick:()=>{
+                cancelEgyptLeave(egyptLeaveCancelModal.engId,egyptLeaveCancelModal.leaveId,egyptLeaveCancelModal.daysAction);
+                setEgyptLeaveCancelModal(null);
+              }
+            },"🗑️ تأكيد الإلغاء")
           )
         )
       ),
