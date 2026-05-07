@@ -3905,6 +3905,72 @@ function App(){
     return{P,A,AL,SL,EL,H,vac:AL+SL+EL,hrs:Math.floor(mins/60),min:mins%60};
   };
 
+  /* ── Multi-month leave display helpers ──────────────────────────
+     User-spec: for any leave (formal AL/SL/EL or egypt-leave) that
+     spans across multiple months, the SUMMARY display shows the FULL
+     duration in every month the leave overlaps. The financial calcs
+     (d1/d2, daily allowance) are unaffected — they stay per-month.
+
+     getDisplayLeaveDays(engId, y, m, sVac):
+       returns sum of `durationDays` over all approved/pending leaves
+       overlapping (y,m). Falls back to sVac (per-month cell count) if
+       no formal leave overlaps. */
+  const getDisplayLeaveDays=(engId,year,month,sVac)=>{
+    if(!year||!month)return sVac;
+    const ms=`${year}-${String(month).padStart(2,'0')}-01`;
+    const dim=new Date(year,month,0).getDate();
+    const me=`${year}-${String(month).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
+    let total=0;
+    (months['leaves']?.requests||[]).forEach(l=>{
+      if(l.engineerId!==engId)return;
+      if(l.status!=='approved'&&l.status!=='pending')return;
+      const s=l.leaveStartDate,e=l.leaveEndDate;
+      if(!s||!e)return;
+      if(s>me||e<ms)return;
+      total+=(+l.durationDays||0);
+    });
+    return total>0?total:(sVac||0);
+  };
+
+  /* getDisplayEgyptLeaveDays(engId, y, m, sEgy):
+     returns sum of full egypt-leave durations (working days only,
+     excluding Fridays) for any leave overlapping (y,m). Falls back
+     to sEgy (per-month count of EGL cells). */
+  const getDisplayEgyptLeaveDays=(engId,year,month,sEgy)=>{
+    if(!year||!month)return sEgy||0;
+    const ms=`${year}-${String(month).padStart(2,'0')}-01`;
+    const dim=new Date(year,month,0).getDate();
+    const me=`${year}-${String(month).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
+    /* Cross-month lookup of egyptLeaves */
+    const seen=new Map();
+    Object.keys(months).forEach(k=>{
+      if(k==='leaves')return;
+      const md=months[k];
+      if(!md?.data)return;
+      Object.keys(md.data).forEach(p=>{
+        const e=(md.data[p]||[]).find(x=>x?.id===engId);
+        if(e?.egyptLeaves)e.egyptLeaves.forEach(lv=>{if(lv.id)seen.set(lv.id,lv);});
+      });
+    });
+    let total=0;
+    const todayStr=new Date().toISOString().slice(0,10);
+    for(const lv of seen.values()){
+      const s=lv.departureDate;
+      if(!s)continue;
+      /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1 */
+      const lastDay=lv.returnDate
+        ?new Date(new Date(lv.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10)
+        :todayStr;
+      if(s>me||lastDay<ms)continue;
+      /* Count working days (skip Fridays) in the full leave range */
+      const sd=new Date(s+'T00:00'),ed=new Date(lastDay+'T00:00');
+      let w=0;
+      for(let dd=new Date(sd);dd<=ed;dd.setDate(dd.getDate()+1))if(dd.getDay()!==5)w++;
+      total+=w;
+    }
+    return total>0?total:(sEgy||0);
+  };
+
   const paidStats=useMemo(()=>{
     let p1N=0,p2N=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
     allE.forEach(e=>{
@@ -4509,7 +4575,10 @@ function App(){
           return st?ATT_SHORT[st]:(new Date(cfg.year,cfg.month-1,d).getDay()===5?"ع":"");
         });
         const totalLate=lateMins?(String(Math.floor(lateMins/60)).padStart(2,'0')+':'+String(lateMins%60).padStart(2,'0')):'—';
-        rows.push([e.name,e.spec,...cells,s.P,s.A,s.vac,egyptDays||'—',s.hrs+"h",lateDays||'—',totalLate]);
+        /* Multi-month full-duration display values */
+        const vacFull=getDisplayLeaveDays(e.id,cfg.year,cfg.month,s.vac);
+        const egyptFull=getDisplayEgyptLeaveDays(e.id,cfg.year,cfg.month,egyptDays);
+        rows.push([e.name,e.spec,...cells,s.P,s.A,vacFull,egyptFull||'—',s.hrs+"h",lateDays||'—',totalLate]);
       });
       const ws=XLSX.utils.aoa_to_sheet(rows);
       ws["!cols"]=[{wch:24},{wch:16},...days.map(()=>({wch:8})),{wch:6},{wch:6},{wch:6},{wch:11},{wch:7},{wch:11},{wch:14}];
@@ -5432,8 +5501,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           if(!st)return '<td></td>';
           return `<td style="background:${S_BG[st]};color:${S_COL[st]};text-align:center;font-size:9px;font-weight:800">${st}</td>`;
         }).join('');
-        totalEgL+=egL;
-        totalP+=p;totalA+=a;totalLv+=lv;
+        /* Multi-month full-duration aggregates for summary header */
+        const _lvFull=getDisplayLeaveDays(eng.id,Y,M,lv);
+        const _egLFull=getDisplayEgyptLeaveDays(eng.id,Y,M,egL);
+        totalEgL+=_egLFull;
+        totalP+=p;totalA+=a;totalLv+=_lvFull;
         totalLateDays+=lateDays;
         totalLateMins+=lateMins;
         /* Tenure / transfer badges */
@@ -5460,7 +5532,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         const lateCell=lateDays>0
           ?`<td style="text-align:center;background:#FFFBEB;border-left:1px solid #FDE68A;min-width:80px"><div style="font-size:10px;font-weight:800;color:#B45309">${lateDays} يوم</div><div style="font-size:13px;font-weight:900;font-family:monospace;color:#B45309;letter-spacing:1px">${formatTotalLate(lateMins)}</div></td>`
           :`<td style="text-align:center;color:#CBD5E1;font-size:11px;border-left:1px solid #FDE68A;min-width:80px">—</td>`;
-        return `<tr><td style="font-weight:700">${eng.name}${badges?'<br>'+badges:''}<br><span style="font-size:9px;color:#64748B">${eng.spec||''}</span></td>${cells}${lateCell}<td style="text-align:center;background:#FAFAFA"><span style="color:#059669;font-weight:800">${p}</span> · <span style="color:#DC2626;font-weight:800">${a}</span>${lv>0?' · <span style="color:#2563EB;font-weight:800">'+lv+'</span>':''}${egL>0?' · <span style="color:#C2410C;font-weight:800">'+egL+' م</span>':''}</td></tr>`;
+        /* Multi-month full-duration display values for the summary cell */
+        const lvFull=getDisplayLeaveDays(eng.id,Y,M,lv);
+        const egLFull=getDisplayEgyptLeaveDays(eng.id,Y,M,egL);
+        return `<tr><td style="font-weight:700">${eng.name}${badges?'<br>'+badges:''}<br><span style="font-size:9px;color:#64748B">${eng.spec||''}</span></td>${cells}${lateCell}<td style="text-align:center;background:#FAFAFA"><span style="color:#059669;font-weight:800">${p}</span> · <span style="color:#DC2626;font-weight:800">${a}</span>${lvFull>0?' · <span style="color:#2563EB;font-weight:800">'+lvFull+'</span>':''}${egLFull>0?' · <span style="color:#C2410C;font-weight:800">'+egLFull+' م</span>':''}</td></tr>`;
       }).join('');
       const header=`<tr><th style="min-width:130px">المهندس</th>${days.map(d=>`<th style="min-width:24px;font-size:9px${isFri(d)?';background:#F1F5F9;color:#94A3B8':''}">${d}<br>${DAY_AR[new Date(Y,M-1,d).getDay()]}</th>`).join('')}<th style="min-width:80px;background:#FFFBEB;color:#B45309">⏰ التأخير</th><th style="min-width:90px">الملخص</th></tr>`;
       /* Transferred-OUT section (engineers who left this prov during this month) */
@@ -7935,7 +8010,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const selNone=()=>setAttSelected(new Set());
           const bulkSet=status=>{if(!todayD||attSelected.size===0)return;attSelected.forEach(id=>attSetStatus(id,todayD,status));setAttSelected(new Set());};
           const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="ا"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"AL");}};
-          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att,cfg.year,cfg.month);return{P:a.P+s.P,A:a.A+s.A,H:a.H+s.H,vac:a.vac+s.vac,hrs:a.hrs+s.hrs};},{P:0,A:0,H:0,vac:0,hrs:0});
+          /* Multi-month leave: sum FULL leave durations across overlapping months for display */
+          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att,cfg.year,cfg.month);const v=getDisplayLeaveDays(e.id,cfg.year,cfg.month,s.vac);return{P:a.P+s.P,A:a.A+s.A,H:a.H+s.H,vac:a.vac+v,hrs:a.hrs+s.hrs};},{P:0,A:0,H:0,vac:0,hrs:0});
 
           /* ── Vacation balance display REMOVED — engineers may take more than 15 days ── */
           const getAutoState=(eng,d)=>{
@@ -7970,17 +8046,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const nameThStyle='padding:6px 10px;text-align:right;font-size:10px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;min-width:130px';
             const nameTdStyle='padding:6px 10px;text-align:right;font-size:11px;font-weight:700;background:#fff;border:1px solid #E2E8F0;min-width:130px';
 
-            /* Aggregate late + egypt-leave stats for header chip */
+            /* Aggregate late + egypt-leave stats for header chip — egypt-leave uses FULL multi-month duration */
             let provLateDays=0,provLateMins=0,provEgyptDays=0;
             provEngs.forEach(eng=>{
               const eAtt2=att[eng.id]||{};
               Object.values(eAtt2).forEach(d=>{
                 if(d?.s==='TXR'){provLateDays++;provLateMins+=((+d.lateH||0)*60)+(+d.lateM||0);}
               });
+              let cellEgy=0;
               for(let d=1;d<=daysInMonth;d++){
                 const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                if(!isWknd(d)&&!eAtt2[d]?.s&&isLeaveDay(eng.id,ds))provEgyptDays++;
+                if(!isWknd(d)&&!eAtt2[d]?.s&&isLeaveDay(eng.id,ds))cellEgy++;
               }
+              provEgyptDays+=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,cellEgy);
             });
 
             const buildCell=(eAtt,d,eng)=>{
@@ -8004,20 +8082,23 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const rows=provEngs.map(eng=>{
               const s=attGetStats(eng.id,att,cfg.year,cfg.month);
               const eAtt=att[eng.id]||{};
-              /* Count egypt-leave days for this engineer in this month for the summary cell */
+              /* Count egypt-leave days in this month (per-month, for the cells) */
               let egyptDays=0;
               for(let d=1;d<=daysInMonth;d++){
                 const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 if(!isWknd(d)&&!eAtt[d]?.s&&isLeaveDay(eng.id,ds))egyptDays++;
               }
+              /* Multi-month leave display: sum FULL durations of leaves overlapping this month */
+              const vacFull=getDisplayLeaveDays(eng.id,cfg.year,cfg.month,s.vac);
+              const egyptFull=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,egyptDays);
               return`<tr>
                 <td style="${nameTdStyle}">${eng.name}<br><span style="font-size:9px;color:#64748B">${eng.spec}</span></td>
                 ${days.map(d=>buildCell(eAtt,d,eng)).join('')}
                 <td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:10px;background:#FAFAFA;min-width:130px">
                   <span style="color:#059669;font-weight:800">${s.P} حضور</span> &nbsp;
                   <span style="color:#DC2626;font-weight:800">${s.A} غياب</span><br>
-                  ${s.vac>0?`<span style="color:#2563EB;font-weight:800">${s.vac} إجازة</span> &nbsp;`:''}
-                  ${egyptDays>0?`<span style="color:#C2410C;font-weight:800">${egyptDays} إجازة (مصر)</span><br>`:''}
+                  ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إجازة</span> &nbsp;`:''}
+                  ${egyptFull>0?`<span style="color:#C2410C;font-weight:800">${egyptFull} إجازة (مصر)</span><br>`:''}
                   <span style="color:#92400E;font-weight:800">${s.hrs}h عمل</span>
                 </td>
               </tr>`;
@@ -8169,7 +8250,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 const provRows=PROVS.filter(p=>!isProvince||p===userProv).map(p=>{
                   const engs=mData[p]||[];
                   let P=0,A=0,vac=0,hrs=0;
-                  engs.forEach(e=>{const s=attGetStats(e.id,mAtt,+y,+m);P+=s.P;A+=s.A;vac+=s.vac;hrs+=s.hrs;});
+                  engs.forEach(e=>{const s=attGetStats(e.id,mAtt,+y,+m);const v=getDisplayLeaveDays(e.id,+y,+m,s.vac);P+=s.P;A+=s.A;vac+=v;hrs+=s.hrs;});
                   return{prov:p,n:engs.length,P,A,vac,hrs};
                 }).filter(r=>r.P>0||r.A>0||r.vac>0);
                 const totP=provRows.reduce((a,r)=>a+r.P,0);
@@ -8245,9 +8326,11 @@ ${PROVS.map(prov=>{
       }
       return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
     }).join('');
+    /* Multi-month leave: show full duration in summary */
+    const vacFull=getDisplayLeaveDays(eng.id,y,m,s.vac);
     return`<tr><td style="${nmTdS}">${eng.name}<br><span style="font-size:8.5px;color:#64748B">${eng.spec}</span></td>${cells}
 <td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:9.5px;background:#FAFAFA;white-space:nowrap">
-<span style="color:#059669;font-weight:800">${s.P} ح</span> <span style="color:#DC2626;font-weight:800">${s.A} غ</span> ${s.vac>0?`<span style="color:#2563EB;font-weight:800">${s.vac} إج</span>`:''}
+<span style="color:#059669;font-weight:800">${s.P} ح</span> <span style="color:#DC2626;font-weight:800">${s.A} غ</span> ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إج</span>`:''}
 <br><span style="color:#92400E;font-weight:700">${s.hrs}h</span></td></tr>`;
   }).join('');
   return`<div class="section"><div class="sec-t">${prov}</div>
@@ -8360,6 +8443,8 @@ ${PROVS.map(prov=>{
                     h("tbody",null,
                       provEngs.map(eng=>{
                         const s=attGetStats(eng.id,att,cfg.year,cfg.month);
+                        /* Multi-month leave display: shows full duration (10) in every month a leave overlaps */
+                        const sVacFull=getDisplayLeaveDays(eng.id,cfg.year,cfg.month,s.vac);
                         const eAtt=att[eng.id]||{};
                         return h("tr",{key:eng.id,tabIndex:0,onMouseEnter:()=>setAttHovEng(eng.id),onMouseLeave:()=>setAttHovEng(null),onKeyDown:e=>handleRowKey(e,eng.id)},
                           /* Engineer name */
@@ -8467,7 +8552,7 @@ ${PROVS.map(prov=>{
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
                             s.H>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#94A3B8"}}),h("span",{className:"att-stat-val"},s.H),h("span",{className:"att-stat-lbl"},"عطلة رسمية")),
-                            s.vac>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},s.vac),h("span",{className:"att-stat-lbl"},"إجازة (شهر)")),
+                            sVacFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},sVacFull),h("span",{className:"att-stat-lbl"},sVacFull>s.vac?"إجازة (كاملة)":"إجازة (شهر)")),
                             h("div",{className:"att-stat-div"},
                               h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل"))
                             )
