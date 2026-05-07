@@ -8451,8 +8451,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 const dIM=new Date(y,m,0).getDate();
                 const dys=Array.from({length:dIM},(_,i)=>i+1);
                 const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
-                const S_COL={P:'#059669',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B',TXR:'#B45309',EGL:'#C2410C'};
-                const S_BG={P:'#D1FAE5',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9',TXR:'#FEF3C7',EGL:'#FFEDD5'};
+                const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B',TXR:'#B45309',EGL:'#C2410C'};
+                const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9',TXR:'#FEF3C7',EGL:'#FFEDD5'};
                 /* Cross-month egypt-leave check (covers legacy data without propagation) */
                 const isLeaveDayPM=(engId,dateStr)=>{
                   for(const k of Object.keys(months)){
@@ -8517,6 +8517,19 @@ ${PROVS.map(prov=>{
   return`<div class="section"><div class="sec-t">${prov}</div>
 <table><thead><tr><th style="${nmThS}">المهندس</th>${dys.map(d=>`<th style="${thS};${isFri(d)?'background:#F1F5F9;color:#94A3B8':''}">${d}<br>${DAY_AR[new Date(y,m-1,d).getDay()]}</th>`).join('')}<th style="${nmThS}">الملخص</th></tr></thead>
 <tbody>${rows}</tbody></table></div>`;}).join('')}
+<div style="margin-top:8px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+  <span style="font-size:10px;font-weight:800;color:#475569;margin-left:6px">📖 دليل الرموز:</span>
+  ${[
+    ['P','حضور','#D1FAE5','#059669'],
+    ['EG','لم يصل من مصر','#DBEAFE','#2563EB'],
+    ['م','إجازة (مصر)','#FFEDD5','#C2410C'],
+    ['A','غياب','#FEE2E2','#DC2626'],
+    ['SL','إجازة مرضية','#FEF3C7','#D97706'],
+    ['H','عطلة رسمية','#F1F5F9','#64748B'],
+    ['⚠','متأخر','#FEF3C7','#B45309']
+  ].map(([s,l,bg,col])=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700"><span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:${bg};color:${col};border:1px solid ${col};text-align:center;line-height:16px;font-size:9px;font-weight:900">${s}</span>${l}</span>`).join('')}
+  <span style="font-size:9.5px;color:#94A3B8;margin-right:auto">🔴 الجمعة عطلة أسبوعية</span>
+</div>
 <div class="foot">
 <div class="sign"><div class="sign-line"></div><div>مدير المشروع</div></div>
 <div style="color:#94A3B8;font-size:9px;text-align:center">نظام إدارة مشروعات ليبيا · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
