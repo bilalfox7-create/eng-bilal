@@ -2358,18 +2358,23 @@ function App(){
   },[]);
 
   /* ── Save queue (debounced) ─────────────────────────
-     queueSave: مع debounce 800ms (للحضور والكتابة السريعة).
+     queueSave: مع debounce 250ms (للحضور والكتابة السريعة).
      flushSaves: تنفّذ كل المعلّق فورًا (للأكشنز المنفصلة كإضافة/حذف عهدة).
      beforeunload: تحذّر المستخدم لو فيه بيانات لم تُحفظ بعد + تحاول حفظ
-                   سريع عبر fetch keepalive (يصمد أثناء غلق الصفحة).        */
-  const _runSaves=useCallback(async(q)=>{
+                   سريع عبر fetch keepalive (يصمد أثناء غلق الصفحة).
+     ── force flag ──
+     لما المستخدم يضغط "حذف"/"حفظ" بشكل مقصود (flushSaves) — السيرفر
+     يسمح بمسح بيانات (force:true). الكتابة الـ debounced (queueSave)
+     لا تستخدم force عشان الـ destructive write guard يحمى من stale tabs. */
+  const _runSaves=useCallback(async(q,forceFlag=false)=>{
     for(const[k,v]of Object.entries(q)){
       if(v===null){
         await fetch(`/api/months/${k}`,{method:"DELETE"}).catch(()=>{});
       }else{
         try{
+          const body=forceFlag?{...v,force:true}:v;
           const r=await fetch(`/api/months/${k}`,{
-            method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)
+            method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
           });
           if(r.status===409){
             const err=await r.json().catch(()=>({}));
@@ -2390,7 +2395,9 @@ function App(){
     const q={...pendingRef.current};pendingRef.current={};
     if(!Object.keys(q).length){setAutoSaving(false);return;}
     setAutoSaving(true);
-    await _runSaves(q);
+    // الأكشنز المنفصلة (إضافة/حذف/تعديل/نقل) — bypass للـ guard لأنها
+    // نية واضحة من المستخدم، مش stale-state من تاب قديم.
+    await _runSaves(q,true);
     setAutoSaving(false);
   },[_runSaves]);
 
@@ -2399,10 +2406,10 @@ function App(){
     setAutoSaving(true);
     clearTimeout(timerRef.current);
     /* 250ms (down from 800ms) — أسرع التزام للسيرفر يقلّل نافذة الفقد
-       لو المستخدم عمل refresh بعد كتابة سريعة. */
+       لو المستخدم عمل refresh بعد كتابة سريعة. لا force — guard فعّال. */
     timerRef.current=setTimeout(async()=>{
       const q={...pendingRef.current};pendingRef.current={};
-      await _runSaves(q);
+      await _runSaves(q,false);
       setAutoSaving(false);
     },250);
   },[_runSaves]);
@@ -3055,9 +3062,16 @@ function App(){
   };
 
   const saveMonth=async()=>{
-    const v={data:dc(data),cfg:dc(cfg),savedAt:new Date().toISOString()};
+    /* حافظ على expenses و attendance الموجودين فى الشهر — مش بعت {data,cfg}
+       فقط لأن السيرفر هيمسح الباقى */
+    const cur=months[ak]||{};
+    const v={
+      data:dc(data),cfg:dc(cfg),savedAt:new Date().toISOString(),
+      expenses:cur.expenses||null,attendance:cur.attendance||null
+    };
     setMonths(p=>({...p,[ak]:v}));
-    await fetch(`/api/months/${ak}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)}).catch(()=>{});
+    pendingRef.current[ak]=v;
+    await flushSaves(); // force:true → guard مش هيرفض
     logActivity('حفظ شهر',`${mn} ${cfg.year}`);
     msg(`تم حفظ ${mn} ${cfg.year} ✓`);
   };
