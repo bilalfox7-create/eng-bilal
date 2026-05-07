@@ -273,33 +273,10 @@ router.patch('/leaves/:id', (req, res) => {
     item.decidedBy = user.username;
     item.decidedAt = new Date().toISOString();
     if (!item.ticketStatus) item.ticketStatus = item.ticketBooked ? 'booked' : 'notBooked';
-
-    if (status === 'approved' && item.leaveStartDate && item.leaveEndDate && item.engineerId) {
-      const start = new Date(item.leaveStartDate + 'T12:00');
-      const end   = new Date(item.leaveEndDate   + 'T12:00');
-      let cur = new Date(start);
-      const attMap = {};
-
-      while (cur <= end) {
-        if (cur.getDay() !== 5) {
-          const mKey = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
-          if (!(mKey in attMap)) {
-            const mRow = db.prepare('SELECT attendance FROM months WHERE key = ?').get(mKey);
-            attMap[mKey] = mRow ? (mRow.attendance ? JSON.parse(mRow.attendance) : {}) : null;
-          }
-          if (attMap[mKey] !== null) {
-            if (!attMap[mKey][item.engineerId]) attMap[mKey][item.engineerId] = {};
-            attMap[mKey][item.engineerId][cur.getDate()] = { s: 'AL' };
-          }
-        }
-        cur.setDate(cur.getDate() + 1);
-      }
-
-      for (const [mKey, att] of Object.entries(attMap)) {
-        if (att !== null)
-          db.prepare('UPDATE months SET attendance = ? WHERE key = ?').run(JSON.stringify(att), mKey);
-      }
-    }
+    /* NOTE: approval no longer auto-creates AL cells in attendance.
+       Leave requests are now intentions/permissions only — Bilal records the
+       ACTUAL departure/return through the attendance sheet (egypt-leave button)
+       because plans often slip. The request stays in the archive for tracking. */
   }
 
   if (travelDate  !== undefined) item.travelDate  = travelDate  || null;

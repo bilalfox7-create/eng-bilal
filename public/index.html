@@ -1343,6 +1343,8 @@ html.light .att-th-sum{background:#f8fafc}
 .leave-status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:800;border:1px solid}
 .leave-status-pending{background:rgba(239,159,39,.12);color:#EF9F27;border-color:rgba(239,159,39,.3)}
 .leave-status-approved{background:rgba(29,158,117,.12);color:#1D9E75;border-color:rgba(29,158,117,.3)}
+.leave-status-traveling{background:rgba(59,130,246,.14);color:#60A5FA;border-color:rgba(59,130,246,.35)}
+.leave-status-ended{background:rgba(148,163,184,.12);color:#94A3B8;border-color:rgba(148,163,184,.3)}
 .leave-status-rejected{background:rgba(226,75,74,.1);color:#E24B4A;border-color:rgba(226,75,74,.3)}
 .leave-elig-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:6px 0}
 .leave-elig-fill{height:100%;border-radius:3px;transition:width .4s ease}
@@ -2895,7 +2897,7 @@ function App(){
     const today=new Date();today.setHours(0,0,0,0);
     // Leaves & returns — visible to all roles (already filtered by province in pendingLeaves/returnAlerts)
     if(pendingLeaves>0){
-      items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة طلبات الإجازة',action:()=>setPage('leaves')});
+      items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة طلبات إجازة مصر',action:()=>setPage('leaves')});
     }
     returnAlerts.forEach(l=>{
       const days=Math.ceil((new Date(l.returnDate+'T12:00')-today)/86400000);
@@ -3625,8 +3627,15 @@ function App(){
     msg(paid?`تم تأشير ${lbl} كمدفوع ✓`:`تم إلغاء ${lbl}`);
   };
 
-  /* ── Attendance helpers ─────────────────────────────── */
-  const ATT_CYCLE=[null,'P','EG','A','AL','SL','EL','TXR','H'];
+  /* ── Attendance helpers ───────────────────────────────
+     Engineers in Libya don't take regular AL or EL leave — they only get:
+     - egypt-leave (recorded via the egypt-leave button, not as cell status)
+     - sick leave (SL)
+     - and the standard cell statuses (P/EG/A/H/TXR)
+     AL & EL are kept in the label/short/color maps so HISTORICAL data still
+     renders correctly, but they're excluded from ATT_CYCLE so new entries
+     can't pick them through the popup. */
+  const ATT_CYCLE=[null,'P','EG','A','SL','TXR','H'];
   const ATT_LABEL={P:'حاضر',EG:'لم يصل',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)',TXR:'متأخر'};
   const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع',EGL:'م',TXR:'⚠'};
   const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8',EGL:'#EA580C',TXR:'#F59E0B'};
@@ -5699,7 +5708,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     {id:"report",n:"report",lbl:"التقارير"},
     {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"طلبات الإجازة",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي",activity:"سجل النشاط"};
+  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"طلبات إجازة مصر",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي",activity:"سجل النشاط"};
   const mobileNavs=navs.slice(0,5);
 
   /* ── Force password change screen ────────────────── */
@@ -6480,7 +6489,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             dash:    {icon:'dash',    lbl:'لوحة التحكم',       c1:'#6366f1',c2:'#8b5cf6'},
             eng:     {icon:'eng',     lbl:'كشف الإعاشة',       c1:'#10b981',c2:'#059669'},
             att:     {icon:'att',     lbl:'الحضور والانصراف',  c1:'#3b82f6',c2:'#2563eb'},
-            leaves:  {icon:'plane',   lbl:'طلبات الإجازة',     c1:'#a855f7',c2:'#7c3aed'},
+            leaves:  {icon:'plane',   lbl:'طلبات إجازة مصر',     c1:'#a855f7',c2:'#7c3aed'},
             expenses:{icon:'wallet',  lbl:'العهدة والمصروفات', c1:'#f59e0b',c2:'#d97706'},
             stats:   {icon:'stats',   lbl:'الإحصائيات',        c1:'#14b8a6',c2:'#0d9488'},
             hist:    {icon:'hist',    lbl:'السجل التاريخي',    c1:'#06b6d4',c2:'#0891b2'},
@@ -8151,7 +8160,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <tbody>${rows}</tbody>
 </table>
 <div class="legend">
-  ${[['P','حضور','#D1FAE5','#059669'],['A','غياب','#FEE2E2','#DC2626'],['AL','إجازة سنوية','#DBEAFE','#2563EB'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['EL','إجازة طارئة','#FFEDD5','#EA580C'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
+  ${[['P','حضور','#D1FAE5','#059669'],['A','غياب','#FEE2E2','#DC2626'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
   <span class="leg" style="color:#94A3B8">🔴 الجمعة عطلة أسبوعية</span>
 </div>
 <div class="footer">
@@ -8182,7 +8191,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               const tasks=[
                 {id:'att',icon:attDone?'✅':'📋',label:'تسجيل حضور '+prevMonLabel,done:attDone,
                   action:()=>{setAttKey(prevKey);setAttView('table');}},
-                {id:'leaves',icon:'✈️',label:myPendingLeaves>0?'طلبات إجازة معلقة ('+myPendingLeaves+')':'تقديم طلبات الإجازة',done:false,
+                {id:'leaves',icon:'✈️',label:myPendingLeaves>0?'طلبات إجازة معلقة ('+myPendingLeaves+')':'تقديم طلبات إجازة مصر',done:false,
                   action:()=>setPage('leaves')},
               ];
               return h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
@@ -8569,7 +8578,7 @@ ${PROVS.map(prov=>{
               h("div",{style:{padding:"12px 16px"}},
                 h("div",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",marginBottom:10,letterSpacing:".5px"}},"دليل الرموز"),
                 h("div",{className:"att-legend"},
-                  [['P','ح'],['EG','م'],['EGL','م'],['TXR','⚠'],['A','غ'],['AL','س'],['SL','مر'],['EL','ط'],['H','ع']].map(([s,sh])=>
+                  [['P','ح'],['EG','م'],['EGL','م'],['TXR','⚠'],['A','غ'],['SL','مر'],['H','ع']].map(([s,sh])=>
                     h("div",{key:s,className:"att-leg-item"},
                       h("div",{className:"att-leg-box",style:{background:ATT_BG[s],borderColor:ATT_COL[s],color:ATT_COL[s]}},sh),
                       h("span",{style:{color:ATT_COL[s],fontWeight:700,fontSize:10}},ATT_LABEL[s])
@@ -8593,13 +8602,25 @@ ${PROVS.map(prov=>{
           const myLvs=!isProvince?leaves:leaves.filter(l=>l.prov===userProv||l.requestedBy===(user?.username||''));
           const tabLvs=leaveTab==='all'?myLvs:myLvs.filter(l=>l.status===leaveTab);
           const cnts={all:myLvs.length,pending:myLvs.filter(l=>l.status==='pending').length,approved:myLvs.filter(l=>l.status==='approved').length,rejected:myLvs.filter(l=>l.status==='rejected').length};
-          const SL={pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض'};
-          const SC={pending:'leave-status-pending',approved:'leave-status-approved',rejected:'leave-status-rejected'};
+          const SL={pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض',traveling:'مسافر حالياً',ended:'منتهية'};
+          const SC={pending:'leave-status-pending',approved:'leave-status-approved',rejected:'leave-status-rejected',traveling:'leave-status-traveling',ended:'leave-status-ended'};
+          const SI={pending:'⏳',approved:'✅',rejected:'❌',traveling:'🔵',ended:'⚪'};
+          /* Derive a finer status from approved + dates (request stays in DB as 'approved'
+             but UI shows 'مسافر حالياً' or 'منتهية' based on travel/return dates). */
+          const todayIso=new Date().toISOString().slice(0,10);
+          const deriveStatus=(req)=>{
+            if(req.status!=='approved')return req.status;
+            const start=req.travelDate||req.leaveStartDate;
+            const end=req.returnDate||req.leaveEndDate;
+            if(end&&end<todayIso)return 'ended';
+            if(start&&start<=todayIso)return 'traveling';
+            return 'approved';
+          };
           return h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
             h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.15)"}},h(Ic,{n:"plane",sz:13,c:"#60A5FA"})),
-                "طلبات الإجازة",
+                "طلبات إجازة مصر",
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
               leaveView==='list'
@@ -8767,10 +8788,11 @@ ${PROVS.map(prov=>{
               :h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
                 (engHistoryId?tabLvs.filter(l=>l.engineerId===engHistoryId):tabLvs).map(req=>{
                   const ep=Math.min(100,Math.round(req.daysInLibya/180*100));
+                  const dStatus=deriveStatus(req);
                   return h("div",{key:req.id,className:`leave-card leave-card-${req.status}`},
                     h("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10,gap:8}},
                       h("div",null,
-                        h("span",{className:"leave-status "+SC[req.status]},{pending:"⏳",approved:"✅",rejected:"❌"}[req.status]," ",SL[req.status]),
+                        h("span",{className:"leave-status "+(SC[dStatus]||SC[req.status])},(SI[dStatus]||SI[req.status])," ",(SL[dStatus]||SL[req.status])),
                         h("div",{style:{fontSize:14,fontWeight:800,marginTop:6,display:"flex",alignItems:"center",gap:8}},
                           req.engineerName,
                           h("span",{style:{fontSize:10,cursor:"pointer",color:"var(--blue)",fontWeight:600,opacity:.75},title:"عرض سجل إجازاته",onClick:()=>setEngHistoryId(engHistoryId===req.engineerId?null:req.engineerId)},"سجل ↗")
