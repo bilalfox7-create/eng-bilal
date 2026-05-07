@@ -2357,36 +2357,87 @@ function App(){
     fetch('/api/activity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,detail})}).catch(()=>{});
   },[]);
 
-  /* ── Save queue (debounced) ───────────────────────── */
+  /* ── Save queue (debounced) ─────────────────────────
+     queueSave: مع debounce 800ms (للحضور والكتابة السريعة).
+     flushSaves: تنفّذ كل المعلّق فورًا (للأكشنز المنفصلة كإضافة/حذف عهدة).
+     beforeunload: تحذّر المستخدم لو فيه بيانات لم تُحفظ بعد + تحاول حفظ
+                   سريع عبر fetch keepalive (يصمد أثناء غلق الصفحة).        */
+  const _runSaves=useCallback(async(q)=>{
+    for(const[k,v]of Object.entries(q)){
+      if(v===null){
+        await fetch(`/api/months/${k}`,{method:"DELETE"}).catch(()=>{});
+      }else{
+        try{
+          const r=await fetch(`/api/months/${k}`,{
+            method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)
+          });
+          if(r.status===409){
+            const err=await r.json().catch(()=>({}));
+            const list=(err.conflicts||[]).join(' • ');
+            alert(`⚠️ تم رفض الحفظ لمنع فقدان بيانات:\n\n${list}\n\nسيتم إعادة تحميل البيانات من الخادم.`);
+            try{
+              const fresh=await fetch('/api/months',{credentials:'include'});
+              if(fresh.ok){const fd=await fresh.json();if(fd.months)setMonths(fd.months);}
+            }catch(e){}
+          }
+        }catch(e){}
+      }
+    }
+  },[]);
+
+  const flushSaves=useCallback(async()=>{
+    if(timerRef.current){clearTimeout(timerRef.current);timerRef.current=null;}
+    const q={...pendingRef.current};pendingRef.current={};
+    if(!Object.keys(q).length){setAutoSaving(false);return;}
+    setAutoSaving(true);
+    await _runSaves(q);
+    setAutoSaving(false);
+  },[_runSaves]);
+
   const queueSave=useCallback((key,val)=>{
     pendingRef.current[key]=val;
     setAutoSaving(true);
     clearTimeout(timerRef.current);
+    /* 250ms (down from 800ms) — أسرع التزام للسيرفر يقلّل نافذة الفقد
+       لو المستخدم عمل refresh بعد كتابة سريعة. */
     timerRef.current=setTimeout(async()=>{
       const q={...pendingRef.current};pendingRef.current={};
-      for(const[k,v]of Object.entries(q)){
-        if(v===null){
-          await fetch(`/api/months/${k}`,{method:"DELETE"}).catch(()=>{});
-        }else{
-          try{
-            const r=await fetch(`/api/months/${k}`,{
-              method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(v)
-            });
-            if(r.status===409){
-              const err=await r.json().catch(()=>({}));
-              const list=(err.conflicts||[]).join(' • ');
-              alert(`⚠️ تم رفض الحفظ لمنع فقدان بيانات:\n\n${list}\n\nسيتم إعادة تحميل البيانات من الخادم.`);
-              // Reload fresh state from server
-              try{
-                const fresh=await fetch('/api/months',{credentials:'include'});
-                if(fresh.ok){const fd=await fresh.json();if(fd.months)setMonths(fd.months);}
-              }catch(e){}
-            }
-          }catch(e){}
-        }
-      }
+      await _runSaves(q);
       setAutoSaving(false);
-    },800);
+    },250);
+  },[_runSaves]);
+
+  /* ── Pending-save guard: warn on refresh/close + try keepalive flush ── */
+  useEffect(()=>{
+    const onUnload=(e)=>{
+      const q=pendingRef.current;
+      const keys=Object.keys(q);
+      if(!keys.length)return;
+      // Best-effort persist via keepalive (works even after page is unloading)
+      keys.forEach(k=>{
+        const v=q[k];
+        try{
+          if(v===null){
+            fetch(`/api/months/${k}`,{method:'DELETE',keepalive:true,credentials:'include'});
+          }else{
+            const body=JSON.stringify(v);
+            // keepalive has 64KB body limit; skip if too big (user already warned via dialog)
+            if(body.length<60000){
+              fetch(`/api/months/${k}`,{
+                method:'PUT',headers:{'Content-Type':'application/json'},
+                body,keepalive:true,credentials:'include'
+              });
+            }
+          }
+        }catch(_){}
+      });
+      // Browser-native warning dialog
+      e.preventDefault();
+      e.returnValue='هناك بيانات لم تُحفظ بعد. هل تريد فعلاً المغادرة؟';
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload',onUnload);
+    return()=>window.removeEventListener('beforeunload',onUnload);
   },[]);
 
   const msg=(m,t="ok")=>{setToast({m,t});setTimeout(()=>setToast(null),3500);};
@@ -4739,7 +4790,11 @@ function App(){
   const saveExpData=(newData)=>{
     if(lockGuard())return;
     const updated={...mkMonthBase(),expenses:newData,savedAt:null};
-    setMonths(p=>({...p,[ak]:updated}));queueSave(ak,updated);
+    setMonths(p=>({...p,[ak]:updated}));
+    // Critical: العهدة/المصروفات تستخدم flush فورى (مش debounce) عشان
+    // المستخدم لو عمل refresh مباشرة بعد الإضافة ما يفقدش البيانات.
+    pendingRef.current[ak]=updated;
+    flushSaves();
   };
   const submitCust=()=>{
     if(!custForm.desc.trim()){msg("أدخل وصف العهدة","err");return;}
@@ -4828,7 +4883,7 @@ function App(){
     const newExp={...exp,items:(exp.items||[]).filter(e=>e.id!==id)};
     const newM={...m,expenses:newExp,savedAt:null};
     setMonths(p=>({...p,[key]:newM}));
-    queueSave(key,newM);
+    pendingRef.current[key]=newM;flushSaves();
     msg("تم الحذف");
   };
   const updExpAcross=(id,field,val)=>{
@@ -4839,7 +4894,7 @@ function App(){
     const newExp={...exp,items:(exp.items||[]).map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e)};
     const newM={...m,expenses:newExp,savedAt:null};
     setMonths(p=>({...p,[key]:newM}));
-    queueSave(key,newM);
+    pendingRef.current[key]=newM;flushSaves();
   };
   const editExpAcross=(item)=>{
     setExpForm({...item,usd:item.usd||"",lyd:item.lyd||""});
