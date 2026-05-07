@@ -4787,16 +4787,16 @@ function App(){
     msg("تم تصدير كشف الحضور Excel ✓");
   };
 
-  const saveExpData=(newData)=>{
+  const saveExpData=async(newData)=>{
     if(lockGuard())return;
     const updated={...mkMonthBase(),expenses:newData,savedAt:null};
     setMonths(p=>({...p,[ak]:updated}));
-    // Critical: العهدة/المصروفات تستخدم flush فورى (مش debounce) عشان
+    // Critical: العهدة/المصروفات تستخدم flush فورى مع await (مش debounce) عشان
     // المستخدم لو عمل refresh مباشرة بعد الإضافة ما يفقدش البيانات.
     pendingRef.current[ak]=updated;
-    flushSaves();
+    await flushSaves();
   };
-  const submitCust=()=>{
+  const submitCust=async()=>{
     if(!custForm.desc.trim()){msg("أدخل وصف العهدة","err");return;}
     const finalSource=custForm.source==='غيره'?(custForm.sourceOther||'غيره'):custForm.source;
     const nc=[...custody];
@@ -4804,10 +4804,10 @@ function App(){
     delete item.sourceOther;
     if(custForm.id){const i=nc.findIndex(c=>c.id===custForm.id);if(i>=0)nc[i]=item;}
     else nc.push({...item,id:"c"+Date.now()});
-    saveExpData({custody:nc,items:expItems,transfers});
+    await saveExpData({custody:nc,items:expItems,transfers});
     setModal(null);msg(custForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
-  const delCust=id=>{
+  const delCust=async id=>{
     const linked=aggExpItems.filter(e=>e.custodyId===id).length;
     if(linked>0){
       msg(`لا يمكن حذف العهدة — مرتبطة بـ ${linked} مصروف. احذف المصروفات أولاً أو فك ربطها`,"err");
@@ -4816,9 +4816,9 @@ function App(){
     if(!confirm("حذف هذه العهدة؟"))return;
     const nc=custody.filter(c=>c.id!==id);
     const nt=transfers.filter(t=>t.fromCustodyId!==id&&t.toCustodyId!==id);
-    saveExpData({custody:nc,items:expItems,transfers:nt});msg("تم الحذف");
+    await saveExpData({custody:nc,items:expItems,transfers:nt});msg("تم الحذف");
   };
-  const submitExp=()=>{
+  const submitExp=async()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
     const usd=+expForm.usd||0,lyd=+expForm.lyd||0;
     // Balance warning
@@ -4833,14 +4833,14 @@ function App(){
     const item={...expForm,usd,lyd};
     if(expForm.id){const i=ni.findIndex(e=>e.id===expForm.id);if(i>=0)ni[i]=item;}
     else ni.push({...item,id:"x"+Date.now()});
-    saveExpData({custody,items:ni,transfers});
+    await saveExpData({custody,items:ni,transfers});
     setModal(null);msg(expForm.id?"تم الحفظ":"تمت الإضافة ✓");
   };
-  const delExp=id=>{
+  const delExp=async id=>{
     if(!confirm("حذف هذا البند؟"))return;
-    saveExpData({custody,items:expItems.filter(e=>e.id!==id),transfers});msg("تم الحذف");
+    await saveExpData({custody,items:expItems.filter(e=>e.id!==id),transfers});msg("تم الحذف");
   };
-  const submitTransfer=()=>{
+  const submitTransfer=async()=>{
     if(!trfForm.fromCustodyId){msg("اختر عهدة المصدر","err");return;}
     if(!trfForm.usd||+trfForm.usd<=0){msg("أدخل مبلغ الدولار","err");return;}
     if(!trfForm.rate||+trfForm.rate<=0){msg("أدخل سعر الصرف","err");return;}
@@ -4849,12 +4849,12 @@ function App(){
     const item={...trfForm,usd:+trfForm.usd,rate:+trfForm.rate,lyd:+lyd};
     if(trfForm.id){const i=nt.findIndex(t=>t.id===trfForm.id);if(i>=0)nt[i]=item;}
     else nt.push({...item,id:"t"+Date.now()});
-    saveExpData({custody,items:expItems,transfers:nt});
+    await saveExpData({custody,items:expItems,transfers:nt});
     setModal(null);msg(trfForm.id?"تم الحفظ":"تم تسجيل التحويل ✓");
   };
-  const delTransfer=id=>{
+  const delTransfer=async id=>{
     if(!confirm("حذف هذا التحويل؟"))return;
-    saveExpData({custody,items:expItems,transfers:transfers.filter(t=>t.id!==id)});msg("تم الحذف");
+    await saveExpData({custody,items:expItems,transfers:transfers.filter(t=>t.id!==id)});msg("تم الحذف");
   };
   const updCust=(id,field,val)=>{
     const nc=custody.map(c=>c.id===id?{...c,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:c);
