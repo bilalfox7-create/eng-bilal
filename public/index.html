@@ -8142,6 +8142,44 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             }
             return null;
           };
+          /* Returns ALL egypt-leaves (open + closed) for an engineer, dedup by id, across all months.
+             Used by the edit/cancel button which should appear whenever any leave exists, not only
+             when an open leave is active. */
+          const findAllLeaves=engId=>{
+            const seen=new Map();
+            for(const k of Object.keys(months)){
+              if(k==='leaves')continue;
+              const md=months[k];
+              if(!md?.data)continue;
+              for(const p of Object.keys(md.data)){
+                const e=(md.data[p]||[]).find(x=>x?.id===engId);
+                if(e?.egyptLeaves)e.egyptLeaves.forEach(l=>{if(l.id)seen.set(l.id,l);});
+              }
+            }
+            return Array.from(seen.values());
+          };
+          /* Returns the leave that overlaps the currently-viewed month (cfg.year/month).
+             Preference: open leave > most-recent closed leave that touches this month. */
+          const findRelevantLeave=engId=>{
+            const all=findAllLeaves(engId);
+            if(!all.length)return null;
+            const ms=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-01`;
+            const dim=new Date(cfg.year,cfg.month,0).getDate();
+            const me=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
+            const overlap=all.filter(l=>{
+              if(!l.departureDate)return false;
+              const lastDay=l.returnDate?new Date(new Date(l.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10):'9999-12-31';
+              return !(l.departureDate>me||lastDay<ms);
+            });
+            if(!overlap.length)return null;
+            /* Prefer open over closed, then latest by departureDate */
+            overlap.sort((a,b)=>{
+              if(!a.returnDate&&b.returnDate)return -1;
+              if(a.returnDate&&!b.returnDate)return 1;
+              return (b.departureDate||'').localeCompare(a.departureDate||'');
+            });
+            return overlap[0];
+          };
           const isWknd=d=>new Date(cfg.year,cfg.month-1,d).getDay()===5; /* الجمعة فقط */
           const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
           const todayD=cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear()?now.getDate():null;
@@ -8612,28 +8650,39 @@ ${PROVS.map(prov=>{
                                 ),
                                 h("div",{style:{display:"flex",gap:4,marginTop:4,alignItems:"center",flexWrap:"wrap"}},
                                   h("button",{onClick:()=>setAttTimeModal({engId:eng.id,engName:eng.name,eAtt,days}),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.3)",background:"rgba(16,185,129,.08)",color:"#10B981",cursor:"pointer",fontFamily:"inherit",fontWeight:700}},"⏰ الأوقات"),
-                                  /* Egypt-leave depart/return + edit button — admin or province (own prov) */
+                                  /* Egypt-leave action buttons — admin or province (own prov)
+                                     - Active leave (no return)  → 🟢 تسجيل العودة + ✏️ تعديل
+                                     - Closed leave overlapping this month → ✏️ تعديل + ✈️ تسجيل نزول
+                                     - No relevant leave → ✈️ تسجيل نزول only */
                                   (isAdmin||(isProvince&&attProv===userProv))&&(()=>{
                                     const active=findActiveLeave(eng.id);
+                                    const relevant=active||findRelevantLeave(eng.id);
+                                    const editBtn=relevant?h("button",{
+                                      key:'edit',
+                                      title:relevant.returnDate?`تعديل/إلغاء الإجازة ${relevant.departureDate} → ${relevant.returnDate}`:`تعديل تواريخ الإجازة (مفتوحة منذ ${relevant.departureDate})`,
+                                      onClick:e=>{e.stopPropagation();setEgyptLeaveEditModal({engId:eng.id,leaveId:relevant.id,departureDate:relevant.departureDate,returnDate:relevant.returnDate||'',engName:eng.name});},
+                                      style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(99,102,241,.4)",background:"linear-gradient(135deg,rgba(99,102,241,.18),rgba(99,102,241,.04))",color:"#818cf8",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                    },"✏️ تعديل"):null;
                                     if(active){
                                       return h(React.Fragment,null,
                                         h("button",{
+                                          key:'ret',
                                           title:"تسجيل العودة من الإجازة",
                                           onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'return',date:'',notes:''});setModal('egypt-leave');},
                                           style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"linear-gradient(135deg,rgba(16,185,129,.18),rgba(16,185,129,.04))",color:"#34d399",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
                                         },"🟢 تسجيل العودة"),
-                                        h("button",{
-                                          title:"تعديل تواريخ الإجازة",
-                                          onClick:e=>{e.stopPropagation();setEgyptLeaveEditModal({engId:eng.id,leaveId:active.id,departureDate:active.departureDate,returnDate:active.returnDate||'',engName:eng.name});},
-                                          style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(99,102,241,.4)",background:"linear-gradient(135deg,rgba(99,102,241,.18),rgba(99,102,241,.04))",color:"#818cf8",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
-                                        },"✏️ تعديل")
+                                        editBtn
                                       );
                                     }
-                                    return h("button",{
-                                      title:"تسجيل نزول إجازة",
-                                      onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'depart',date:'',notes:''});setModal('egypt-leave');},
-                                      style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(234,88,12,.4)",background:"linear-gradient(135deg,rgba(234,88,12,.18),rgba(234,88,12,.04))",color:"#fb923c",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
-                                    },"✈️ تسجيل نزول");
+                                    return h(React.Fragment,null,
+                                      editBtn,
+                                      h("button",{
+                                        key:'dep',
+                                        title:"تسجيل نزول إجازة",
+                                        onClick:e=>{e.stopPropagation();setEgyptLeaveForm({engId:eng.id,type:'depart',date:'',notes:''});setModal('egypt-leave');},
+                                        style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(234,88,12,.4)",background:"linear-gradient(135deg,rgba(234,88,12,.18),rgba(234,88,12,.04))",color:"#fb923c",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                      },"✈️ تسجيل نزول")
+                                    );
                                   })(),
                                   attHovEng===eng.id&&h("span",{className:"att-kb-tip"},"ح=حاضر · غ=غائب · ا=إجازة")
                                 )
