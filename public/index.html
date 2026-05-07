@@ -4709,17 +4709,18 @@ function App(){
         const cells=days.map(d=>{
           const dd=eAtt[d];const st=dd?.s;
           const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const isFri=new Date(cfg.year,cfg.month-1,d).getDay()===5;
+          /* Egypt-leave OVERRIDE — takes priority over any manual status (except Fridays which stay as weekend) */
+          if(!isFri&&isLeaveDayXL(e.id,ds)){
+            egyptDays++;
+            return 'م';
+          }
           if(st==='TXR'){
             const lh=+dd.lateH||0,lm=+dd.lateM||0;
             lateDays++;lateMins+=lh*60+lm;
             return (lh||lm)?('⚠ '+String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'⚠';
           }
-          /* Egypt-leave overlay when no manual status */
-          if(!st&&isLeaveDayXL(e.id,ds)&&new Date(cfg.year,cfg.month-1,d).getDay()!==5){
-            egyptDays++;
-            return 'م';
-          }
-          return st?ATT_SHORT[st]:(new Date(cfg.year,cfg.month-1,d).getDay()===5?"ع":"");
+          return st?ATT_SHORT[st]:(isFri?"ع":"");
         });
         const totalLate=lateMins?(String(Math.floor(lateMins/60)).padStart(2,'0')+':'+String(lateMins%60).padStart(2,'0')):'—';
         /* Multi-month full-duration display values */
@@ -8243,10 +8244,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               Object.values(eAtt2).forEach(d=>{
                 if(d?.s==='TXR'){provLateDays++;provLateMins+=((+d.lateH||0)*60)+(+d.lateM||0);}
               });
+              /* Egypt-leave OVERRIDES manual status — count any working day where engineer was on leave */
               let cellEgy=0;
               for(let d=1;d<=daysInMonth;d++){
                 const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                if(!isWknd(d)&&!eAtt2[d]?.s&&isLeaveDay(eng.id,ds))cellEgy++;
+                if(!isWknd(d)&&isLeaveDay(eng.id,ds))cellEgy++;
               }
               provEgyptDays+=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,cellEgy);
             });
@@ -8254,10 +8256,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const buildCell=(eAtt,d,eng)=>{
               const dd=eAtt[d];const st=dd?.s;const fri=isWknd(d);
               if(fri)return`<td style="${tdStyle};background:#F1F5F9;color:#94A3B8;font-size:9px;font-weight:700">ع</td>`;
-              /* Egypt-leave overlay — render EGL on cells that fall inside an active/closed leave period
-                 even if no manual status was set on the cell */
+              /* Egypt-leave OVERRIDE — takes priority over any manual status. Even if a P or A
+                 was marked on this day, render م when the engineer was actually on egypt-leave
+                 (matches the live grid behavior where leaveSt || st || autoSt). */
               const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-              if(!st&&eng&&isLeaveDay(eng.id,ds)){
+              if(eng&&isLeaveDay(eng.id,ds)){
                 return`<td style="${tdStyle};background:${S_BG.EGL};color:${S_COL.EGL};font-size:9px;font-weight:800">م</td>`;
               }
               if(!st)return`<td style="${tdStyle}"></td>`;
@@ -8272,12 +8275,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const rows=provEngs.map(eng=>{
               const s=attGetStats(eng.id,att,cfg.year,cfg.month);
               const eAtt=att[eng.id]||{};
-              /* Count egypt-leave days in this month (per-month, for the cells) */
-              let egyptDays=0;
+              /* Count egypt-leave days + adjust P/A counts: egypt-leave OVERRIDES any manual P/A,
+                 so subtract days where engineer was on egypt-leave from the P/A counts to keep
+                 the summary consistent with the cell display. */
+              let egyptDays=0,pInLeave=0,aInLeave=0;
               for(let d=1;d<=daysInMonth;d++){
                 const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                if(!isWknd(d)&&!eAtt[d]?.s&&isLeaveDay(eng.id,ds))egyptDays++;
+                if(!isWknd(d)&&isLeaveDay(eng.id,ds)){
+                  egyptDays++;
+                  const cellSt=eAtt[d]?.s;
+                  if(cellSt==='P')pInLeave++;else if(cellSt==='A')aInLeave++;
+                }
               }
+              const adjP=Math.max(0,s.P-pInLeave);
+              const adjA=Math.max(0,s.A-aInLeave);
               /* Multi-month leave display: sum FULL durations of leaves overlapping this month */
               const vacFull=getDisplayLeaveDays(eng.id,cfg.year,cfg.month,s.vac);
               const egyptFull=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,egyptDays);
@@ -8285,8 +8296,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 <td style="${nameTdStyle}">${eng.name}<br><span style="font-size:9px;color:#64748B">${eng.spec}</span></td>
                 ${days.map(d=>buildCell(eAtt,d,eng)).join('')}
                 <td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:10px;background:#FAFAFA;min-width:130px">
-                  <span style="color:#059669;font-weight:800">${s.P} حضور</span> &nbsp;
-                  <span style="color:#DC2626;font-weight:800">${s.A} غياب</span><br>
+                  <span style="color:#059669;font-weight:800">${adjP} حضور</span> &nbsp;
+                  <span style="color:#DC2626;font-weight:800">${adjA} غياب</span><br>
                   ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إجازة</span> &nbsp;`:''}
                   ${egyptFull>0?`<span style="color:#C2410C;font-weight:800">${egyptFull} إجازة (مصر)</span><br>`:''}
                   <span style="color:#92400E;font-weight:800">${s.hrs}h عمل</span>
@@ -8503,9 +8514,9 @@ ${PROVS.map(prov=>{
     const cells=dys.map(d=>{
       const dd=eAtt[d];const st=dd?.s;const fri=isFri(d);
       if(fri)return`<td style="${tdS};background:#F1F5F9;color:#94A3B8;font-size:8px">ع</td>`;
-      /* Egypt-leave overlay — render EGL when no manual status but engineer was on leave */
+      /* Egypt-leave OVERRIDE — takes priority over any manual status (matches live grid) */
       const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      if(!st&&isLeaveDayPM(eng.id,ds)){
+      if(isLeaveDayPM(eng.id,ds)){
         return`<td style="${tdS};background:${S_BG.EGL};color:${S_COL.EGL};font-size:8px;font-weight:800">م</td>`;
       }
       if(!st)return`<td style="${tdS}"></td>`;
@@ -8516,11 +8527,22 @@ ${PROVS.map(prov=>{
       }
       return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
     }).join('');
+    /* Egypt-leave OVERRIDES P/A counts in summary so it matches the cell display */
+    let pInLeave=0,aInLeave=0;
+    for(let d=1;d<=dIM;d++){
+      const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if(!isFri(d)&&isLeaveDayPM(eng.id,ds)){
+        const cellSt=eAtt[d]?.s;
+        if(cellSt==='P')pInLeave++;else if(cellSt==='A')aInLeave++;
+      }
+    }
+    const adjP=Math.max(0,s.P-pInLeave);
+    const adjA=Math.max(0,s.A-aInLeave);
     /* Multi-month leave: show full duration in summary */
     const vacFull=getDisplayLeaveDays(eng.id,y,m,s.vac);
     return`<tr><td style="${nmTdS}">${eng.name}<br><span style="font-size:8.5px;color:#64748B">${eng.spec}</span></td>${cells}
 <td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:9.5px;background:#FAFAFA;white-space:nowrap">
-<span style="color:#059669;font-weight:800">${s.P} ح</span> <span style="color:#DC2626;font-weight:800">${s.A} غ</span> ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إج</span>`:''}
+<span style="color:#059669;font-weight:800">${adjP} ح</span> <span style="color:#DC2626;font-weight:800">${adjA} غ</span> ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إج</span>`:''}
 <br><span style="color:#92400E;font-weight:700">${s.hrs}h</span></td></tr>`;
   }).join('');
   return`<div class="section"><div class="sec-t">${prov}</div>
