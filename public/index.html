@@ -8736,7 +8736,8 @@ ${PROVS.map(prov=>{
           reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"report",sz:13,c:"#2563EB"})),"إعدادات الكشف الرسمى")),
             h("div",{style:{padding:"14px 16px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}},
-              [{k:"company",l:"اسم الشركة / الجهة",t:"text"},{k:"month",l:"الشهر (1-12)",t:"number"},{k:"year",l:"السنة",t:"number"},{k:"rate",l:"الإعاشة الشهرية ($)",t:"number"},{k:"egp",l:"سعر الصرف (ج.م/$)",t:"number"}]
+              /* egp (سعر الصرف) removed — auto-fetched live rate is the source of truth (cfg.egp kept as fallback only) */
+              [{k:"company",l:"اسم الشركة / الجهة",t:"text"},{k:"month",l:"الشهر (1-12)",t:"number"},{k:"year",l:"السنة",t:"number"},{k:"rate",l:"الإعاشة الشهرية ($)",t:"number"}]
               .map(({k,l,t})=>h("div",{key:k},h("label",{style:{fontSize:10,fontWeight:600,color:"var(--sub)",display:"block",marginBottom:4,letterSpacing:".2px",textTransform:"uppercase"}},l),h("input",{type:t,value:cfg[k],onChange:ev=>updCfg(k,ev.target.value),style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})))
             )
           ),
