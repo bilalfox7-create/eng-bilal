@@ -2408,9 +2408,10 @@ function App(){
       ];
       fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
       if(d.role==='admin'){
+        fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
       }
-      const [md,ld,ud]=await Promise.all(fetches);
+      const [md,ld,od,ud]=await Promise.all(fetches);
       const m=md.months||{};
       const expectedKey=mkKey(now.getMonth()+1,now.getFullYear());
       if(!m[expectedKey]){
@@ -2426,7 +2427,10 @@ function App(){
       setMonths(m);
       setAk(expectedKey);
       setLogo(ld.logo||null);
-      if(d.role==='admin')setProvUsers(ud?.users||[]);
+      if(d.role==='admin'){
+        setOrgData(od?.data||DEFAULT_ORG);
+        setProvUsers(ud?.users||[]);
+      }
     }catch(e){setLoginError("خطأ في الاتصال بالخادم");}
   };
 
