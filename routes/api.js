@@ -60,8 +60,8 @@ router.put('/months/:key', (req, res) => {
   const user = req.session.user;
   const db   = getDb();
 
-  /* ── Viewer: read-only ── */
-  if (user.role === 'viewer') return res.status(403).json({ error: 'للمشاهدة فقط' });
+  /* ── Viewer + HR: read-only ── */
+  if (user.role === 'viewer' || user.role === 'hr') return res.status(403).json({ error: 'للقراءة فقط' });
 
   /* ── Province user: merge-only update ── */
   if (user.role === 'province') {
@@ -238,10 +238,10 @@ router.delete('/months/:key', adminOnly, (req, res) => {
   res.json({ ok: true });
 });
 
-/* ── Leave request management — admin + viewer ─────────── */
+/* ── Leave request management — admin + viewer + HR ─────── */
 router.patch('/leaves/:id', (req, res) => {
   const user = req.session.user;
-  if (user.role !== 'admin' && user.role !== 'viewer') {
+  if (user.role !== 'admin' && user.role !== 'viewer' && user.role !== 'hr') {
     return res.status(403).json({ error: 'للأدمن والمشرفين فقط' });
   }
   const { status, travelDate, returnDate } = req.body;
@@ -420,7 +420,7 @@ router.put('/fixed-rents', adminOnly, (req, res) => {
 
 router.get('/users', adminOnly, (_req, res) => {
   const users = getDb()
-    .prepare("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer') ORDER BY role, username")
+    .prepare("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username")
     .all();
   res.json({ users });
 });
@@ -430,7 +430,7 @@ router.put('/users/:id/password', adminOnly, (req, res) => {
   if (!password || password.length < 6) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
   const hash = bcrypt.hashSync(password, 10);
   const result = getDb()
-    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role IN ('province','viewer')")
+    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role IN ('province','viewer','hr')")
     .run(hash, req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
@@ -455,7 +455,7 @@ router.post('/users', adminOnly, (req, res) => {
 
 router.delete('/users/:id', adminOnly, (req, res) => {
   const result = getDb()
-    .prepare("DELETE FROM users WHERE id = ? AND role IN ('province','viewer')")
+    .prepare("DELETE FROM users WHERE id = ? AND role IN ('province','viewer','hr')")
     .run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });

@@ -2155,6 +2155,7 @@ function App(){
   const [autoSaving,setAutoSaving]=useState(false);
   const isAdmin=useMemo(()=>user?.role==='admin',[user]);
   const isProvince=useMemo(()=>user?.role==='province',[user]);
+  const isHR=useMemo(()=>user?.role==='hr',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});
@@ -5542,6 +5543,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   if(user?.role==='viewer'&&["backup"].includes(page)){
     setTimeout(()=>setPage("dash"),0);
   }
+  /* ── HR page guard ──────────────────────────────────── */
+  /* HR can see: dash, eng, att, leaves, expenses, stats, report, org, activity (9 pages) */
+  if(user?.role==='hr'&&!["dash","eng","att","leaves","expenses","stats","report","org","activity"].includes(page)){
+    setTimeout(()=>setPage("dash"),0);
+  }
 
   /* ── Login screen ─────────────────────────────────── */
   if(!user)return h("div",{className:"login-screen"},
@@ -6304,14 +6310,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           out.push(renderItem('leaves',pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)));
           out.push(renderItem('expenses'));
 
-          /* التحليلات + المشروعات (admin only) */
+          /* التحليلات + المشروعات */
           if(isAdmin||!isProvince){
             out.push(h("div",{key:"sec-an",className:"sb-section"},"التحليلات"));
-            ['stats','hist','compare','report'].filter(()=>!isProvince).forEach(id=>out.push(renderItem(id)));
+            /* HR sees: stats + report only (no hist, no compare). Others see all 4. */
+            const analyticsIds=isHR?['stats','report']:['stats','hist','compare','report'];
+            analyticsIds.forEach(id=>out.push(renderItem(id)));
             out.push(h("div",{key:"sec-pr",className:"sb-section"},"المشروعات"));
             out.push(renderItem('org'));
+            /* Activity log: admin OR HR. Backup: admin only. */
             if(isAdmin){
               out.push(renderItem('backup',unsaved>0&&h("div",{className:"nav-badge"},unsaved)));
+            }
+            if(isAdmin||isHR){
               out.push(renderItem('activity'));
             }
           }
@@ -6326,6 +6337,12 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               h("div",{className:"sb-month-dot",style:{background:"#60A5FA",boxShadow:"0 0 10px #60A5FA"}}),
               h("div",{className:"sb-month-text",style:{color:"#bfdbfe"}},userProv||"مستخدم محافظة"),
               h("div",{className:"sb-month-count",style:{color:"#60A5FA",fontSize:9}},"محدود الصلاحيات")
+            )
+          :isHR
+          ?h("div",{className:"sb-month-info",style:{background:"linear-gradient(135deg,rgba(167,139,250,.16),rgba(139,92,246,.08))",borderColor:"rgba(167,139,250,.3)"}},
+              h("div",{className:"sb-month-dot",style:{background:"#A78BFA",boxShadow:"0 0 10px #A78BFA"}}),
+              h("div",{className:"sb-month-text",style:{color:"#ddd6fe"}},"👤 HR — مختار حسن"),
+              h("div",{className:"sb-month-count",style:{color:"#A78BFA",fontSize:9}},"قراءة فقط")
             )
           :h("div",{className:"sb-month-info",style:{background:"linear-gradient(135deg,rgba(52,211,153,.14),rgba(34,211,238,.08))",borderColor:"rgba(52,211,153,.25)"}},
               h("div",{className:"sb-month-dot"}),
@@ -8513,7 +8530,7 @@ ${PROVS.map(prov=>{
                         ),
                         h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:2}},req.prov," · طلبها: ",req.requestedBy)
                       ),
-                      req.status==='pending'&&(isAdmin||user?.role==='viewer')&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
+                      req.status==='pending'&&(isAdmin||user?.role==='viewer'||isHR)&&h("div",{style:{display:"flex",gap:6,flexShrink:0}},
                         h("button",{className:"btn",style:{background:"rgba(29,158,117,.15)",borderColor:"rgba(29,158,117,.35)",color:"#1D9E75",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>approveLeave(req)},h(Ic,{n:"check",sz:12}),"موافقة"),
                         h("button",{className:"btn",style:{background:"rgba(226,75,74,.1)",borderColor:"rgba(226,75,74,.3)",color:"#E24B4A",gap:4,padding:"6px 12px",fontSize:12},onClick:()=>rejectLeave(req)},h(Ic,{n:"del",sz:12}),"رفض")
                       )

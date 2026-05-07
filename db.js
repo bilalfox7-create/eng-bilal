@@ -103,6 +103,19 @@ function initDb() {
       console.log(`✅ مستخدم مشاهد: ${u.username} / ${u.password}`);
     }
   }
+
+  // إنشاء مستخدم HR (مختار حسن) إذا لم يكن موجوداً
+  const hrUsers = [
+    { username: 'mokhtar', password: '123456', display: 'مختار حسن' },
+  ];
+  for (const u of hrUsers) {
+    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    if (!exists) {
+      const hash = bcrypt.hashSync(u.password, 10);
+      db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'hr', 1)").run(u.username, hash);
+      console.log(`✅ مستخدم HR: ${u.username} / ${u.password} (${u.display})`);
+    }
+  }
 }
 
 module.exports = { getDb, initDb };
