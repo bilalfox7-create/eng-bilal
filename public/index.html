@@ -112,6 +112,9 @@ html.light body::before{
 .sb-brand-ar{font-family:'Cairo',sans-serif;font-size:14px;font-weight:800;color:#fff;line-height:1.2;letter-spacing:.2px}
 .sb-brand-en{font-family:'Poppins','Cairo',sans-serif;font-size:11px;font-weight:600;line-height:1.2;letter-spacing:.4px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .sb-divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.25),rgba(167,139,250,.15),transparent);margin:0}
+/* ── Developer signature ── */
+.dev-sig{font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;text-align:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;user-select:none;padding:6px 8px}
+.dev-sig-login{font-family:'Poppins','Cairo',sans-serif;font-size:11px;font-weight:600;letter-spacing:.4px;text-align:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;margin-top:18px;user-select:none}
 
 /* nav */
 .sb-nav{flex:1;padding:8px 0;overflow-y:auto}
@@ -1954,7 +1957,8 @@ function OcOrgChart(props){
         body+='</div>';
       });
     }
-    w.document.write('<html><head><meta charset="utf-8"><title>الهيكل التنظيمي</title><style>'+css+'</style></head><body>'+body+'</body></html>');
+    const sig='<div style="text-align:center;font-family:\'Poppins\',\'Cairo\',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali '+new Date().getFullYear()+'</div>';
+    w.document.write('<html><head><meta charset="utf-8"><title>الهيكل التنظيمي</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+sig+'</body></html>');
     w.document.close();setTimeout(function(){w.print();},500);
   }
   if(props.onPrintReady)props.onPrintReady(doPrint);
@@ -4353,6 +4357,7 @@ function App(){
   <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;font-size:9px;color:#94a3b8;">
     نظام إعاشات المهندسين · ${_cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
   </div>
+  <div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 
 </div>
 </body></html>`;
@@ -4896,6 +4901,7 @@ ${provRows.length>1?`
 <div class="footer">
   تم إنشاء هذا التقرير تلقائياً من نظام إدارة مشروعات ليبيا — ${cfg.company||''} · ${today}
 </div>
+<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -5199,6 +5205,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 <div class="footer">
   تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${_cfg.company||''}
 </div>
+<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -5214,7 +5221,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   const _openPdfWin=(html,mode)=>{
     const w=window.open('','_blank','width=1100,height=820');
     if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return null;}
-    w.document.write(html);
+    /* Inject developer signature before closing body so every helper-built PDF gets it */
+    const sig=_devSigPdf();
+    const finalHtml=html.includes('</body>')?html.replace('</body>',sig+'</body>'):html+sig;
+    w.document.write(finalHtml);
     w.document.close();
     setTimeout(()=>{try{w.focus();if(mode==='print')w.print();}catch(e){}},mode==='print'?700:200);
     return w;
@@ -5234,6 +5244,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   };
 
   const _pdfShellCss=()=>`@page{size:A4;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;padding:18px;line-height:1.5}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35)}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #E2E8F0;padding:6px 8px;text-align:right}th{background:#F8FAFC;font-weight:800;color:#475569}.empty{padding:30px;text-align:center;color:#94A3B8;font-style:italic;font-size:12px;border:1.5px dashed #CBD5E1;border-radius:10px;margin:20px 0}.section{margin-bottom:18px}.section-title{font-size:14px;font-weight:900;color:#1E3A8A;padding:8px 12px;background:#F8FAFC;border-right:4px solid #2563EB;border-radius:4px;margin-bottom:10px}`;
+
+  /* ── Developer signature for PDFs (inline-styled for portability across all PDF templates) ── */
+  const _devSigPdf=()=>`<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:10px;padding:6px 0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1">© Bilal A.Ali ${new Date().getFullYear()}</div>`;
 
   /* ── Attendance PDF (defaults to PREVIOUS month — attendance is recorded for prev month at start of current month) ── */
   const printAttendancePDF=(mode='print',monthKey=null)=>{
@@ -5547,7 +5560,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         h("label",null,"كلمة المرور"),
         h("input",{type:"password",value:loginForm.password,placeholder:"••••••",onChange:ev=>setLoginForm(f=>({...f,password:ev.target.value})),onKeyDown:ev=>ev.key==="Enter"&&doLogin()})
       ),
-      h("button",{className:"btn blue",style:{width:"100%",padding:"10px",fontSize:14,justifyContent:"center"},onClick:doLogin},"دخول")
+      h("button",{className:"btn blue",style:{width:"100%",padding:"10px",fontSize:14,justifyContent:"center"},onClick:doLogin},"دخول"),
+      h("div",{className:"dev-sig-login"},"Developed by Bilal A.Ali")
     )
   );
 
@@ -6341,7 +6355,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             onMouseEnter:ev=>{ev.currentTarget.style.background="rgba(96,165,250,.07)";ev.currentTarget.style.color="var(--blue)";ev.currentTarget.style.borderColor="rgba(96,165,250,.2)";},
             onMouseLeave:ev=>{ev.currentTarget.style.background="transparent";ev.currentTarget.style.color="rgba(255,255,255,.5)";ev.currentTarget.style.borderColor="rgba(255,255,255,.05)";}
           },"⚙")
-        )
+        ),
+        h("div",{className:"dev-sig"},"Developed by Bilal A.Ali")
       )
     ),
 
@@ -7519,7 +7534,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const exportAllPDF=()=>{
             const w=window.open('','_blank','width=1000,height=800');if(!w)return;
             const rows=monthMetrics.map(mm=>`<tr><td>${MONTHS[+mm.mo-1]} ${mm.y}</td><td>${mm.engN}</td><td>${mm.attPct}%</td><td>${mm.sumUSD.toFixed(0)} $</td><td>${mm.sumEGP.toFixed(0)} ج.م</td><td>${mm.expLYD.toFixed(0)} د.ل</td><td>${mm.m.savedAt?new Date(mm.m.savedAt).toLocaleDateString('ar-EG'):'—'}</td></tr>`).join('');
-            w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>السجل التاريخي ${histYear}</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:24px;color:#0f172a}h1{margin:0 0 6px}h2{margin:0 0 18px;color:#64748b;font-weight:600;font-size:13px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f1f5f9;color:#1e40af;padding:10px;text-align:right;font-weight:700;border-bottom:2px solid #cbd5e1}td{padding:9px 10px;text-align:right;border-bottom:1px solid #e2e8f0}tr:nth-child(even){background:#f8fafc}</style></head><body><h1>السجل التاريخي · ${histYear}</h1><h2>${monthMetrics.length} شهر — ${new Date().toLocaleDateString('ar-EG')}</h2><table><thead><tr><th>الشهر</th><th>المهندسون</th><th>الحضور %</th><th>الإعاشة ($)</th><th>الإعاشة (ج.م)</th><th>المصروفات (د.ل)</th><th>تاريخ الحفظ</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+            w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>السجل التاريخي ${histYear}</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:24px;color:#0f172a}h1{margin:0 0 6px}h2{margin:0 0 18px;color:#64748b;font-weight:600;font-size:13px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f1f5f9;color:#1e40af;padding:10px;text-align:right;font-weight:700;border-bottom:2px solid #cbd5e1}td{padding:9px 10px;text-align:right;border-bottom:1px solid #e2e8f0}tr:nth-child(even){background:#f8fafc}</style></head><body><h1>السجل التاريخي · ${histYear}</h1><h2>${monthMetrics.length} شهر — ${new Date().toLocaleDateString('ar-EG')}</h2><table><thead><tr><th>الشهر</th><th>المهندسون</th><th>الحضور %</th><th>الإعاشة ($)</th><th>الإعاشة (ج.م)</th><th>المصروفات (د.ل)</th><th>تاريخ الحفظ</th></tr></thead><tbody>${rows}</tbody></table><div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:18px;padding-top:10px;border-top:1px solid #e2e8f0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div></body></html>`);
             w.document.close();setTimeout(()=>w.print(),500);
           };
           const exportAllXLSX=()=>{
@@ -7891,6 +7906,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <div style="text-align:center;color:#94A3B8;font-size:9px">نظام إعاشات المهندسين · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
   <div class="sign-box"><div class="sign-line"></div><div>مدير المشروع</div></div>
 </div>
+<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 </body></html>`;
             const w=window.open('','_blank','width=1200,height=820');
             if(!w){msg("يرجى السماح بالنوافذ المنبثقة","err");return;}
@@ -8051,7 +8067,8 @@ ${PROVS.map(prov=>{
 <div class="sign"><div class="sign-line"></div><div>مدير المشروع</div></div>
 <div style="color:#94A3B8;font-size:9px;text-align:center">نظام إعاشات المهندسين · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
 <div class="sign"><div class="sign-line"></div><div>المدير المسؤول</div></div>
-</div></body></html>`;
+</div>
+<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div></body></html>`;
                 const w=window.open('','_blank','width=1200,height=820');
                 if(!w){msg("يرجى السماح بالنوافذ المنبثقة","err");return;}
                 w.document.write(html);w.document.close();setTimeout(()=>{w.focus();w.print();},600);
@@ -8666,7 +8683,7 @@ ${PROVS.map(prov=>{
               h("button",{onClick:()=>{
                 const w=window.open('','_blank','width=1000,height=800');if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return;}
                 const f=customRepForm;
-                let html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير مخصص</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}h3{color:#1A365D;border-bottom:2px solid #cbd5e1;padding-bottom:6px;margin:24px 0 12px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1A365D;color:#fff;padding:10px;text-align:right;font-weight:700}td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}.filt{background:#f1f5f9;padding:12px;border-radius:8px;margin-bottom:18px;font-size:12px}</style></head><body>`;
+                let html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير مخصص</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}h3{color:#1A365D;border-bottom:2px solid #cbd5e1;padding-bottom:6px;margin:24px 0 12px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#1A365D;color:#fff;padding:10px;text-align:right;font-weight:700}td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}.filt{background:#f1f5f9;padding:12px;border-radius:8px;margin-bottom:18px;font-size:12px}.dev-sig-pdf{text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1}</style></head><body>`;
                 html+=`<h1>📊 تقرير مخصص</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2>`;
                 html+=`<div class="filt"><strong>الفلاتر:</strong> ${f.fromDate?'من '+f.fromDate+' ':''}${f.toDate?'إلى '+f.toDate+' ':''}· المحافظة: <strong>${f.prov==='all'?'الكل':f.prov}</strong> · النوع: <strong>${f.type==='all'?'شامل':f.type}</strong></div>`;
                 if(f.type==='all'||f.type==='eng'){
@@ -8675,7 +8692,7 @@ ${PROVS.map(prov=>{
                   if(akm&&akm.data){const provs=f.prov==='all'?PROVS:[f.prov];provs.forEach(p=>(akm.data[p]||[]).forEach(e=>{const c=calc(e,akm.cfg?.rate||300,akm.cfg?.egp||52.5);html+=`<tr><td>${e.name}</td><td>${e.spec||'مهندس'}</td><td>${p.replace('محافظة ','')}</td><td>${c.tot.toFixed(2)}</td></tr>`;}));}
                   html+=`</tbody></table>`;
                 }
-                html+=`</body></html>`;
+                html+=`<div class="dev-sig-pdf">© Bilal A.Ali ${new Date().getFullYear()}</div></body></html>`;
                 w.document.write(html);w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
               },style:{padding:"11px 22px",border:"none",borderRadius:12,fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:"pointer",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",boxShadow:"0 8px 24px rgba(99,102,241,.4)"}},"⚡ إنشاء التقرير")
             )
@@ -8730,7 +8747,7 @@ ${PROVS.map(prov=>{
                   rows=[{k:'إجمالى المهندسين',a:ya.e,b:yb.e},{k:'إجمالى الإعاشة ($)',a:ya.p.toFixed(2),b:yb.p.toFixed(2)},{k:'إجمالى المصروفات ($)',a:ya.x.toFixed(2),b:yb.x.toFixed(2)}];
                 }
                 const trs=rows.map(r=>{const va=parseFloat(String(r.a).replace(/,/g,''))||0,vb=parseFloat(String(r.b).replace(/,/g,''))||0;const diff=vb-va,pct=va!==0?Math.round(diff/va*100):0;const arrow=diff>0?'<span style="color:#16a34a">↑ +'+pct+'%</span>':diff<0?'<span style="color:#dc2626">↓ '+pct+'%</span>':'<span style="color:#64748b">—</span>';return `<tr><td><strong>${r.k}</strong></td><td>${r.a}</td><td>${r.b}</td><td>${arrow}</td></tr>`;}).join('');
-                const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1A365D;color:#fff;padding:12px;text-align:right;font-weight:800}td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}</style></head><body><h1>⚖️ ${title}</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2><table><thead><tr><th>المؤشر</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.a.split('-')[1]-1]+' '+cmpModal.a.split('-')[0]:cmpModal.kind==='prov'?cmpModal.a:cmpModal.a}</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.b.split('-')[1]-1]+' '+cmpModal.b.split('-')[0]:cmpModal.kind==='prov'?cmpModal.b:cmpModal.b}</th><th>التغيير</th></tr></thead><tbody>${trs}</tbody></table></body></html>`;
+                const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet"><style>body{font-family:'Cairo',sans-serif;padding:30px;color:#0f172a;background:#fff}h1{color:#1A365D;margin:0 0 4px}h2{color:#64748b;font-size:13px;margin:0 0 20px;font-weight:600}table{width:100%;border-collapse:collapse;font-size:13px}th{background:#1A365D;color:#fff;padding:12px;text-align:right;font-weight:800}td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right}tr:nth-child(even){background:#f8fafc}</style></head><body><h1>⚖️ ${title}</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2><table><thead><tr><th>المؤشر</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.a.split('-')[1]-1]+' '+cmpModal.a.split('-')[0]:cmpModal.kind==='prov'?cmpModal.a:cmpModal.a}</th><th>${cmpModal.kind==='month'?MONTHS[+cmpModal.b.split('-')[1]-1]+' '+cmpModal.b.split('-')[0]:cmpModal.kind==='prov'?cmpModal.b:cmpModal.b}</th><th>التغيير</th></tr></thead><tbody>${trs}</tbody></table><div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:24px;padding-top:10px;border-top:1px solid #e2e8f0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div></body></html>`;
                 w.document.write(html);w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
                 setCmpModal(null);
               }},"⚡ إنشاء المقارنة"))
@@ -8883,6 +8900,26 @@ ${PROVS.map(prov=>{
                   );
                 })
               )
+          ),
+
+          /* ── About / Developer ── */
+          reportTab==='settings'&&h("div",{className:"card",style:{borderTop:"2.5px solid #6366f1"}},
+            h("div",{className:"card-hdr"},
+              h("div",{className:"card-title"},
+                h("div",{className:"card-title-icon",style:{background:"linear-gradient(135deg,rgba(99,102,241,.16),rgba(139,92,246,.10))"}},
+                  h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"#8b5cf6",strokeWidth:"1.8",strokeLinecap:"round",width:13,height:13},
+                    h("circle",{cx:10,cy:10,r:8}),h("path",{d:"M10 6v5"}),h("circle",{cx:10,cy:14,r:.8,fill:"#8b5cf6"})
+                  )
+                ),
+                "حول النظام"
+              )
+            ),
+            h("div",{style:{padding:"18px 20px",display:"flex",flexDirection:"column",gap:10,alignItems:"center"}},
+              h("div",{style:{fontSize:13,color:"var(--sub)",fontWeight:600}},"نظام إدارة مشروعات ليبيا"),
+              h("div",{style:{fontSize:11,color:"var(--sub)",opacity:.7}},"الإصدار · ",new Date().getFullYear()),
+              h("div",{style:{height:1,width:120,background:"linear-gradient(90deg,transparent,rgba(99,102,241,.4),transparent)",margin:"6px 0"}}),
+              h("div",{style:{fontFamily:"'Poppins','Cairo',sans-serif",fontSize:14,fontWeight:700,letterSpacing:".3px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",color:"#6366f1"}},"Developer: Bilal A.Ali")
+            )
           )
         )
       ),
