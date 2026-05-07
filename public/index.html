@@ -8932,12 +8932,8 @@ ${PROVS.map(prov=>{
                           const canUndo=isAdmin||(isProvince&&engRec&&engRec.prov===userProv);
                           if(canUndo){
                             undoBtn=h("button",{
-                              title:"تراجع عن تسجيل التأخير",
-                              onClick:()=>{
-                                if(window.confirm(`هل أنت متأكد من التراجع عن تسجيل تأخير يوم ${dayStr} (${timeStr})؟`)){
-                                  undoLateEntry(engId,mKey,+dayStr);
-                                }
-                              },
+                              title:`تراجع عن تسجيل تأخير يوم ${dayStr} (${timeStr})`,
+                              onClick:()=>undoLateEntry(engId,mKey,+dayStr),
                               style:{padding:"3px 10px",fontSize:10,fontWeight:800,border:"1px solid rgba(245,158,11,.4)",borderRadius:6,background:"linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.06))",color:"#fbbf24",fontFamily:"inherit",cursor:"pointer",whiteSpace:"nowrap"}
                             },"↩️ تراجع");
                           }
