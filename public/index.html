@@ -4097,16 +4097,19 @@ function App(){
     for(const lv of seen.values()){
       const s=lv.departureDate;
       if(!s)continue;
-      /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1 */
+      /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1.
+         For an open leave (no returnDate), last day is today. */
       const lastDay=lv.returnDate
         ?new Date(new Date(lv.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10)
         :todayStr;
       if(s>me||lastDay<ms)continue;
-      /* Count working days (skip Fridays) in the full leave range */
+      /* Count CALENDAR days (full duration including Fridays) — matches the user's mental
+         model of "departed X, returned Y → that's N days of leave". Earlier this was
+         working-days only which made cross-month leaves look short (e.g. 1 March → 3 April
+         showed 28 instead of the actual 33 days). */
       const sd=new Date(s+'T00:00'),ed=new Date(lastDay+'T00:00');
-      let w=0;
-      for(let dd=new Date(sd);dd<=ed;dd.setDate(dd.getDate()+1))if(dd.getDay()!==5)w++;
-      total+=w;
+      const dayCount=Math.floor((ed-sd)/86400000)+1;
+      total+=Math.max(0,dayCount);
     }
     return total>0?total:(sEgy||0);
   };
