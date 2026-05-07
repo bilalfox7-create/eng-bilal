@@ -238,11 +238,22 @@ router.delete('/months/:key', adminOnly, (req, res) => {
   res.json({ ok: true });
 });
 
-/* ── Leave request management — admin + viewer + HR ─────── */
+/* ── Leave request management ─────────────────────────────
+   - Approve/Reject status: admin + viewer + HR
+   - Travel/return dates, postpone, cancelTicket, ticketStatus: admin only
+     (viewer/HR are scoped to leave-approval — they shouldn't mutate
+     ticket bookings or shift travel dates) */
 router.patch('/leaves/:id', (req, res) => {
   const user = req.session.user;
   if (user.role !== 'admin' && user.role !== 'viewer' && user.role !== 'hr') {
     return res.status(403).json({ error: 'للأدمن والمشرفين فقط' });
+  }
+  const adminOnlyFields = ['travelDate','returnDate','postpone','cancelTicket','ticketStatus'];
+  if (user.role !== 'admin') {
+    const tried = adminOnlyFields.filter(f => req.body[f] !== undefined);
+    if (tried.length > 0) {
+      return res.status(403).json({ error: 'تعديل التذكرة/التواريخ للأدمن فقط' });
+    }
   }
   const { status, travelDate, returnDate } = req.body;
   const { id } = req.params;

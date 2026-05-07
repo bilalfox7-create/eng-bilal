@@ -2793,19 +2793,23 @@ function App(){
   }),[aggCustody,isProvince,userProv,expFilters]);
   const filteredExpItems=useMemo(()=>aggExpItems.filter(filterItem),[aggExpItems,filterItem]);
 
-  /* ── Fixed rents — current month status ────────────── */
+  /* ── Fixed rents — current month status ──────────────
+     Day clamp: if rent.day=30/31 and current month is shorter (e.g.
+     February), use the last day of the month so dueDate stays valid. */
   const monthRents=useMemo(()=>{
     const m=cfg.month||(now.getMonth()+1),y=cfg.year||now.getFullYear();
+    const dim=new Date(y,m,0).getDate();
     return fixedRents.map(r=>{
-      const dueDate=`${y}-${String(m).padStart(2,'0')}-${String(r.day).padStart(2,'0')}`;
+      const day=Math.min(+r.day||1,dim);
+      const dueDate=`${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const paid=expItems.find(e=>e.type==='إيجار'&&e.fixedRentId===r.id&&e.date===dueDate);
-      return {...r,dueDate,paid:!!paid,paidItemId:paid?.id||null};
+      return {...r,dueDate,effectiveDay:day,paid:!!paid,paidItemId:paid?.id||null};
     });
   },[fixedRents,expItems,cfg.month,cfg.year]);
   const dueRentsToday=useMemo(()=>{
     const today=new Date();
     const td=today.getDate();
-    return monthRents.filter(r=>r.day===td&&!r.paid);
+    return monthRents.filter(r=>(r.effectiveDay||r.day)===td&&!r.paid);
   },[monthRents]);
 
   const CATEGORIES=['وقود','مكتب','ضيافة','صيانة','اتصالات','طباعة','مواصلات','غيره'];
@@ -3586,6 +3590,8 @@ function App(){
 
   const togglePaidHalf=(p,id,half)=>{
     if(lockGuard())return;
+    /* Province user can only toggle paid for their own province */
+    if(isProvince&&p!==userProv){msg('غير مصرح','err');return;}
     const nd=dc(data);
     nd[p]=nd[p].map(e=>{
       if(e.id!==id)return e;
@@ -3604,7 +3610,9 @@ function App(){
   const markAllPaid=(paid,half)=>{
     if(lockGuard())return;
     const nd=dc(data);
-    PROVS.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>{
+    /* Province user only marks their own province's engineers */
+    const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
+    provsScope.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>{
       const cur1=isP1(e),cur2=isP2(e);
       const out={...e,paid1:half===1||half==='both'?paid:cur1,paid2:half===2||half==='both'?paid:cur2};
       delete out.paid;
@@ -5806,8 +5814,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 1–15"),h("input",{type:"number",min:0,max:15,value:form.d1,onChange:ev=>setForm(f=>({...f,d1:Math.max(0,Math.min(15,+ev.target.value||0))}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 16–30"),h("input",{type:"number",min:0,max:15,value:form.d2,onChange:ev=>setForm(f=>({...f,d2:Math.max(0,Math.min(15,+ev.target.value||0))}))}))
           ),
-          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",onChange:ev=>{
+          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",max:new Date().toISOString().slice(0,10),onChange:ev=>{
             const v=ev.target.value||null;
+            const todayIso=new Date().toISOString().slice(0,10);
+            if(v&&v>todayIso){msg('تاريخ القدوم لا يمكن أن يكون مستقبلياً','err');return;}
             const ac=v?calcArrivalDays(v,cfg.year,cfg.month):null;
             setForm(f=>ac?{...f,arrivalDate:v,d1:ac.d1,d2:ac.d2,extra:ac.extra}:{...f,arrivalDate:v,extra:0});
           },style:{fontSize:13}})),
@@ -9415,9 +9425,11 @@ ${PROVS.map(prov=>{
       ),
 
       /* ── DAY POPUP ───────────────────────────────────────── */
+      /* Bulk-day-set: TXR is excluded — late time must be set per-engineer
+         via the late-input modal, not silently 0:00 for everyone. */
       dayPopup&&(()=>{const PH=320,PW=145;const showAbove=dayPopup.y+4+PH>window.innerHeight;const top=showAbove?Math.max(4,dayPopup.cellTop-4-PH):dayPopup.y+4;const left=Math.max(4,Math.min(dayPopup.x,window.innerWidth-PW-4));return h("div",{className:"att-popup",style:{top,left},onClick:e=>e.stopPropagation()},
         h("div",{className:"att-popup-hdr"},"اليوم "+dayPopup.day+" — تسجيل الكل"),
-        ATT_CYCLE.filter(s=>s!==null).map(s=>
+        ATT_CYCLE.filter(s=>s!==null&&s!=='TXR').map(s=>
           h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
             onClick:()=>{
               (data[attProv]||[]).forEach(eng=>{attSetStatus(eng.id,dayPopup.day,s);});
