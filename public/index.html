@@ -1758,41 +1758,45 @@ const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{dis
 /* ── Chart components ────────────────────────────────────── */
 function LineChart({labels,datasets,height=160}){
   const ref=useRef(null);const ch=useRef(null);
+  /* Stable dependency — re-run only when actual values change, not when parent re-renders with new array references */
+  const sig=JSON.stringify([labels,datasets]);
   useEffect(()=>{
     if(!ref.current||!window.Chart)return;
     if(ch.current)ch.current.destroy();
     ch.current=new window.Chart(ref.current,{
       type:"line",data:{labels,datasets:datasets.map(d=>({...d,tension:.4,pointRadius:4,pointHoverRadius:6,fill:false}))},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:datasets.length>1,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11,family:"Segoe UI,Tahoma"},boxWidth:12,padding:12}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1,callbacks:{label:c=>`${c.dataset.label||""}: ${Number(c.raw).toFixed(1)} $`}}},scales:{x:{ticks:{color:"#64708E",font:{size:10}},grid:{display:false},border:{color:"#1C2130"}},y:{ticks:{color:"#64708E",font:{size:10},callback:v=>v.toFixed(0)+"$"},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"#1C2130"}}}}
+      options:{animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:datasets.length>1,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11,family:"Segoe UI,Tahoma"},boxWidth:12,padding:12}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1,callbacks:{label:c=>`${c.dataset.label||""}: ${Number(c.raw).toFixed(1)} $`}}},scales:{x:{ticks:{color:"#64708E",font:{size:10}},grid:{display:false},border:{color:"#1C2130"}},y:{ticks:{color:"#64708E",font:{size:10},callback:v=>v.toFixed(0)+"$"},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"#1C2130"}}}}
     });
     return()=>{if(ch.current){ch.current.destroy();ch.current=null;}};
-  },[labels,datasets]);
+  },[sig]);
   return h("div",{className:"chart-wrap",style:{height}},h("canvas",{ref}));
 }
 function BarChart({labels,datasets,height=160}){
   const ref=useRef(null);const ch=useRef(null);
+  const sig=JSON.stringify([labels,datasets]);
   useEffect(()=>{
     if(!ref.current||!window.Chart)return;
     if(ch.current)ch.current.destroy();
     ch.current=new window.Chart(ref.current,{
       type:"bar",data:{labels,datasets:datasets.map(d=>({...d,borderRadius:4}))},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:datasets.length>1,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11},boxWidth:12,padding:12}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1}},scales:{x:{ticks:{color:"#64708E",font:{size:10}},grid:{display:false},border:{color:"#1C2130"}},y:{ticks:{color:"#64708E",font:{size:10},callback:v=>v.toFixed(0)+"$"},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"#1C2130"}}}}
+      options:{animation:false,responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{display:datasets.length>1,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11},boxWidth:12,padding:12}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1}},scales:{x:{ticks:{color:"#64708E",font:{size:10}},grid:{display:false},border:{color:"#1C2130"}},y:{ticks:{color:"#64708E",font:{size:10},callback:v=>v.toFixed(0)+"$"},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"#1C2130"}}}}
     });
     return()=>{if(ch.current){ch.current.destroy();ch.current=null;}};
-  },[labels,datasets]);
+  },[sig]);
   return h("div",{className:"chart-wrap",style:{height}},h("canvas",{ref}));
 }
 function DoughnutChart({labels,data,colors,height=160}){
   const ref=useRef(null);const ch=useRef(null);
+  const sig=JSON.stringify([labels,data,colors]);
   useEffect(()=>{
     if(!ref.current||!window.Chart)return;
     if(ch.current)ch.current.destroy();
     ch.current=new window.Chart(ref.current,{
       type:"doughnut",data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:"#111520",hoverBorderWidth:0}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:"70%",plugins:{legend:{display:true,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11},boxWidth:12,padding:10}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1,callbacks:{label:c=>`${c.label}: ${Number(c.raw).toFixed(1)} $`}}}}
+      options:{animation:false,responsive:true,maintainAspectRatio:false,cutout:"70%",plugins:{legend:{display:true,position:"bottom",rtl:true,labels:{color:"#64708E",font:{size:11},boxWidth:12,padding:10}},tooltip:{rtl:true,backgroundColor:"#111520",titleColor:"#E2E6F0",bodyColor:"#64708E",borderColor:"#1C2130",borderWidth:1,callbacks:{label:c=>`${c.label}: ${Number(c.raw).toFixed(1)} $`}}}}
     });
     return()=>{if(ch.current){ch.current.destroy();ch.current=null;}};
-  },[labels,data,colors]);
+  },[sig]);
   return h("div",{className:"chart-wrap",style:{height}},h("canvas",{ref}));
 }
 
@@ -2539,10 +2543,24 @@ function App(){
     const ls=getEgyptLeaves(eng);
     return ls.some(l=>l.departureDate&&l.departureDate<=dateStr&&(!l.returnDate||l.returnDate>dateStr));
   };
-  /* Returns "EGL" if engineer is on leave on (Y,M,D), else null. Used by attendance grid. */
+  /* Returns "EGL" if engineer is on leave on (Y,M,D), else null. Used by attendance grid + PDFs.
+     Cross-month aware — searches all months' engineer records so legacy data (where egyptLeaves
+     existed only on the month it was created on) renders correctly regardless of view. */
   const getEgyptLeaveAutoState=(eng,year,month,day)=>{
     const ds=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    return isOnEgyptLeaveDate(eng,ds)?'EGL':null;
+    if(isOnEgyptLeaveDate(eng,ds))return 'EGL';
+    const engId=eng?.id;
+    if(!engId)return null;
+    for(const k of Object.keys(months)){
+      if(k==='leaves')continue;
+      const md=months[k];
+      if(!md?.data)continue;
+      for(const p of Object.keys(md.data)){
+        const e=(md.data[p]||[]).find(x=>x?.id===engId);
+        if(e&&isOnEgyptLeaveDate(e,ds))return 'EGL';
+      }
+    }
+    return null;
   };
   /* Count leave days for an engineer in a given month range [startDay..endDay] */
   const countEgyptLeaveDaysInRange=(eng,year,month,startDay,endDay)=>{
@@ -5352,6 +5370,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     /* PDF colors for egypt leave (orange) and late (amber) */
     const PDF_EGL_BG='#FFEDD5',PDF_EGL_COL='#C2410C';
     const PDF_TXR_BG='#FEF3C7',PDF_TXR_COL='#B45309';
+    /* Cross-month egypt-leave check — defensive against legacy data where egyptLeaves
+       might exist only on the month it was created on, not propagated to others */
+    const isLeaveDayPDF=(engId,dateStr)=>{
+      for(const k of Object.keys(months)){
+        if(k==='leaves')continue;
+        const md=months[k];
+        if(!md?.data)continue;
+        for(const p of Object.keys(md.data)){
+          const e=(md.data[p]||[]).find(x=>x?.id===engId);
+          if(e&&isOnEgyptLeaveDate(e,dateStr))return true;
+        }
+      }
+      return false;
+    };
     const provBlocks=visibleProvs.map(prov=>{
       /* Use transfer-aware list: shows both currently-here engs AND those who passed through this prov this month */
       const provEngs=engsInProvDuringMonth(prov,Y,M,_data);
@@ -5367,8 +5399,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           if(!inTenure){
             return '<td style="background:#FAFAFA;color:#CBD5E1;text-align:center;font-size:11px;font-weight:600;border:1px dashed #E2E8F0">—</td>';
           }
-          /* Egypt-leave override (highest priority) */
-          const onLeave=getEgyptLeaveAutoState(eng,Y,M,d);
+          /* Egypt-leave override (highest priority) — cross-month aware */
+          const ds=`${Y}-${String(M).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const onLeave=isLeaveDayPDF(eng.id,ds);
           if(onLeave){egL++;return `<td style="background:${PDF_EGL_BG};color:${PDF_EGL_COL};text-align:center;font-size:9px;font-weight:800">م</td>`;}
           const dd=eAtt[d];const st=dd?.s;
           /* Late state — show ⚠ + HH:MM in 2 lines */
