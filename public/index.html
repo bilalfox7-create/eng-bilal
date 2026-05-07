@@ -8316,7 +8316,7 @@ ${PROVS.map(prov=>{
                               h("div",{
                                 className:"att-cell att-cell-"+(wk&&!effectiveSt?"H":effectiveSt||"e")+(isAuto?" att-cell-EG":""),
                                 onClick:(e)=>{if(!isAdmin&&!isProvince)return;if(isLeave)return;if(!wk&&!isAuto){const r=e.currentTarget.getBoundingClientRect();setAttPopup({engId:eng.id,day:d,x:r.left,y:r.bottom,cellTop:r.top});e.stopPropagation();}},
-                                title:isLeave?(ATT_LABEL.EGL+" — read-only"):effectiveSt==='TXR'&&lateLabel?(`متأخر ${lateLabel}`):effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
+                                title:isLeave?(ATT_LABEL.EGL+" — للقراءة فقط"):effectiveSt==='TXR'&&lateLabel?(`متأخر ${lateLabel}`):effectiveSt?(ATT_LABEL[effectiveSt]+(isAuto?" (تلقائي)":"")):wk?"عطلة رسمية":"اضغط للتسجيل",
                                 style:{cursor:wk||isAuto||isLeave?"default":"pointer"}
                               },effectiveSt?ATT_SHORT[effectiveSt]:wk?"ع":""),
                               effectiveSt==="P"&&(dd?.in||dd?.out)&&h("div",{className:"att-time"},
