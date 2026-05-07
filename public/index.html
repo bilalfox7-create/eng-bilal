@@ -3239,17 +3239,19 @@ function App(){
       propUpdates[key]={...m,data:newData,attendance:newAtt,savedAt:null};
     });
     setMonths(prev=>({...prev,...propUpdates}));
-    Object.entries(propUpdates).forEach(([k,v])=>queueSave(k,v));
+    // Discrete action — flush فورى عشان لو المستخدم عمل refresh على طول
+    Object.entries(propUpdates).forEach(([k,v])=>{pendingRef.current[k]=v;});
+    flushSaves();
     setModal(null);
   };
 
-  const delEng=(p,id,name)=>{
+  const delEng=async(p,id,name)=>{
     if(!confirm("حذف "+name+"؟"))return;
     if(lockGuard())return;
     const nd=dc(data);nd[p]=nd[p].filter(e=>e.id!==id);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
-    queueSave(ak,updated);
+    pendingRef.current[ak]=updated;await flushSaves();
     logActivity('حذف مهندس',`${name} — ${p.replace('محافظة ','')} — ${mn} ${cfg.year}`);
     msg("تم الحذف");
   };
@@ -3296,7 +3298,7 @@ function App(){
     nd[toProv]=[...(nd[toProv]||[]),updatedEng];
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
-    queueSave(ak,updated);
+    pendingRef.current[ak]=updated;flushSaves();
     logActivity('نقل مهندس',`${engRec.name} — من ${fromProv.replace('محافظة ','')} إلى ${toProv.replace('محافظة ','')} بتاريخ ${dateStr}`);
     msg(`تم نقل ${engRec.name} إلى ${toProv}`);
     setModal(null);
@@ -3336,7 +3338,7 @@ function App(){
     nd[fromProv]=(nd[fromProv]||[]).map(e=>e.id===engId?{...e,egyptTransfer:egyptEntry}:e);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
-    queueSave(ak,updated);
+    pendingRef.current[ak]=updated;flushSaves();
     logActivity('نقل لمصر',`${engRec.name} — من ${fromProv.replace('محافظة ','')} بتاريخ ${dateStr}${notes?' · '+notes:''}`);
     msg(`🇪🇬 تم نقل ${engRec.name} لمصر — خرج من ${fromProv}`);
     setModal(null);
@@ -3979,16 +3981,17 @@ function App(){
     }
   };
 
-  const saveLeaves=(list,statuses)=>{
+  const saveLeaves=async(list,statuses)=>{
     const sts=statuses!==undefined?statuses:engineerStatuses;
     const upd={requests:list,engineerStatuses:sts};
     setMonths(p=>({...p,'leaves':upd}));
-    fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)}).catch(()=>{});
+    // await: discrete action — لا نظهر toast إلا بعد استلام رد السيرفر
+    try{await fetch('/api/months/leaves',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)});}catch(_){}
   };
-  const setEngStatus=(engId,status)=>{
+  const setEngStatus=async(engId,status)=>{
     const ns={...engineerStatuses};
     if(status==='active')delete ns[engId];else ns[engId]=status;
-    saveLeaves(leaves,ns);
+    await saveLeaves(leaves,ns);
   };
   const postponeLeave=(reqId,newDate,reason)=>{
     fetch('/api/leaves/'+reqId,{method:'PATCH',headers:{'Content-Type':'application/json'},
@@ -4027,7 +4030,7 @@ function App(){
     return{lastEntryDate:led.toISOString().slice(0,10),daysInLibya:days,monthsInLibya:mon,remDays:rem,eligible:days>=180,remaining:Math.max(0,180-days),label:mon+' شهر و '+rem+' يوم',presentDays:allDays.filter(d=>d.s==='P').length};
   };
 
-  const submitLeave=()=>{
+  const submitLeave=async()=>{
     if(!leaveForm.engId){msg('اختر المهندس','err');return;}
     if(!leaveForm.startDate||!leaveForm.endDate){msg('أدخل تاريخ الإجازة','err');return;}
     const dur=Math.round((new Date(leaveForm.endDate+'T12:00')- new Date(leaveForm.startDate+'T12:00'))/86400000)+1;
@@ -4039,7 +4042,7 @@ function App(){
     const autoApprove=isAdmin&&leaveForm.autoApprove;
     const nowIso=new Date().toISOString();
     const newReq={id:Date.now().toString(),engineerId:leaveForm.engId,engineerName:eng.name,prov:engProv,requestedBy:user?.username||'',lastEntryDate:elig.lastEntryDate,daysInLibya:elig.daysInLibya,monthsInLibya:elig.monthsInLibya,eligible:elig.eligible,remaining:elig.remaining,leaveStartDate:leaveForm.startDate,leaveEndDate:leaveForm.endDate,durationDays:dur,ticketBooked:leaveForm.ticketBooked,ticketStatus:leaveForm.ticketBooked?'booked':'notBooked',ticketDetails:leaveForm.ticketDetails,status:autoApprove?'approved':'pending',notes:leaveForm.notes,createdAt:nowIso,decidedAt:autoApprove?nowIso:null,decidedBy:autoApprove?(user?.username||'admin'):null,travelDate:autoApprove?leaveForm.startDate:null,returnDate:autoApprove?leaveForm.endDate:null};
-    saveLeaves([...leaves,newReq]);
+    await saveLeaves([...leaves,newReq]);
     setLeaveView('list');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:''});setLeaveElig(null);
     msg(autoApprove?'تمت إضافة الإجازة والموافقة عليها ✓':'تم إرسال طلب الإجازة ✓');
   };
