@@ -4368,16 +4368,26 @@ function App(){
     provsToDo.forEach(prov=>{
       const engs=data[prov]||[];
       if(!engs.length)return;
-      const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة","ساعات"];
+      const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة","ساعات","أيام التأخير","إجمالى التأخير"];
       const rows=[header];
       engs.forEach(e=>{
         const s=attGetStats(e.id,att,cfg.year,cfg.month);
         const eAtt=att[e.id]||{};
-        const cells=days.map(d=>{const st=eAtt[d]?.s;return st?ATT_SHORT[st]:(new Date(cfg.year,cfg.month-1,d).getDay()===5?"ع":"");});
-        rows.push([e.name,e.spec,...cells,s.P,s.A,s.vac,s.hrs+"h"]);
+        let lateDays=0,lateMins=0;
+        const cells=days.map(d=>{
+          const dd=eAtt[d];const st=dd?.s;
+          if(st==='TXR'){
+            const lh=+dd.lateH||0,lm=+dd.lateM||0;
+            lateDays++;lateMins+=lh*60+lm;
+            return (lh||lm)?('⚠ '+String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'⚠';
+          }
+          return st?ATT_SHORT[st]:(new Date(cfg.year,cfg.month-1,d).getDay()===5?"ع":"");
+        });
+        const totalLate=lateMins?(String(Math.floor(lateMins/60)).padStart(2,'0')+':'+String(lateMins%60).padStart(2,'0')):'—';
+        rows.push([e.name,e.spec,...cells,s.P,s.A,s.vac,s.hrs+"h",lateDays||'—',totalLate]);
       });
       const ws=XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"]=[{wch:24},{wch:16},...days.map(()=>({wch:4})),{wch:6},{wch:6},{wch:6},{wch:7}];
+      ws["!cols"]=[{wch:24},{wch:16},...days.map(()=>({wch:8})),{wch:6},{wch:6},{wch:6},{wch:7},{wch:11},{wch:14}];
       XLSX.utils.book_append_sheet(wb,ws,prov.replace("محافظة ",""));
     });
     XLSX.writeFile(wb,`حضور_${mn}_${cfg.year}.xlsx`);
@@ -7766,18 +7776,32 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           /* ── Print / PDF function ── */
           const printAtt=()=>{
             const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
-            const S_FULL={P:'حاضر',EG:'مصر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة'};
-            const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#1D4ED8',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
-            const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#EFF6FF',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
+            const S_FULL={P:'حاضر',EG:'مصر',A:'غائب',AL:'إجازة سنوية',SL:'إجازة مرضية',EL:'إجازة طارئة',H:'عطلة',TXR:'متأخر'};
+            const S_COL={P:'#059669',EG:'#2563EB',A:'#DC2626',AL:'#1D4ED8',SL:'#D97706',EL:'#EA580C',H:'#64748B',TXR:'#B45309'};
+            const S_BG={P:'#D1FAE5',EG:'#DBEAFE',A:'#FEE2E2',AL:'#EFF6FF',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9',TXR:'#FEF3C7'};
             const thStyle='padding:5px 3px;text-align:center;font-size:10px;font-weight:800;color:#475569;border-bottom:2px solid #E2E8F0;background:#F8FAFC;white-space:nowrap;border:1px solid #E2E8F0';
             const tdStyle='padding:3px 2px;text-align:center;border:1px solid #F1F5F9';
             const nameThStyle='padding:6px 10px;text-align:right;font-size:10px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;min-width:130px';
             const nameTdStyle='padding:6px 10px;text-align:right;font-size:11px;font-weight:700;background:#fff;border:1px solid #E2E8F0;min-width:130px';
 
+            /* Aggregate late stats for header chip */
+            let provLateDays=0,provLateMins=0;
+            provEngs.forEach(eng=>{
+              const eAtt2=att[eng.id]||{};
+              Object.values(eAtt2).forEach(d=>{
+                if(d?.s==='TXR'){provLateDays++;provLateMins+=((+d.lateH||0)*60)+(+d.lateM||0);}
+              });
+            });
+
             const buildCell=(eAtt,d)=>{
               const dd=eAtt[d];const st=dd?.s;const fri=isWknd(d);
               if(fri)return`<td style="${tdStyle};background:#F1F5F9;color:#94A3B8;font-size:9px;font-weight:700">ع</td>`;
               if(!st)return`<td style="${tdStyle}"></td>`;
+              if(st==='TXR'){
+                const lh=+dd.lateH||0,lm=+dd.lateM||0;
+                const lateLabel=(lh||lm)?(String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'';
+                return`<td style="${tdStyle};background:${S_BG.TXR};color:${S_COL.TXR};font-size:8px;font-weight:800;line-height:1.1"><div>⚠</div>${lateLabel?`<div style="font-size:7px;font-weight:700">${lateLabel}</div>`:''}</td>`;
+              }
               return`<td style="${tdStyle};background:${S_BG[st]};color:${S_COL[st]};font-size:9px;font-weight:800">${st}</td>`;
             };
 
@@ -7838,6 +7862,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     <span class="chip" style="background:#FEE2E2;color:#DC2626">${allStats.A} غياب</span>
     <span class="chip" style="background:#DBEAFE;color:#2563EB">${allStats.vac} إجازة</span>
     <span class="chip" style="background:#FEF9C3;color:#92400E">${allStats.hrs}h عمل</span>
+    ${provLateDays>0?`<span class="chip" style="background:#FEF3C7;color:#B45309">⚠ ${provLateDays} متأخر · ${String(Math.floor(provLateMins/60)).padStart(2,'0')}:${String(provLateMins%60).padStart(2,'0')}</span>`:''}
   </div>
 </div>
 <table>
@@ -7849,7 +7874,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <tbody>${rows}</tbody>
 </table>
 <div class="legend">
-  ${[['P','حضور','#D1FAE5','#059669'],['A','غياب','#FEE2E2','#DC2626'],['AL','إجازة سنوية','#DBEAFE','#2563EB'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['EL','إجازة طارئة','#FFEDD5','#EA580C'],['H','عطلة رسمية','#F1F5F9','#64748B']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
+  ${[['P','حضور','#D1FAE5','#059669'],['A','غياب','#FEE2E2','#DC2626'],['AL','إجازة سنوية','#DBEAFE','#2563EB'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['EL','إجازة طارئة','#FFEDD5','#EA580C'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
   <span class="leg" style="color:#94A3B8">🔴 الجمعة عطلة أسبوعية</span>
 </div>
 <div class="footer">
@@ -7967,8 +7992,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 const dIM=new Date(y,m,0).getDate();
                 const dys=Array.from({length:dIM},(_,i)=>i+1);
                 const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
-                const S_COL={P:'#059669',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B'};
-                const S_BG={P:'#D1FAE5',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9'};
+                const S_COL={P:'#059669',A:'#DC2626',AL:'#2563EB',SL:'#D97706',EL:'#EA580C',H:'#64748B',TXR:'#B45309'};
+                const S_BG={P:'#D1FAE5',A:'#FEE2E2',AL:'#DBEAFE',SL:'#FEF3C7',EL:'#FFEDD5',H:'#F1F5F9',TXR:'#FEF3C7'};
                 const isFri=d=>new Date(y,m-1,d).getDay()===5;
                 const thS='padding:5px 2px;font-size:9px;font-weight:800;color:#475569;background:#F8FAFC;border:1px solid #E2E8F0;text-align:center';
                 const tdS='padding:3px 1px;text-align:center;border:1px solid #F1F5F9';
@@ -7995,9 +8020,14 @@ ${PROVS.map(prov=>{
     const eAtt=mAtt[eng.id]||{};
     const s=attGetStats(eng.id,mAtt,y,m);
     const cells=dys.map(d=>{
-      const st=eAtt[d]?.s;const fri=isFri(d);
+      const dd=eAtt[d];const st=dd?.s;const fri=isFri(d);
       if(fri)return`<td style="${tdS};background:#F1F5F9;color:#94A3B8;font-size:8px">ع</td>`;
       if(!st)return`<td style="${tdS}"></td>`;
+      if(st==='TXR'){
+        const lh=+dd.lateH||0,lm=+dd.lateM||0;
+        const lateLabel=(lh||lm)?(String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'';
+        return`<td style="${tdS};background:${S_BG.TXR};color:${S_COL.TXR};font-size:7.5px;font-weight:800;line-height:1.1"><div>⚠</div>${lateLabel?`<div style="font-size:6.5px;font-weight:700">${lateLabel}</div>`:''}</td>`;
+      }
       return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
     }).join('');
     return`<tr><td style="${nmTdS}">${eng.name}<br><span style="font-size:8.5px;color:#64748B">${eng.spec}</span></td>${cells}
