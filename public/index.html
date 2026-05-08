@@ -2818,18 +2818,26 @@ function App(){
     const spentLYD=itemsLYD;
     const balanceUSD=receivedUSD-spentUSD;
     const balanceLYD=receivedLYD-spentLYD;
-    /* Consumption % per currency — take the WORST (max) so users see a
-       conservative warning when either pool is depleted. Avoids the previous
-       bug where LYD was converted via the EGP rate (≈53), making LYD spending
-       look ~10× smaller than it really was. */
-    const pctUSD=receivedUSD>0?spentUSD/receivedUSD*100:0;
-    const pctLYD=receivedLYD>0?spentLYD/receivedLYD*100:0;
-    const pct=Math.max(0,Math.min(100,Math.round(Math.max(pctUSD,pctLYD))));
+    /* Consumption % per currency — كل عملة مستقلة عن التانية.
+       pct/low/critical = MAX (للتوافق مع الـ notifications والـ cards
+       اللى بتعرض رقم واحد). pctUSD/pctLYD مع flags منفصلين لكارت
+       الرصيد المجمع اللى بيعرض شريطين. */
+    const pctUSDraw=receivedUSD>0?spentUSD/receivedUSD*100:0;
+    const pctLYDraw=receivedLYD>0?spentLYD/receivedLYD*100:0;
+    const pctUSD=Math.max(0,Math.min(100,Math.round(pctUSDraw)));
+    const pctLYD=Math.max(0,Math.min(100,Math.round(pctLYDraw)));
+    const pct=Math.max(pctUSD,pctLYD);
     const remPct=100-pct;
     /* Thresholds: <50 green, 50-80 yellow, ≥80 red */
     return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,
-            pct,remPct,pctUSD:Math.round(pctUSD),pctLYD:Math.round(pctLYD),
-            low:pct>=50,critical:pct>=80};
+            pct,remPct,pctUSD,pctLYD,
+            low:pct>=50,critical:pct>=80,
+            /* per-currency flags — يستخدمها كارت الرصيد المجمع للشريطين */
+            lowUSD:pctUSD>=50,criticalUSD:pctUSD>=80,
+            lowLYD:pctLYD>=50,criticalLYD:pctLYD>=80,
+            /* فعّل الشرط فقط لو فعلاً فى رصيد للعملة (>0) — كده لو محدش
+               حط دولار أصلاً ما يظهرش "0% مستخدم" بشكل مضلل */
+            hasUSD:receivedUSD>0,hasLYD:receivedLYD>0};
   },[aggCustody,aggExpItems,aggTransfers]);
 
   /* ── Engineers list for "responsible" dropdown ─────── */
@@ -7317,49 +7325,77 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         page==="expenses"&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
 
           /* ─── 💰 الرصيد المجمع ─── */
-          h("div",{className:"card",style:{background:aggBalance.critical?"linear-gradient(135deg,rgba(248,113,113,.18),rgba(220,38,38,.05))":aggBalance.low?"linear-gradient(135deg,rgba(252,211,77,.16),rgba(217,119,6,.04))":"linear-gradient(135deg,rgba(96,165,250,.14),rgba(167,139,250,.06))",borderTop:`3px solid ${aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}`}},
-            h("div",{style:{padding:"16px 18px"}},
-              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:12}},
-                h("div",null,
-                  h("div",{style:{fontSize:13,fontWeight:700,color:"var(--sub)",letterSpacing:".3px",marginBottom:3}},"💰 الرصيد المجمع"),
-                  h("div",{style:{fontSize:11,color:"var(--sub)"}},"إجمالى العهدة عبر كل الشهور")
-                ),
-                aggBalance.low&&h("div",{style:{padding:"6px 12px",background:aggBalance.critical?"rgba(248,113,113,.2)":"rgba(252,211,77,.15)",border:`1px solid ${aggBalance.critical?"#F87171":"#FCD34D"}`,borderRadius:8,fontSize:11,fontWeight:800,color:aggBalance.critical?"#F87171":"#FCD34D"}},
-                  aggBalance.critical?`⚠️ الاستهلاك تجاوز 80% (${aggBalance.pct}%)`:`⚠️ الاستهلاك ${aggBalance.pct}% — راقب المصروفات`
-                )
-              ),
-              h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:14}},
-                h("div",{style:{padding:"12px 14px",background:"rgba(52,211,153,.08)",border:"1px solid rgba(52,211,153,.25)",borderRadius:10}},
-                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📥 إجمالى العهد الواردة"),
-                  h("div",{style:{fontSize:16,fontWeight:800,color:"#34D399"}},aggBalance.receivedUSD.toFixed(2)+" $"),
-                  h("div",{style:{fontSize:13,fontWeight:700,color:"#34D399",marginTop:2}},aggBalance.receivedLYD.toFixed(2)+" د.ل")
-                ),
-                h("div",{style:{padding:"12px 14px",background:"rgba(248,113,113,.08)",border:"1px solid rgba(248,113,113,.25)",borderRadius:10}},
-                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📤 إجمالى المصروفات"),
-                  h("div",{style:{fontSize:16,fontWeight:800,color:"#F87171"}},aggBalance.spentUSD.toFixed(2)+" $"),
-                  h("div",{style:{fontSize:13,fontWeight:700,color:"#F87171",marginTop:2}},aggBalance.spentLYD.toFixed(2)+" د.ل")
-                ),
-                h("div",{style:{padding:"12px 14px",background:aggBalance.critical?"rgba(248,113,113,.12)":aggBalance.low?"rgba(252,211,77,.1)":"rgba(96,165,250,.08)",border:`1px solid ${aggBalance.critical?"rgba(248,113,113,.4)":aggBalance.low?"rgba(252,211,77,.3)":"rgba(96,165,250,.25)"}`,borderRadius:10}},
-                  h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"💼 الرصيد المتبقى"),
-                  h("div",{style:{fontSize:16,fontWeight:800,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}},aggBalance.balanceUSD.toFixed(2)+" $"),
-                  h("div",{style:{fontSize:13,fontWeight:700,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA",marginTop:2}},aggBalance.balanceLYD.toFixed(2)+" د.ل")
-                )
-              ),
-              h("div",null,
-                h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5,flexWrap:"wrap",gap:6}},
-                  h("span",{style:{fontWeight:700,color:"var(--sub)"}},"شريط الاستهلاك"),
-                  h("span",{style:{fontSize:10,color:"var(--sub)"}},
-                    "$ ",aggBalance.pctUSD,"% · د.ل ",aggBalance.pctLYD,"%"
-                  ),
-                  h("span",{style:{fontWeight:800,color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#60A5FA"}},aggBalance.pct+"% مستخدم · "+aggBalance.remPct+"% متبقى")
+          (()=>{
+            /* لون الكارت = أعلى تحذير بين الشريطين (لو دولار critical يبقى critical،
+               حتى لو الدينار آمن، عشان الكارت كله يلفت النظر).
+               هنا مش محسوب من aggBalance.critical (اللى هو max) — لكن من
+               criticalUSD/criticalLYD المنفصلين، علشان نعرض اللون الصحيح
+               حتى لو عملة واحدة بس فى أزمة. */
+            const anyCritical=(aggBalance.hasUSD&&aggBalance.criticalUSD)||(aggBalance.hasLYD&&aggBalance.criticalLYD);
+            const anyLow=(aggBalance.hasUSD&&aggBalance.lowUSD)||(aggBalance.hasLYD&&aggBalance.lowLYD);
+            const cardBg=anyCritical?"linear-gradient(135deg,rgba(248,113,113,.18),rgba(220,38,38,.05))":anyLow?"linear-gradient(135deg,rgba(252,211,77,.16),rgba(217,119,6,.04))":"linear-gradient(135deg,rgba(96,165,250,.14),rgba(167,139,250,.06))";
+            const cardBorder=anyCritical?"#F87171":anyLow?"#FCD34D":"#60A5FA";
+            /* تحذير الكارت العلوى — يذكر أى عملة فى الخطر */
+            const warnings=[];
+            if(aggBalance.hasUSD&&aggBalance.criticalUSD)warnings.push(`الدولار ${aggBalance.pctUSD}%`);
+            else if(aggBalance.hasUSD&&aggBalance.lowUSD)warnings.push(`الدولار ${aggBalance.pctUSD}%`);
+            if(aggBalance.hasLYD&&aggBalance.criticalLYD)warnings.push(`الدينار ${aggBalance.pctLYD}%`);
+            else if(aggBalance.hasLYD&&aggBalance.lowLYD)warnings.push(`الدينار ${aggBalance.pctLYD}%`);
+            const warnText=warnings.length?(anyCritical?`⚠️ تجاوز 80%: ${warnings.join(' · ')}`:`⚠️ ${warnings.join(' · ')} — راقب المصروفات`):'';
+            /* بنّاء شريط لكل عملة — يُستخدم مرتين (دولار + دينار) */
+            const buildBar=(label,pctVal,isCritical,isLow,hasIt,bal)=>{
+              if(!hasIt)return null;
+              const colorMain=isCritical?"#F87171":isLow?"#FCD34D":"#34D399";
+              const grad=isCritical?"linear-gradient(90deg,#DC2626,#F87171)":isLow?"linear-gradient(90deg,#D97706,#FCD34D)":"linear-gradient(90deg,#34D399,#60A5FA)";
+              return h("div",{style:{marginBottom:8}},
+                h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4,flexWrap:"wrap",gap:6}},
+                  h("span",{style:{fontWeight:800,color:"var(--txt)"}},label),
+                  h("span",{style:{fontWeight:800,color:colorMain}},pctVal+"% مستخدم · "+(100-pctVal)+"% متبقى")
                 ),
                 h("div",{style:{height:10,background:"rgba(255,255,255,.05)",borderRadius:5,overflow:"hidden",border:"1px solid var(--bdr)"}},
-                  h("div",{style:{height:"100%",width:aggBalance.pct+"%",background:aggBalance.critical?"linear-gradient(90deg,#DC2626,#F87171)":aggBalance.low?"linear-gradient(90deg,#D97706,#FCD34D)":"linear-gradient(90deg,#34D399,#60A5FA)",transition:"width .5s",borderRadius:5}})
+                  h("div",{style:{height:"100%",width:pctVal+"%",background:grad,transition:"width .5s",borderRadius:5}})
+                )
+              );
+            };
+            return h("div",{className:"card",style:{background:cardBg,borderTop:`3px solid ${cardBorder}`}},
+              h("div",{style:{padding:"16px 18px"}},
+                h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:12}},
+                  h("div",null,
+                    h("div",{style:{fontSize:13,fontWeight:700,color:"var(--sub)",letterSpacing:".3px",marginBottom:3}},"💰 الرصيد المجمع"),
+                    h("div",{style:{fontSize:11,color:"var(--sub)"}},"إجمالى العهدة عبر كل الشهور")
+                  ),
+                  warnText&&h("div",{style:{padding:"6px 12px",background:anyCritical?"rgba(248,113,113,.2)":"rgba(252,211,77,.15)",border:`1px solid ${anyCritical?"#F87171":"#FCD34D"}`,borderRadius:8,fontSize:11,fontWeight:800,color:anyCritical?"#F87171":"#FCD34D"}},warnText)
                 ),
-                aggBalance.critical&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},"⚠️ تحذير: تجاوزت 80% من الرصيد — راجع المصروفات قريباً")
+                h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:14}},
+                  h("div",{style:{padding:"12px 14px",background:"rgba(52,211,153,.08)",border:"1px solid rgba(52,211,153,.25)",borderRadius:10}},
+                    h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📥 إجمالى العهد الواردة"),
+                    h("div",{style:{fontSize:16,fontWeight:800,color:"#34D399"}},aggBalance.receivedUSD.toFixed(2)+" $"),
+                    h("div",{style:{fontSize:13,fontWeight:700,color:"#34D399",marginTop:2}},aggBalance.receivedLYD.toFixed(2)+" د.ل")
+                  ),
+                  h("div",{style:{padding:"12px 14px",background:"rgba(248,113,113,.08)",border:"1px solid rgba(248,113,113,.25)",borderRadius:10}},
+                    h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"📤 إجمالى المصروفات"),
+                    h("div",{style:{fontSize:16,fontWeight:800,color:"#F87171"}},aggBalance.spentUSD.toFixed(2)+" $"),
+                    h("div",{style:{fontSize:13,fontWeight:700,color:"#F87171",marginTop:2}},aggBalance.spentLYD.toFixed(2)+" د.ل")
+                  ),
+                  h("div",{style:{padding:"12px 14px",background:anyCritical?"rgba(248,113,113,.12)":anyLow?"rgba(252,211,77,.1)":"rgba(96,165,250,.08)",border:`1px solid ${anyCritical?"rgba(248,113,113,.4)":anyLow?"rgba(252,211,77,.3)":"rgba(96,165,250,.25)"}`,borderRadius:10}},
+                    h("div",{style:{fontSize:10,color:"var(--sub)",fontWeight:700,marginBottom:4}},"💼 الرصيد المتبقى"),
+                    h("div",{style:{fontSize:16,fontWeight:800,color:aggBalance.criticalUSD?"#F87171":aggBalance.lowUSD?"#FCD34D":"#60A5FA"}},aggBalance.balanceUSD.toFixed(2)+" $"),
+                    h("div",{style:{fontSize:13,fontWeight:700,color:aggBalance.criticalLYD?"#F87171":aggBalance.lowLYD?"#FCD34D":"#60A5FA",marginTop:2}},aggBalance.balanceLYD.toFixed(2)+" د.ل")
+                  )
+                ),
+                /* شريطان منفصلان — كل عملة لها استهلاكها الخاص */
+                h("div",null,
+                  h("div",{style:{fontSize:11,fontWeight:700,color:"var(--sub)",marginBottom:8}},"شريط الاستهلاك (لكل عملة)"),
+                  buildBar("$ الدولار",aggBalance.pctUSD,aggBalance.criticalUSD,aggBalance.lowUSD,aggBalance.hasUSD,aggBalance.balanceUSD),
+                  buildBar("د.ل الدينار",aggBalance.pctLYD,aggBalance.criticalLYD,aggBalance.lowLYD,aggBalance.hasLYD,aggBalance.balanceLYD),
+                  !aggBalance.hasUSD&&!aggBalance.hasLYD&&h("div",{style:{fontSize:11,color:"var(--sub)",fontStyle:"italic"}},"لا توجد عهد مسجلة بعد"),
+                  /* تحذير ختامى منفصل لكل عملة فى أزمة */
+                  (aggBalance.hasUSD&&aggBalance.criticalUSD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},`⚠️ الدولار: تجاوز 80% من الرصيد (${aggBalance.pctUSD}%) — راجع مصروفات الدولار`),
+                  (aggBalance.hasLYD&&aggBalance.criticalLYD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},`⚠️ الدينار: تجاوز 80% من الرصيد (${aggBalance.pctLYD}%) — راجع مصروفات الدينار`)
+                )
               )
-            )
-          ),
+            );
+          })(),
 
           /* ─── 🏠 الإيجارات الثابتة ─── */
           (()=>{const m=cfg.month||(now.getMonth()+1),y=cfg.year||now.getFullYear(),mn2=MONTHS[m-1]+" "+y;
