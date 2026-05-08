@@ -1325,6 +1325,9 @@ html.light .att-th-sum{background:#f8fafc}
 .att-qbtn-A:hover,.att-qbtn-A.on{background:#EF4444;color:#fff;border-color:#EF4444}
 .att-qbtn-AL{border-color:rgba(59,130,246,.35);color:#60A5FA}
 .att-qbtn-AL:hover,.att-qbtn-AL.on{background:#3B82F6;color:#fff;border-color:#3B82F6}
+/* SL (sick leave) — orange/yellow tone matching ATT_BG.SL */
+.att-qbtn-SL{border-color:rgba(249,115,22,.35);color:#FB923C}
+.att-qbtn-SL:hover,.att-qbtn-SL.on{background:#F97316;color:#fff;border-color:#F97316}
 /* -- Bulk Actions Bar -- */
 .att-bulk-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:10px;flex-wrap:wrap;margin-bottom:8px}
 .att-bulk-count{font-size:11px;color:var(--sub);font-weight:700;flex-shrink:0}
@@ -2756,7 +2759,8 @@ function App(){
     });
     return onLeave?'on_leave':'active';
   },[engineerStatuses,leaves]);
-  const ENG_ST_LABEL={'active':'نشط','on_leave':'في إجازة','ended':'انتهى عقده'};
+  /* on_leave = حالياً فى إجازة مصر (من نظام الحجز). "فى مصر" أوضح من "فى إجازة" */
+  const ENG_ST_LABEL={'active':'نشط','on_leave':'فى مصر','ended':'انتهى عقده'};
   const pendingLeaves=useMemo(()=>{
     const base=isProvince?leaves.filter(l=>l.prov===userProv):leaves;
     return base.filter(l=>l.status==='pending').length;
@@ -4878,7 +4882,7 @@ function App(){
     provsToDo.forEach(prov=>{
       const engs=data[prov]||[];
       if(!engs.length)return;
-      const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة","إجازة (مصر)","ساعات","أيام التأخير","إجمالى التأخير"];
+      const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة مرضية","إجازة (مصر)","ساعات","أيام التأخير","إجمالى التأخير"];
       const rows=[header];
       /* Cross-month egypt-leave check for Excel cells */
       const isLeaveDayXL=(engId,dateStr)=>{
@@ -5947,7 +5951,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         :'';
       return `<div class="section"><div class="section-title">📍 ${prov} (${provEngs.length} مهندس)</div><table>${header}${rows}</table>${transferOutBlock}</div>`;
     }).join('');
-    const summary=`<div style="display:flex;gap:8px;margin-bottom:16px"><div style="flex:1;padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${totalP}</div><div style="font-size:10px;color:#065F46;font-weight:700">إجمالى الحضور</div></div><div style="flex:1;padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${totalA}</div><div style="font-size:10px;color:#991B1B;font-weight:700">إجمالى الغياب</div></div><div style="flex:1;padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${totalLv}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">إجمالى الإجازات</div></div><div style="flex:1;padding:10px;border:2px solid #F59E0B;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#B45309">${totalLateDays}</div><div style="font-size:10px;color:#78350F;font-weight:700">عدد أيام التأخير</div></div><div style="flex:1;padding:10px;border:2px solid #F59E0B;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:900;font-family:monospace;color:#B45309;letter-spacing:1px">${formatTotalLate(totalLateMins)}</div><div style="font-size:10px;color:#78350F;font-weight:700">إجمالى ساعات التأخير</div></div></div>`;
+    const summary=`<div style="display:flex;gap:8px;margin-bottom:16px"><div style="flex:1;padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${totalP}</div><div style="font-size:10px;color:#065F46;font-weight:700">إجمالى الحضور</div></div><div style="flex:1;padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${totalA}</div><div style="font-size:10px;color:#991B1B;font-weight:700">إجمالى الغياب</div></div><div style="flex:1;padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${totalLv}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">إجمالى الإجازة المرضية</div></div><div style="flex:1;padding:10px;border:2px solid #F59E0B;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#B45309">${totalLateDays}</div><div style="font-size:10px;color:#78350F;font-weight:700">عدد أيام التأخير</div></div><div style="flex:1;padding:10px;border:2px solid #F59E0B;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:900;font-family:monospace;color:#B45309;letter-spacing:1px">${formatTotalLate(totalLateMins)}</div><div style="font-size:10px;color:#78350F;font-weight:700">إجمالى ساعات التأخير</div></div></div>`;
     const hrNote=`<div style="margin-top:14px;padding:12px 16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10px;color:#78350F"><strong style="color:#B45309">⚠️ ملاحظة:</strong> يخضع للخصم بناءً على ساعات التأخير (يحدد بواسطة HR فى مصر).</div>`;
     const legend=`<div style="margin-top:10px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
   <span style="font-size:10px;font-weight:800;color:#475569;margin-left:6px">📖 دليل الرموز:</span>
@@ -8591,7 +8595,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const selAll=()=>setAttSelected(new Set(provEngs.map(e=>e.id)));
           const selNone=()=>setAttSelected(new Set());
           const bulkSet=status=>{if(!todayD||attSelected.size===0)return;attSelected.forEach(id=>attSetStatus(id,todayD,status));setAttSelected(new Set());};
-          const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="ا"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"AL");}};
+          /* keyboard shortcuts: P=حاضر، A=غائب، L/م=مرضى (SL، الإجازة العادية اتشالت) */
+          const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="م"||k==="s"||k==="S"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"SL");}};
           /* Multi-month leave: sum FULL leave durations across overlapping months for display */
           /* allStats — s.P و s.A بقت adjusted تلقائياً بعد تطبيق egypt-leave OVERRIDE
              داخل attGetStats. الـ egyptDays تُستخدم لعرض إجمالى أيام إجازة (مصر). */
@@ -8685,7 +8690,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 <td style="padding:5px 8px;border:1px solid #E2E8F0;font-size:10px;background:#FAFAFA;min-width:130px">
                   <span style="color:#059669;font-weight:800">${adjP} حضور</span> &nbsp;
                   <span style="color:#DC2626;font-weight:800">${adjA} غياب</span><br>
-                  ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إجازة</span> &nbsp;`:''}
+                  ${vacFull>0?`<span style="color:#2563EB;font-weight:800">${vacFull} إجازة مرضية</span> &nbsp;`:''}
                   ${egyptFull>0?`<span style="color:#C2410C;font-weight:800">${egyptFull} إجازة (مصر)</span><br>`:''}
                   <span style="color:#92400E;font-weight:800">${s.hrs}h عمل</span>
                 </td>
@@ -8724,7 +8729,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <div class="hdr-chips">
     <span class="chip" style="background:#D1FAE5;color:#059669">${allStats.P} حضور</span>
     <span class="chip" style="background:#FEE2E2;color:#DC2626">${allStats.A} غياب</span>
-    <span class="chip" style="background:#DBEAFE;color:#2563EB">${allStats.vac} إجازة</span>
+    ${allStats.vac>0?`<span class="chip" style="background:#DBEAFE;color:#2563EB">${allStats.vac} إجازة مرضية</span>`:''}
     <span class="chip" style="background:#FEF9C3;color:#92400E">${allStats.hrs}h عمل</span>
     ${provLateDays>0?`<span class="chip" style="background:#FEF3C7;color:#B45309">⚠ ${provLateDays} متأخر · ${String(Math.floor(provLateMins/60)).padStart(2,'0')}:${String(provLateMins%60).padStart(2,'0')}</span>`:''}
     ${provEgyptDays>0?`<span class="chip" style="background:#FFEDD5;color:#C2410C">🇪🇬 ${provEgyptDays} يوم إجازة (مصر)</span>`:''}
@@ -9001,12 +9006,14 @@ ${PROVS.map(prov=>{
             /* ── Table view content ── */
             attView==="table"&&h(React.Fragment,null,
 
-            /* ── Province summary stats ── */
+            /* ── Province summary stats ──
+               "إجمالى أيام الإجازة المرضية" بدل "الإجازات" — الإجازة العادية
+               والطارئة اتشالت من النظام، اللى متبقى SL فقط. أضيف الكارت
+               فقط لو فى أيام مرضية فعلاً (تجنب صفر مضلل). */
             h("div",{className:"att-sum-grid"},
               [{v:allStats.P,l:"إجمالي أيام الحضور",c:"#10B981",bg:"rgba(16,185,129,.1)"},
                {v:allStats.A,l:"إجمالي أيام الغياب",c:"#EF4444",bg:"rgba(239,68,68,.1)"},
-               {v:allStats.vac,l:"إجمالي أيام الإجازات",c:"#60A5FA",bg:"rgba(96,165,250,.1)"},
-               /* أضيف فقط لو فى أيام إجازة مصر فعلاً — مش يعرض 0 صف فاضى */
+               ...(allStats.vac>0?[{v:allStats.vac,l:"إجمالي أيام الإجازة المرضية",c:"#60A5FA",bg:"rgba(96,165,250,.1)"}]:[]),
                ...(allStats.egyptDays>0?[{v:allStats.egyptDays,l:"إجمالي أيام إجازة (مصر)",c:"#EA580C",bg:"rgba(234,88,12,.1)"}]:[]),
                {v:allStats.hrs+"h",l:"ساعات العمل التقديرية",c:"#FCD34D",bg:"rgba(252,211,77,.1)"}]
               .map(({v,l,c,bg})=>h("div",{key:l,className:"att-sum-card",style:{borderColor:bg}},
@@ -9027,7 +9034,7 @@ ${PROVS.map(prov=>{
                     todayD?h(React.Fragment,null,
                       h("button",{className:"att-qbtn att-qbtn-P",onClick:()=>bulkSet("P")},"✓ حاضر"),
                       h("button",{className:"att-qbtn att-qbtn-A",onClick:()=>bulkSet("A")},"✗ غائب"),
-                      h("button",{className:"att-qbtn att-qbtn-AL",onClick:()=>bulkSet("AL")},"✈ إجازة")
+                      h("button",{className:"att-qbtn att-qbtn-SL",onClick:()=>bulkSet("SL")},"🤒 مريض")
                     ):h("span",{style:{fontSize:10,color:"var(--sub)"}},"التحديد يطبق على اليوم الحالي فقط"),
                     h("button",{className:"att-qbtn",style:{borderColor:"rgba(148,163,184,.3)",color:"var(--sub)"},onClick:()=>selNone()},"إلغاء")
                   )
@@ -9069,9 +9076,11 @@ ${PROVS.map(prov=>{
                                 ),
                                 h("div",{className:"att-td-spec"},eng.spec),
                                 todayD&&h("div",{className:"att-qbtns"},
-                                  ["P","A","AL"].map(function(st){
+                                  /* AL/EL deprecated — استبدل "إجازة" بـ "مريض" (SL).
+                                     اللى بياخد إجازة بينزل مصر (egypt-leave منفصلة). */
+                                  ["P","A","SL"].map(function(st){
                                     const cur=(att[eng.id]||{})[todayD]?.s;
-                                    const lbl={P:"✓ حاضر",A:"✗ غائب",AL:"✈ إجازة"}[st];
+                                    const lbl={P:"✓ حاضر",A:"✗ غائب",SL:"🤒 مريض"}[st];
                                     return h("button",{key:st,className:"att-qbtn att-qbtn-"+st+(cur===st?" on":""),onClick:function(e){e.stopPropagation();attSetStatus(eng.id,todayD,st);}},lbl);
                                   })
                                 ),
@@ -9176,7 +9185,7 @@ ${PROVS.map(prov=>{
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
                             s.H>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#94A3B8"}}),h("span",{className:"att-stat-val"},s.H),h("span",{className:"att-stat-lbl"},"عطلة رسمية")),
-                            sVacFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},sVacFull),h("span",{className:"att-stat-lbl"},sVacFull>s.vac?"إجازة (كاملة)":"إجازة (شهر)")),
+                            sVacFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},sVacFull),h("span",{className:"att-stat-lbl"},sVacFull>s.vac?"إجازة مرضية (كاملة)":"إجازة مرضية")),
                             egFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EA580C"}}),h("span",{className:"att-stat-val"},egFull),h("span",{className:"att-stat-lbl"},"إجازة (مصر)")),
                             h("div",{className:"att-stat-div"},
                               h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل"))
