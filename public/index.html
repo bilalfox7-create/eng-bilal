@@ -4268,30 +4268,35 @@ function App(){
         if(e?.egyptLeaves)e.egyptLeaves.forEach(lv=>{if(lv.id)seen.set(lv.id,lv);});
       });
     });
+    /* Helpers — UTC-based لتجنب drift من timezone (مصر UTC+2 سبّبت
+       حسابات غلط زى "March 13 → April 3 = 20 يوم" بدل 21). */
+    const ymdToUTC=(ymd)=>{const[y,m,d]=ymd.split('-').map(Number);return Date.UTC(y,m-1,d);};
+    const utcToYmd=(t)=>{const dt=new Date(t);return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;};
+    const subOneDay=(ymd)=>utcToYmd(ymdToUTC(ymd)-86400000);
+    const todayLocal=(()=>{const t=new Date();return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;})();
+    const cmp=(a,b)=>a<b?-1:a>b?1:0;
+    const max3=(a,b)=>cmp(a,b)>=0?a:b;
+    const min3=(a,b)=>cmp(a,b)<=0?a:b;
+    const daysInclusive=(sYmd,eYmd)=>Math.round((ymdToUTC(eYmd)-ymdToUTC(sYmd))/86400000)+1;
     let total=0;
-    const todayStr=new Date().toISOString().slice(0,10);
     for(const lv of seen.values()){
       const s=lv.departureDate;
       if(!s)continue;
       const isClosed=!!lv.returnDate;
       /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1.
-         For an open leave (no returnDate), last day is today. */
-      const lastDay=isClosed
-        ?new Date(new Date(lv.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10)
-        :todayStr;
-      if(s>me||lastDay<ms)continue;
+         For an open leave (no returnDate), last day is today (local). */
+      const lastDay=isClosed?subOneDay(lv.returnDate):todayLocal;
+      if(cmp(s,me)>0||cmp(lastDay,ms)<0)continue;
       let sd,ed;
       if(isClosed){
         /* CLOSED → الكل (يعرض المدة الكاملة فى كل شهر) */
-        sd=new Date(s+'T00:00');
-        ed=new Date(lastDay+'T00:00');
+        sd=s;ed=lastDay;
       }else{
         /* OPEN → اقطع على حدود الشهر المعروض */
-        sd=new Date(Math.max(new Date(s+'T00:00').getTime(),new Date(ms+'T00:00').getTime()));
-        ed=new Date(Math.min(new Date(lastDay+'T00:00').getTime(),new Date(me+'T00:00').getTime()));
+        sd=max3(s,ms);ed=min3(lastDay,me);
       }
-      if(ed<sd)continue;
-      const dayCount=Math.floor((ed-sd)/86400000)+1;
+      if(cmp(ed,sd)<0)continue;
+      const dayCount=daysInclusive(sd,ed);
       total+=Math.max(0,dayCount);
     }
     return total>0?total:(sEgy||0);
