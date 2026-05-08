@@ -4241,9 +4241,17 @@ function App(){
   };
 
   /* getDisplayEgyptLeaveDays(engId, y, m, sEgy):
-     returns sum of full egypt-leave durations (working days only,
-     excluding Fridays) for any leave overlapping (y,m). Falls back
-     to sEgy (per-month count of EGL cells). */
+     يرجع عدد أيام إجازة مصر (calendar days) الـ overlap مع الشهر (y,m).
+
+     السلوك مختلف حسب حالة الإجازة:
+     • إجازة مغلقة (returnDate موجود) → يحسب المدة الكاملة (cross-month)
+       ويعرضها فى كل شهر تتشابك معه (مثلاً: 15 أبريل → 20 مايو = 35 يوم
+       يظهر فى أبريل ومايو نفس الرقم).
+     • إجازة مفتوحة (مفيش returnDate لسه) → يحسب أيام الشهر المعروض فقط
+       (clipped). مثلاً مهندس نزل 15 أبريل ولسه فى مصر اليوم 8 مايو:
+         - أبريل يعرض 16 (15→30 أبريل)
+         - مايو يعرض 8 (1→8 مايو)
+       لما تدخل تاريخ العودة، الرقم يتجمع تلقائياً فى الشهرين. */
   const getDisplayEgyptLeaveDays=(engId,year,month,sEgy)=>{
     if(!year||!month)return sEgy||0;
     const ms=`${year}-${String(month).padStart(2,'0')}-01`;
@@ -4265,17 +4273,24 @@ function App(){
     for(const lv of seen.values()){
       const s=lv.departureDate;
       if(!s)continue;
+      const isClosed=!!lv.returnDate;
       /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1.
          For an open leave (no returnDate), last day is today. */
-      const lastDay=lv.returnDate
+      const lastDay=isClosed
         ?new Date(new Date(lv.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10)
         :todayStr;
       if(s>me||lastDay<ms)continue;
-      /* Count CALENDAR days (full duration including Fridays) — matches the user's mental
-         model of "departed X, returned Y → that's N days of leave". Earlier this was
-         working-days only which made cross-month leaves look short (e.g. 1 March → 3 April
-         showed 28 instead of the actual 33 days). */
-      const sd=new Date(s+'T00:00'),ed=new Date(lastDay+'T00:00');
+      let sd,ed;
+      if(isClosed){
+        /* CLOSED → الكل (يعرض المدة الكاملة فى كل شهر) */
+        sd=new Date(s+'T00:00');
+        ed=new Date(lastDay+'T00:00');
+      }else{
+        /* OPEN → اقطع على حدود الشهر المعروض */
+        sd=new Date(Math.max(new Date(s+'T00:00').getTime(),new Date(ms+'T00:00').getTime()));
+        ed=new Date(Math.min(new Date(lastDay+'T00:00').getTime(),new Date(me+'T00:00').getTime()));
+      }
+      if(ed<sd)continue;
       const dayCount=Math.floor((ed-sd)/86400000)+1;
       total+=Math.max(0,dayCount);
     }
