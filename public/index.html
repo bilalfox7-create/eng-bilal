@@ -2818,26 +2818,50 @@ function App(){
     const spentLYD=itemsLYD;
     const balanceUSD=receivedUSD-spentUSD;
     const balanceLYD=receivedLYD-spentLYD;
-    /* Consumption % per currency — كل عملة مستقلة عن التانية.
-       pct/low/critical = MAX (للتوافق مع الـ notifications والـ cards
-       اللى بتعرض رقم واحد). pctUSD/pctLYD مع flags منفصلين لكارت
-       الرصيد المجمع اللى بيعرض شريطين. */
+    /* ── Consumption metrics ─────────────────────────────
+       per-currency pcts: تشمل التحويلات (لأن التحويل OUT من الدولار يُفرغ
+       pool الدولار، والتحويل IN للدينار يُضخّم pool الدينار). بتُستخدم
+       فى الشريطين المنفصلين لرؤية التشغيلية (هل لسه عندى دولار أحوّل منه؟).
+
+       pctReal: الاستهلاك الفعلى — تحييد التحويلات الداخلية (مش صرف حقيقى).
+       يستخدم rate آخر تحويل لتوحيد العملتين. ده الرقم الحقيقى للتحذير
+       "تجاوز 80%" — لأن لو حوّلت $900 لدينار وصرفته على بنود، كده
+       أنت صرفته فعلاً، لكن لو حوّلت $900 لدينار وما صرفتش عليه شىء،
+       أنت ما صرفتش حاجة. */
     const pctUSDraw=receivedUSD>0?spentUSD/receivedUSD*100:0;
     const pctLYDraw=receivedLYD>0?spentLYD/receivedLYD*100:0;
     const pctUSD=Math.max(0,Math.min(100,Math.round(pctUSDraw)));
     const pctLYD=Math.max(0,Math.min(100,Math.round(pctLYDraw)));
-    const pct=Math.max(pctUSD,pctLYD);
+    /* احسب pctReal: المصروفات الفعلية على بنود (items فقط، بدون
+       التحويلات) ÷ إجمالى ما استُلم من العهد (custody فقط).
+       نحوّل العملتين لقيمة واحدة بالدولار باستخدام rate آخر تحويل. */
+    let pctReal;
+    let rateLYD=0;
+    if(aggTransfers.length){
+      const last=aggTransfers[aggTransfers.length-1];
+      if(+last.rate>0)rateLYD=+last.rate;
+    }
+    if(rateLYD>0){
+      const trueReceivedUSDeq=custodyUSD+custodyLYD/rateLYD;
+      const trueSpentUSDeq=itemsUSD+itemsLYD/rateLYD;
+      pctReal=trueReceivedUSDeq>0?Math.max(0,Math.min(100,Math.round(trueSpentUSDeq/trueReceivedUSDeq*100))):0;
+    }else{
+      /* مفيش تحويلات → كل عملة مستقلة، استخدم الأسوأ (max) كسلوك سابق */
+      pctReal=Math.max(pctUSD,pctLYD);
+    }
+    /* pct (الرقم الرئيسى) = pctReal. هيظهر فى الإشعارات + ملخص لوحة
+       التحكم + PDF التقرير الشامل + KPI cards اللى بتعرض رقم واحد. */
+    const pct=pctReal;
     const remPct=100-pct;
     /* Thresholds: <50 green, 50-80 yellow, ≥80 red */
     return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,
-            pct,remPct,pctUSD,pctLYD,
+            pct,remPct,pctReal,pctUSD,pctLYD,
             low:pct>=50,critical:pct>=80,
-            /* per-currency flags — يستخدمها كارت الرصيد المجمع للشريطين */
+            /* per-currency flags للشريطين المنفصلين */
             lowUSD:pctUSD>=50,criticalUSD:pctUSD>=80,
             lowLYD:pctLYD>=50,criticalLYD:pctLYD>=80,
-            /* فعّل الشرط فقط لو فعلاً فى رصيد للعملة (>0) — كده لو محدش
-               حط دولار أصلاً ما يظهرش "0% مستخدم" بشكل مضلل */
-            hasUSD:receivedUSD>0,hasLYD:receivedLYD>0};
+            hasUSD:receivedUSD>0,hasLYD:receivedLYD>0,
+            hasRate:rateLYD>0,rateLYD};
   },[aggCustody,aggExpItems,aggTransfers]);
 
   /* ── Engineers list for "responsible" dropdown ─────── */
@@ -5167,13 +5191,35 @@ tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
   <div class="kpi green"><div class="kpi-lbl">📥 إجمالى العهد الواردة</div><div class="kpi-val">${fmt(aggBalance.receivedUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.receivedLYD)} د.ل</div></div>
   <div class="kpi red"><div class="kpi-lbl">📤 إجمالى المصروفات</div><div class="kpi-val">${fmt(aggBalance.spentUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.spentLYD)} د.ل</div></div>
   <div class="kpi gold"><div class="kpi-lbl">🔄 التحويلات</div><div class="kpi-val">${fmt(totalTrfUSD)} $</div><div class="kpi-val-sm">→ ${fmt(totalTrfLYD)} د.ل</div></div>
-  <div class="kpi ${aggBalance.critical?'red':aggBalance.low?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.balanceLYD)} د.ل</div></div>
+  <div class="kpi ${aggBalance.criticalUSD?'red':aggBalance.lowUSD?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.balanceLYD)} د.ل</div></div>
 </div>
 
-<div class="balance-bar">
-  <div style="font-size:11px;font-weight:700;color:#374151;min-width:90px">شريط الاستهلاك</div>
-  <div class="balance-bar-bg"><div class="balance-bar-fill ${aggBalance.critical?'crit':aggBalance.low?'low':''}" style="width:${aggBalance.pct}%"></div></div>
-  <div class="balance-bar-pct">${aggBalance.pct}% مستخدم · ${aggBalance.remPct}% متبقى</div>
+<div style="margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <span style="font-size:12px;font-weight:800;color:#374151">شريط الاستهلاك (لكل عملة)</span>
+    ${aggBalance.hasRate?`<span style="font-size:10px;color:#6B7280">إجمالى الاستهلاك الفعلى (محسوب بسعر الصرف ${aggBalance.rateLYD}): <b style="color:${aggBalance.critical?'#DC2626':aggBalance.low?'#D97706':'#15803d'}">${aggBalance.pctReal}%</b></span>`:''}
+  </div>
+  ${aggBalance.hasUSD?`
+  <div style="margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+      <b style="color:#111827">$ الدولار</b>
+      <b style="color:${aggBalance.criticalUSD?'#DC2626':aggBalance.lowUSD?'#D97706':'#15803d'}">${aggBalance.pctUSD}% مستخدم · ${100-aggBalance.pctUSD}% متبقى</b>
+    </div>
+    <div style="height:9px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${aggBalance.pctUSD}%;background:${aggBalance.criticalUSD?'linear-gradient(90deg,#DC2626,#F87171)':aggBalance.lowUSD?'linear-gradient(90deg,#D97706,#FCD34D)':'linear-gradient(90deg,#15803d,#34D399)'};border-radius:4px"></div>
+    </div>
+  </div>`:''}
+  ${aggBalance.hasLYD?`
+  <div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+      <b style="color:#111827">د.ل الدينار</b>
+      <b style="color:${aggBalance.criticalLYD?'#DC2626':aggBalance.lowLYD?'#D97706':'#15803d'}">${aggBalance.pctLYD}% مستخدم · ${100-aggBalance.pctLYD}% متبقى</b>
+    </div>
+    <div style="height:9px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${aggBalance.pctLYD}%;background:${aggBalance.criticalLYD?'linear-gradient(90deg,#DC2626,#F87171)':aggBalance.lowLYD?'linear-gradient(90deg,#D97706,#FCD34D)':'linear-gradient(90deg,#15803d,#34D399)'};border-radius:4px"></div>
+    </div>
+  </div>`:''}
+  ${!aggBalance.hasUSD&&!aggBalance.hasLYD?`<div style="font-size:11px;color:#6B7280;font-style:italic">لا توجد عهد مسجلة</div>`:''}
 </div>
 
 ${filteredCustody.length>0?`
@@ -7388,15 +7434,27 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     h("div",{style:{fontSize:13,fontWeight:700,color:aggBalance.criticalLYD?"#F87171":aggBalance.lowLYD?"#FCD34D":"#60A5FA",marginTop:2}},aggBalance.balanceLYD.toFixed(2)+" د.ل")
                   )
                 ),
-                /* شريطان منفصلان — كل عملة لها استهلاكها الخاص */
+                /* شريطان منفصلان — كل عملة لها استهلاكها الخاص (للرؤية التشغيلية:
+                   هل عندى رصيد دولار أحوّل منه؟ هل الدينار خلص؟) */
                 h("div",null,
-                  h("div",{style:{fontSize:11,fontWeight:700,color:"var(--sub)",marginBottom:8}},"شريط الاستهلاك (لكل عملة)"),
+                  h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}},
+                    h("div",{style:{fontSize:11,fontWeight:700,color:"var(--sub)"}},"شريط الاستهلاك (لكل عملة)"),
+                    /* الاستهلاك الفعلى الكلى — يحييد التحويلات (مش صرف حقيقى) */
+                    aggBalance.hasRate&&h("div",{style:{fontSize:10,color:"var(--sub)",display:"flex",alignItems:"center",gap:6}},
+                      h("span",null,"الاستهلاك الفعلى الكلى:"),
+                      h("b",{style:{color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#34D399",fontWeight:800,fontSize:12}},aggBalance.pctReal+"%"),
+                      h("span",{style:{opacity:.7}},`(محسوب بسعر ${aggBalance.rateLYD})`)
+                    )
+                  ),
                   buildBar("$ الدولار",aggBalance.pctUSD,aggBalance.criticalUSD,aggBalance.lowUSD,aggBalance.hasUSD,aggBalance.balanceUSD),
                   buildBar("د.ل الدينار",aggBalance.pctLYD,aggBalance.criticalLYD,aggBalance.lowLYD,aggBalance.hasLYD,aggBalance.balanceLYD),
                   !aggBalance.hasUSD&&!aggBalance.hasLYD&&h("div",{style:{fontSize:11,color:"var(--sub)",fontStyle:"italic"}},"لا توجد عهد مسجلة بعد"),
-                  /* تحذير ختامى منفصل لكل عملة فى أزمة */
-                  (aggBalance.hasUSD&&aggBalance.criticalUSD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},`⚠️ الدولار: تجاوز 80% من الرصيد (${aggBalance.pctUSD}%) — راجع مصروفات الدولار`),
-                  (aggBalance.hasLYD&&aggBalance.criticalLYD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},`⚠️ الدينار: تجاوز 80% من الرصيد (${aggBalance.pctLYD}%) — راجع مصروفات الدينار`)
+                  /* تحذير ختامى منفصل لكل عملة فى أزمة + تنويه عن إمكانية التحويل */
+                  (aggBalance.hasUSD&&aggBalance.criticalUSD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},`⚠️ الدولار: تجاوز 80% (${aggBalance.pctUSD}%) — رصيدك بالدولار قارب على النفاد`),
+                  (aggBalance.hasLYD&&aggBalance.criticalLYD)&&h("div",{style:{marginTop:6,padding:"6px 10px",background:"rgba(248,113,113,.12)",border:"1px solid rgba(248,113,113,.4)",borderRadius:6,fontSize:11,fontWeight:700,color:"#F87171"}},
+                    `⚠️ الدينار: تجاوز 80% (${aggBalance.pctLYD}%)`,
+                    aggBalance.hasUSD&&aggBalance.balanceUSD>0?` — يمكنك تحويل من رصيد الدولار المتبقى (${aggBalance.balanceUSD.toFixed(0)}$)`:` — رصيدك بالدينار قارب على النفاد`
+                  )
                 )
               )
             );
