@@ -1629,6 +1629,17 @@ const PROVS=["محافظة درنة","محافظة البيضاء","محافظة
 const PCOLS=["#60A5FA","#34D399","#FCD34D","#C4B5FD"];
 const PLTS=["#0D1E38","#041A0F","#1C1200","#12092E"];
 
+/* ── Date helpers (timezone-safe) ──────────────────────────────────
+   مصر UTC+2 — استخدام Date().toISOString().slice(0,10) بيرجع UTC date
+   اللى ممكن يخالف local date (drift يوم كامل قرب منتصف الليل).
+   ymdLocal/todayYmd بيرجعوا التاريخ المحلى الصحيح.
+   subOneDayYmd بيستخدم UTC components لتجنب DST drift. */
+const ymdLocal=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const todayYmd=()=>ymdLocal(new Date());
+const ymdToUTC=ymd=>{const[y,m,d]=String(ymd).split('-').map(Number);return Date.UTC(y,m-1,d);};
+const subOneDayYmd=ymd=>{const dt=new Date(ymdToUTC(ymd)-86400000);return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;};
+const daysInclusive=(sYmd,eYmd)=>Math.round((ymdToUTC(eYmd)-ymdToUTC(sYmd))/86400000)+1;
+
 const BASE={
   "محافظة درنة":[
     {id:"d1",name:"ضياء الدين محمود",spec:"مدير مشروعات ليبيا",d1:0,d2:0},
@@ -3617,9 +3628,10 @@ function App(){
     if(!isAdmin&&engProv!==userProv){msg('يمكنك إلغاء إجازات مهندسي محافظتك فقط','err');return;}
     const dep=leave.departureDate;
     const ret=leave.returnDate;
-    /* Compute affected days range: dep → (ret-1) for closed, dep → today for open */
-    const todayIso=new Date().toISOString().slice(0,10);
-    const lastDay=ret?new Date(new Date(ret+'T00:00').getTime()-86400000).toISOString().slice(0,10):todayIso;
+    /* Compute affected days range: dep → (ret-1) for closed, dep → today for open.
+       Uses global timezone-safe helpers (subOneDayYmd/todayYmd). */
+    const todayIso=todayYmd();
+    const lastDay=ret?subOneDayYmd(ret):todayIso;
     setMonths(prev=>{
       const out={...prev};
       Object.keys(out).forEach(k=>{
@@ -4075,7 +4087,7 @@ function App(){
     const led=allDays[li].date;
     const days=Math.floor((new Date()-led)/86400000);
     const mon=Math.floor(days/30);const rem=days%30;
-    return{lastEntryDate:led.toISOString().slice(0,10),daysInLibya:days,monthsInLibya:mon,remDays:rem,eligible:days>=180,remaining:Math.max(0,180-days),label:mon+' شهر و '+rem+' يوم',presentDays:allDays.filter(d=>d.s==='P').length};
+    return{lastEntryDate:ymdLocal(led),daysInLibya:days,monthsInLibya:mon,remDays:rem,eligible:days>=180,remaining:Math.max(0,180-days),label:mon+' شهر و '+rem+' يوم',presentDays:allDays.filter(d=>d.s==='P').length};
   };
 
   const submitLeave=async()=>{
@@ -4268,16 +4280,11 @@ function App(){
         if(e?.egyptLeaves)e.egyptLeaves.forEach(lv=>{if(lv.id)seen.set(lv.id,lv);});
       });
     });
-    /* Helpers — UTC-based لتجنب drift من timezone (مصر UTC+2 سبّبت
-       حسابات غلط زى "March 13 → April 3 = 20 يوم" بدل 21). */
-    const ymdToUTC=(ymd)=>{const[y,m,d]=ymd.split('-').map(Number);return Date.UTC(y,m-1,d);};
-    const utcToYmd=(t)=>{const dt=new Date(t);return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;};
-    const subOneDay=(ymd)=>utcToYmd(ymdToUTC(ymd)-86400000);
-    const todayLocal=(()=>{const t=new Date();return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;})();
+    /* Use global timezone-safe helpers (todayYmd/subOneDayYmd/daysInclusive) */
+    const todayLocal=todayYmd();
     const cmp=(a,b)=>a<b?-1:a>b?1:0;
     const max3=(a,b)=>cmp(a,b)>=0?a:b;
     const min3=(a,b)=>cmp(a,b)<=0?a:b;
-    const daysInclusive=(sYmd,eYmd)=>Math.round((ymdToUTC(eYmd)-ymdToUTC(sYmd))/86400000)+1;
     let total=0;
     for(const lv of seen.values()){
       const s=lv.departureDate;
@@ -4285,7 +4292,7 @@ function App(){
       const isClosed=!!lv.returnDate;
       /* returnDate is exclusive (engineer is back ON that day) — last leave day = returnDate - 1.
          For an open leave (no returnDate), last day is today (local). */
-      const lastDay=isClosed?subOneDay(lv.returnDate):todayLocal;
+      const lastDay=isClosed?subOneDayYmd(lv.returnDate):todayLocal;
       if(cmp(s,me)>0||cmp(lastDay,ms)<0)continue;
       let sd,ed;
       if(isClosed){
@@ -5506,7 +5513,13 @@ ${provRows.length>1?`
     const attK=`${py}-${String(pm).padStart(2,'0')}`;
     const attM=months[attK];
     const attData=attM?.attendance||{};
-    const totalAttDays=Object.values(attData).reduce((a,d)=>a+Object.values(d).filter(x=>x?.s==='P').length,0);
+    /* استخدم attGetStats عشان يطبق egypt-leave OVERRIDE تلقائياً —
+       مش raw count من cell.s==='P' لأن ده هيشمل أيام كان فيها المهندس
+       فى مصر وكان الخلية متسجلة P غلط. */
+    const totalAttDays=PROVS.reduce((acc,prov)=>{
+      const engs=attM?.data?.[prov]||[];
+      return acc+engs.reduce((a,e)=>a+attGetStats(e.id,attData,py,pm).P,0);
+    },0);
     // Expenses for chosen disbursement month
     const monthExp=useM?.expenses||{custody:[],items:[],transfers:[]};
     const monthExpItems=monthExp.items||[];
@@ -5611,7 +5624,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     <tbody>
       ${PROVS.map(p=>{
         const engs=attM.data?.[p]||[];
-        const days=engs.reduce((a,e)=>a+Object.values(attData[e.id]||{}).filter(x=>x?.s==='P').length,0);
+        /* attGetStats بيطبق egypt-leave OVERRIDE تلقائياً */
+        const days=engs.reduce((a,e)=>a+attGetStats(e.id,attData,py,pm).P,0);
         const avg=engs.length?(days/engs.length).toFixed(1):'0';
         return `<tr><td>${p}</td><td>${engs.length}</td><td>${days}</td><td>${avg}</td></tr>`;
       }).join('')}
@@ -6314,9 +6328,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 1–15"),h("input",{type:"number",min:0,max:15,value:form.d1,onChange:ev=>setForm(f=>({...f,d1:Math.max(0,Math.min(15,+ev.target.value||0))}))})),
             h("div",{className:"fld",style:{margin:0}},h("label",null,"أيام 16–30"),h("input",{type:"number",min:0,max:15,value:form.d2,onChange:ev=>setForm(f=>({...f,d2:Math.max(0,Math.min(15,+ev.target.value||0))}))}))
           ),
-          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",max:new Date().toISOString().slice(0,10),onChange:ev=>{
+          h("div",{className:"fld"},h("label",null,"تاريخ القدوم من مصر"),h("input",{type:"date",value:form.arrivalDate||"",max:todayYmd(),onChange:ev=>{
             const v=ev.target.value||null;
-            const todayIso=new Date().toISOString().slice(0,10);
+            const todayIso=todayYmd();
             if(v&&v>todayIso){msg('تاريخ القدوم لا يمكن أن يكون مستقبلياً','err');return;}
             const ac=v?calcArrivalDays(v,cfg.year,cfg.month):null;
             setForm(f=>ac?{...f,arrivalDate:v,d1:ac.d1,d2:ac.d2,extra:ac.extra}:{...f,arrivalDate:v,extra:0});
@@ -7235,12 +7249,29 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         page==="dash"&&(()=>{
           const greet=(()=>{const h=now.getHours();return h<12?'صباح الخير':h<18?'مساء الخير':'مساء الخير';})();
           const todayStr=now.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-          /* Compute attendance / leaves / Egypt counts for KPIs */
+          /* Compute attendance / leaves / Egypt counts for KPIs.
+             egypt-leave OVERRIDE: لو المهندس على إجازة مصر اليوم، يحسب كـ
+             "فى مصر" بدل "حاضر" حتى لو cell.s = 'P' (لأن العرض بيظهر 'م'). */
           const attM=months[attKey];const attData=attM?.attendance||{};
           let presN=0,leaveN=0,egN=0;const today=now.getDate();
+          const todayDateStr=todayYmd();
           PROVS.forEach(p=>(months[ak]?.data?.[p]||[]).forEach(e=>{
             const a=attData[e.id]||{};const s=a[today]?.s;
-            if(s==='P')presN++;else if(s==='AL'||s==='SL'||s==='EL')leaveN++;else if(s==='EG')egN++;
+            /* cross-month check — يبحث فى كل سجلات المهندس عبر الأشهر */
+            let onEgyptLeave=false;
+            for(const k of Object.keys(months)){
+              if(k==='leaves')continue;
+              const md=months[k];if(!md?.data)continue;
+              for(const pp of Object.keys(md.data)){
+                const eRec=(md.data[pp]||[]).find(x=>x?.id===e.id);
+                if(eRec&&isOnEgyptLeaveDate(eRec,todayDateStr)){onEgyptLeave=true;break;}
+              }
+              if(onEgyptLeave)break;
+            }
+            if(onEgyptLeave){egN++;return;}
+            if(s==='P')presN++;
+            else if(s==='AL'||s==='SL'||s==='EL')leaveN++;
+            else if(s==='EG')egN++;
           }));
           return h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
           /* ── Welcome banner ── */
@@ -8223,13 +8254,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               const c=calc(e,m.cfg?.rate||300,m.cfg?.egp||52.5);
               engN++;sumUSD+=c.tot;sumEGP+=c.egp;
             }));
-            // Attendance %
+            // Attendance % — يستخدم attGetStats عشان يطبق egypt-leave OVERRIDE
+            // (يطرح أيام مصر من البسط والمقام عشان % يطلع منطقى)
             const att=m.attendance||{};const dim=new Date(+y,+mo,0).getDate();
             const workDays=[];for(let d=1;d<=dim;d++)if(new Date(+y,+mo-1,d).getDay()!==5)workDays.push(d);
             let pCount=0,totalSlots=0;
             PROVS.forEach(p=>(m.data?.[p]||[]).forEach(e=>{
-              const ea=att[e.id]||{};
-              workDays.forEach(d=>{totalSlots++;if(ea[d]?.s==='P')pCount++;});
+              const st=attGetStats(e.id,att,+y,+mo);
+              pCount+=st.P;
+              totalSlots+=Math.max(0,workDays.length-(st.egyptDays||0));
             }));
             const attPct=totalSlots>0?Math.round(pCount/totalSlots*100):0;
             // Expenses LYD
@@ -8511,7 +8544,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const me=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(dim).padStart(2,'0')}`;
             const overlap=all.filter(l=>{
               if(!l.departureDate)return false;
-              const lastDay=l.returnDate?new Date(new Date(l.returnDate+'T00:00').getTime()-86400000).toISOString().slice(0,10):'9999-12-31';
+              const lastDay=l.returnDate?subOneDayYmd(l.returnDate):'9999-12-31';
               return !(l.departureDate>me||lastDay<ms);
             });
             if(!overlap.length)return null;
@@ -9162,7 +9195,7 @@ ${PROVS.map(prov=>{
           const SI={pending:'⏳',approved:'✅',rejected:'❌',traveling:'🔵',ended:'⚪'};
           /* Derive a finer status from approved + dates (request stays in DB as 'approved'
              but UI shows 'مسافر حالياً' or 'منتهية' based on travel/return dates). */
-          const todayIso=new Date().toISOString().slice(0,10);
+          const todayIso=todayYmd();
           const deriveStatus=(req)=>{
             if(req.status!=='approved')return req.status;
             const start=req.travelDate||req.leaveStartDate;
