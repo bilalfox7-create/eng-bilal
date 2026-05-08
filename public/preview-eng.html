@@ -1,0 +1,492 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>معاينة تصاميم كشف الإعاشة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Cairo','Segoe UI',sans-serif;background:#0F1117;color:#E5E7EB;padding:20px;min-height:100vh}
+.preview-shell{max-width:1400px;margin:0 auto}
+.preview-hdr{background:linear-gradient(135deg,#1E1B4B,#312E81);border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #4338CA40}
+.preview-hdr h1{font-size:24px;font-weight:900;margin-bottom:8px}
+.preview-hdr p{font-size:13px;opacity:.85}
+.section{margin-bottom:48px;background:#161922;border-radius:18px;padding:24px;border:1px solid #1F2937}
+.section-title{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:18px;font-weight:800;color:#A78BFA}
+.section-num{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff}
+.section-desc{font-size:12px;color:#94A3B8;margin-bottom:18px;padding-right:42px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.compare-card{background:#0B0E15;border-radius:12px;padding:14px;border:1px solid #1F2937}
+.compare-label{font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.compare-label.before{color:#F87171}
+.compare-label.after{color:#34D399}
+
+/* ─── Design 1: Toolbar ─── */
+.toolbar-old{display:flex;gap:6px;align-items:center;padding:10px;background:#0F1117;border-radius:10px;border:1px solid #1F2937;flex-wrap:wrap}
+.toolbar-old button,.toolbar-old input{font-family:inherit;background:#1F2937;border:1px solid #374151;color:#E5E7EB;padding:7px 12px;border-radius:8px;font-size:11px;cursor:pointer}
+.toolbar-old input{flex:1;min-width:140px}
+
+.toolbar-new{display:flex;gap:14px;align-items:center;padding:12px 14px;background:linear-gradient(135deg,#0F1117,#161922);border-radius:12px;border:1px solid #2D3748;flex-wrap:wrap}
+.tb-group{display:flex;gap:6px;align-items:center}
+.tb-divider{width:1px;height:28px;background:#374151}
+.btn-primary{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border:none;padding:9px 18px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.3);display:inline-flex;align-items:center;gap:6px}
+.btn-secondary{background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4);color:#C4B5FD;padding:7px 12px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.btn-success{background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(16,185,129,.3);display:inline-flex;align-items:center;gap:6px}
+.btn-ghost{background:transparent;border:1px solid #374151;color:#9CA3AF;padding:7px 11px;border-radius:8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.btn-ghost:hover{border-color:#4B5563;color:#E5E7EB}
+.search-box{position:relative;flex:1;max-width:280px}
+.search-box input{width:100%;background:#0B0E15;border:1px solid #2D3748;color:#E5E7EB;padding:8px 32px 8px 12px;border-radius:10px;font-size:12px;font-family:inherit}
+.search-box::after{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.5}
+
+/* ─── Design 2: Engineer card ─── */
+.eng-old{display:grid;grid-template-columns:32px 1fr 110px 60px 80px 50px 60px 80px 50px 60px 60px 80px;gap:6px;align-items:center;padding:8px;background:#0B0E15;border:1px solid #1F2937;border-radius:8px;font-size:10px;color:#9CA3AF}
+.eng-old > div{padding:4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eng-old .nm{text-align:right;color:#E5E7EB;font-weight:700}
+.badge-old{background:rgba(252,211,77,.18);color:#FCD34D;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700;border:1px solid rgba(252,211,77,.3)}
+.act-old{background:#7F1D1D40;border:1px solid #DC2626;border-radius:6px;color:#F87171;padding:3px 5px;cursor:pointer;font-size:10px}
+
+.eng-new{padding:14px 16px;background:linear-gradient(135deg,#0B0E15,#0F1117);border:1px solid #1F2937;border-radius:12px;margin-bottom:8px;transition:all .2s;position:relative}
+.eng-new:hover{border-color:#3B82F6;background:linear-gradient(135deg,#0F1117,#1A1D26);transform:translateY(-1px)}
+.eng-new:hover .eng-actions{opacity:1}
+.eng-new-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.eng-num{width:26px;height:26px;border-radius:7px;background:#1F2937;color:#9CA3AF;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-left:10px}
+.eng-info{flex:1;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.eng-name{font-size:14px;font-weight:800;color:#F3F4F6}
+.eng-spec{font-size:10px;color:#9CA3AF;background:#1F2937;padding:2px 8px;border-radius:100px}
+.eng-status-pills{display:flex;gap:5px}
+.pill{padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.pill-paid{background:rgba(16,185,129,.15);color:#34D399;border:1px solid rgba(16,185,129,.3)}
+.pill-pending{background:rgba(252,211,77,.12);color:#FCD34D;border:1px solid rgba(252,211,77,.25)}
+.pill-overdue{background:rgba(239,68,68,.15);color:#F87171;border:1px solid rgba(239,68,68,.3)}
+.eng-halves{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.half-cell{padding:10px 12px;background:rgba(0,0,0,.25);border-radius:8px;border:1px solid #1F2937}
+.half-label{font-size:9px;font-weight:700;color:#6B7280;letter-spacing:.5px;margin-bottom:4px}
+.half-content{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.half-days{font-size:18px;font-weight:900;color:#F3F4F6}
+.half-amount{font-size:11px;color:#10B981;font-weight:700}
+.half-input{width:50px;background:#0F1117;border:1.5px solid #1F2937;color:#F3F4F6;padding:4px 6px;border-radius:6px;font-size:14px;font-weight:800;text-align:center;font-family:inherit}
+.half-input:focus{outline:none;border-color:#3B82F6}
+.eng-totals{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px dashed #1F2937}
+.eng-totals-left{display:flex;align-items:baseline;gap:14px}
+.tot-label{font-size:10px;color:#6B7280}
+.tot-usd{font-size:18px;font-weight:900;color:#3B82F6}
+.tot-egp{font-size:13px;font-weight:700;color:#FCD34D}
+.eng-actions{display:flex;gap:6px;opacity:.4;transition:opacity .2s}
+.act-btn{background:transparent;border:1px solid #1F2937;color:#9CA3AF;width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.act-btn:hover{background:#1F2937;color:#E5E7EB}
+.act-btn.danger:hover{border-color:#DC2626;color:#F87171;background:rgba(239,68,68,.1)}
+
+/* ─── Design 3: Summary card ─── */
+.sum-old{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sum-old-card{padding:16px;background:#0B0E15;border:1px solid #1F2937;border-radius:10px}
+.sum-old-card.empty{opacity:.5}
+.sum-old-card .lbl{font-size:11px;color:#9CA3AF;margin-bottom:6px}
+.sum-old-card .val{font-size:20px;font-weight:900}
+.sum-old-card .sub{font-size:11px;color:#9CA3AF;margin-top:2px}
+
+.sum-new{padding:20px 24px;background:linear-gradient(135deg,#1A1F2E,#0F1117 70%);border:1px solid #2D3748;border-radius:14px;position:relative;overflow:hidden}
+.sum-new::before{content:"";position:absolute;top:-40px;left:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(99,102,241,.2),transparent 70%);pointer-events:none}
+.sum-new-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;position:relative}
+.sum-new-title{font-size:13px;font-weight:800;color:#A78BFA;display:flex;align-items:center;gap:8px}
+.sum-new-month{font-size:11px;color:#9CA3AF;background:#1F2937;padding:4px 10px;border-radius:100px}
+.sum-new-grid{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:16px;position:relative}
+.sum-new-cell{padding:12px 14px;background:rgba(0,0,0,.25);border-radius:10px;border:1px solid rgba(255,255,255,.05)}
+.sum-new-cell .lbl{font-size:10px;font-weight:700;color:#6B7280;margin-bottom:6px}
+.sum-new-cell .val{font-size:22px;font-weight:900;color:#F3F4F6}
+.sum-new-cell .val .currency{font-size:13px;color:#9CA3AF;margin-right:4px}
+.sum-new-cell.usd .val{color:#3B82F6}
+.sum-new-cell.egp .val{color:#FCD34D}
+.sum-new-cell.progress .val{color:#10B981;font-size:18px}
+.progress-bar{height:8px;background:#1F2937;border-radius:100px;overflow:hidden;margin-top:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,#10B981,#34D399);border-radius:100px;transition:width .5s}
+.halves-status{display:flex;gap:10px;margin-top:10px;font-size:10px;color:#9CA3AF}
+.halves-status .check{color:#34D399;font-weight:800;margin-left:4px}
+.halves-status .pending{color:#FCD34D;font-weight:800;margin-left:4px}
+
+/* ─── Design 4: Province header ─── */
+.prov-old{padding:14px;background:#0B0E15;border:1px solid #1F2937;border-radius:10px;margin-bottom:8px}
+.prov-old-row{display:flex;align-items:center;justify-content:space-between}
+.prov-old-name{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800}
+.prov-old-dot{width:8px;height:8px;border-radius:50%}
+
+.prov-new{padding:14px 16px;background:linear-gradient(90deg,rgba(0,0,0,.3),transparent);border:1px solid #1F2937;border-radius:12px;margin-bottom:10px;transition:all .2s}
+.prov-new:hover{border-color:#3B82F6;transform:translateX(-3px)}
+.prov-new-row{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:18px;align-items:center}
+.prov-status-icon{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+.prov-status-icon.done{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3)}
+.prov-status-icon.partial{background:rgba(252,211,77,.15);border:1px solid rgba(252,211,77,.3)}
+.prov-status-icon.empty{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3)}
+.prov-name-block .name{font-size:14px;font-weight:800;color:#F3F4F6;margin-bottom:3px}
+.prov-name-block .meta{font-size:11px;color:#9CA3AF}
+.prov-progress-block{display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:160px}
+.prov-progress-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#9CA3AF}
+.prov-progress-bar{width:120px;height:6px;background:#1F2937;border-radius:100px;overflow:hidden}
+.prov-progress-fill{height:100%;border-radius:100px}
+.prov-progress-fill.done{background:linear-gradient(90deg,#10B981,#34D399)}
+.prov-progress-fill.partial{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.prov-progress-fill.empty{background:linear-gradient(90deg,#DC2626,#F87171)}
+.prov-amount{text-align:left}
+.prov-amount-usd{font-size:14px;font-weight:800;color:#3B82F6}
+.prov-amount-egp{font-size:10px;color:#9CA3AF;margin-top:2px}
+.prov-add-btn{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:#60A5FA;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* ─── Design 5: Bulk action ─── */
+.bulk-old{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:transparent;border:1px solid #4B5563;color:#9CA3AF;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+
+.bulk-new{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(16,185,129,.3);transition:all .2s}
+.bulk-new:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(16,185,129,.45)}
+
+.cta-bar{position:sticky;bottom:20px;display:flex;gap:12px;justify-content:center;padding:18px;background:linear-gradient(135deg,rgba(99,102,241,.95),rgba(139,92,246,.95));backdrop-filter:blur(10px);border-radius:14px;border:1px solid rgba(255,255,255,.15);margin-top:32px;box-shadow:0 12px 40px rgba(99,102,241,.3)}
+.cta-bar .label{color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px}
+.cta-bar select{background:#1E1B4B;color:#fff;border:1px solid rgba(255,255,255,.3);padding:8px 14px;border-radius:10px;font-family:inherit;font-weight:700;font-size:12px}
+.note{padding:8px 12px;background:rgba(252,211,77,.1);border:1px solid rgba(252,211,77,.3);border-radius:8px;font-size:11px;color:#FCD34D;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="preview-shell">
+
+<div class="preview-hdr">
+  <h1>🎨 معاينة تصاميم كشف الإعاشة الجديدة</h1>
+  <p>كل تصميم بيتعرض "قبل" و"بعد" — بياناتك الفعلية. مفيش حاجة اتعدّلت فى الموقع لسه.</p>
+</div>
+
+<!-- ═══ Design 1 ═══ -->
+<div class="section">
+  <div class="section-title"><span class="section-num">1</span> توليبار منظّم بـ Priority Levels</div>
+  <p class="section-desc">إعادة ترتيب الأزرار حسب الأهمية — الـ primary action (إضافة مهندس) بارز، والـ export فى زاوية بعيدة.</p>
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-label before">⚡ قبل — كل الأزرار بنفس الحجم/اللون</div>
+      <div class="toolbar-old">
+        <button>Excel</button>
+        <button>PDF</button>
+        <button>حفظ الشهر</button>
+        <button>نقل لمصر</button>
+        <button>نقل مهندس</button>
+        <button>+ مهندس</button>
+        <input placeholder="بحث في المهندسين...">
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-label after">✓ بعد — Hierarchy واضح</div>
+      <div class="toolbar-new">
+        <button class="btn-primary">+ مهندس جديد</button>
+        <div class="tb-divider"></div>
+        <div class="tb-group">
+          <button class="btn-secondary">🔄 نقل مهندس</button>
+          <button class="btn-secondary">🇪🇬 نقل لمصر</button>
+        </div>
+        <div class="tb-divider"></div>
+        <button class="btn-success">💾 حفظ الشهر</button>
+        <div class="tb-divider"></div>
+        <div class="tb-group">
+          <button class="btn-ghost">📊 Excel</button>
+          <button class="btn-ghost">📄 PDF</button>
+        </div>
+        <div class="search-box"><input placeholder="بحث في المهندسين..."></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Design 2 ═══ -->
+<div class="section">
+  <div class="section-title"><span class="section-num">2</span> صف المهندس مدمج وأنظف</div>
+  <p class="section-desc">بدل صف من 12 عمود زاحم، كرت متراص بـ3 أسطر — اسم/إجراءات، النصفين جنب بعض، الإجمالى أسفل.</p>
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-label before">⚡ قبل — صف زحام بأرقام مكررة</div>
+      <div class="eng-old">
+        <div>17</div>
+        <div class="nm">محمد يوسف عبد الواحد</div>
+        <div>ضبط جودة</div>
+        <div>$0.0<br>0ج.م</div>
+        <div>0</div>
+        <div><span class="badge-old">معلق</span></div>
+        <div>$0.0<br>0ج.م</div>
+        <div>0</div>
+        <div><span class="badge-old">معلق</span></div>
+        <div>0.0</div>
+        <div>0</div>
+        <div style="display:flex;gap:3px"><button class="act-old">✕</button><button class="act-old">✏</button></div>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-label after">✓ بعد — كرت متراص hover-aware</div>
+      <div class="eng-new">
+        <div class="eng-new-row1">
+          <div style="display:flex;align-items:center">
+            <span class="eng-num">17</span>
+            <div class="eng-info">
+              <span class="eng-name">محمد يوسف عبد الواحد</span>
+              <span class="eng-spec">ضبط جودة</span>
+            </div>
+          </div>
+          <div class="eng-status-pills">
+            <span class="pill pill-pending">⏳ نصف 1</span>
+            <span class="pill pill-pending">⏳ نصف 2</span>
+          </div>
+        </div>
+        <div class="eng-halves">
+          <div class="half-cell">
+            <div class="half-label">النصف الأول · أيام 1-15</div>
+            <div class="half-content">
+              <input class="half-input" value="0">
+              <span class="half-amount">→ $0.00</span>
+            </div>
+          </div>
+          <div class="half-cell">
+            <div class="half-label">النصف التانى · أيام 16-30</div>
+            <div class="half-content">
+              <input class="half-input" value="0">
+              <span class="half-amount">→ $0.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="eng-totals">
+          <div class="eng-totals-left">
+            <span class="tot-label">💰 الإجمالى:</span>
+            <span class="tot-usd">$0.00</span>
+            <span style="color:#6B7280">≈</span>
+            <span class="tot-egp">0 ج.م</span>
+          </div>
+          <div class="eng-actions">
+            <button class="act-btn">✏️</button>
+            <button class="act-btn danger">🗑️</button>
+          </div>
+        </div>
+      </div>
+      <!-- مثال ثانى مدفوع -->
+      <div class="eng-new" style="margin-top:8px">
+        <div class="eng-new-row1">
+          <div style="display:flex;align-items:center">
+            <span class="eng-num">3</span>
+            <div class="eng-info">
+              <span class="eng-name">أمين قرنى</span>
+              <span class="eng-spec">منسق مستندات</span>
+            </div>
+          </div>
+          <div class="eng-status-pills">
+            <span class="pill pill-paid">✓ نصف 1</span>
+            <span class="pill pill-paid">✓ نصف 2</span>
+          </div>
+        </div>
+        <div class="eng-halves">
+          <div class="half-cell">
+            <div class="half-label">النصف الأول · أيام 1-15</div>
+            <div class="half-content">
+              <input class="half-input" value="15">
+              <span class="half-amount">→ $135.00</span>
+            </div>
+          </div>
+          <div class="half-cell">
+            <div class="half-label">النصف التانى · أيام 16-30</div>
+            <div class="half-content">
+              <input class="half-input" value="15">
+              <span class="half-amount">→ $135.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="eng-totals">
+          <div class="eng-totals-left">
+            <span class="tot-label">💰 الإجمالى:</span>
+            <span class="tot-usd">$270.00</span>
+            <span style="color:#6B7280">≈</span>
+            <span class="tot-egp">14,233 ج.م</span>
+          </div>
+          <div class="eng-actions">
+            <button class="act-btn">✏️</button>
+            <button class="act-btn danger">🗑️</button>
+          </div>
+        </div>
+      </div>
+      <div class="note">💡 زرار الحذف يظهر بـ opacity ضعيف، يبان كامل عند hover — منع الضغط الخاطئ.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Design 3 ═══ -->
+<div class="section">
+  <div class="section-title"><span class="section-num">3</span> كرت ملخص واحد بدل اتنين</div>
+  <p class="section-desc">دلوقتى عندك كارت "نصف أول" + كارت "نصف تانى" — واحد فيه أرقام والثاني فاضى. كرت واحد متجمع أحسن.</p>
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-label before">⚡ قبل — كرتين غير متوازنين</div>
+      <div class="sum-old">
+        <div class="sum-old-card">
+          <div class="lbl">النصف الأول</div>
+          <div class="val" style="color:#A78BFA">270.00 $</div>
+          <div class="sub">14,233 ج.م</div>
+        </div>
+        <div class="sum-old-card empty">
+          <div class="lbl">النصف الثانى</div>
+          <div class="val" style="color:#34D399">0.00 $</div>
+          <div class="sub">0 ج.م</div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-label after">✓ بعد — كرت واحد ملخص شامل</div>
+      <div class="sum-new">
+        <div class="sum-new-hdr">
+          <div class="sum-new-title">💰 إجمالى الإعاشة الشهرية</div>
+          <span class="sum-new-month">📅 مايو 2026</span>
+        </div>
+        <div class="sum-new-grid">
+          <div class="sum-new-cell usd">
+            <div class="lbl">بالدولار</div>
+            <div class="val"><span class="currency">$</span>270</div>
+          </div>
+          <div class="sum-new-cell egp">
+            <div class="lbl">بالجنيه المصرى</div>
+            <div class="val">14,233<span class="currency"> ج.م</span></div>
+          </div>
+          <div class="sum-new-cell progress">
+            <div class="lbl">نسبة الإنجاز</div>
+            <div class="val">50% مكتمل</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+            <div class="halves-status">
+              <span>النصف الأول: <span class="check">✓ تم</span></span>
+              <span>النصف التانى: <span class="pending">⏳ معلق</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Design 4 ═══ -->
+<div class="section">
+  <div class="section-title"><span class="section-num">4</span> Province Header مع Status Indicator</div>
+  <p class="section-desc">بدل قراءة الأرقام، مؤشر بصرى سريع لكل محافظة — اللى محتاج شغل واضح فوراً.</p>
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-label before">⚡ قبل — كله بنفس الشكل</div>
+      <div>
+        <div class="prov-old">
+          <div class="prov-old-row">
+            <div class="prov-old-name"><span class="prov-old-dot" style="background:#3B82F6"></span> محافظة درنة (10 مهندس)</div>
+            <span style="color:#34D399">$ 1,200</span>
+          </div>
+        </div>
+        <div class="prov-old">
+          <div class="prov-old-row">
+            <div class="prov-old-name"><span class="prov-old-dot" style="background:#10B981"></span> محافظة البيضاء (11 مهندس)</div>
+            <span style="color:#FCD34D">$ 900</span>
+          </div>
+        </div>
+        <div class="prov-old">
+          <div class="prov-old-row">
+            <div class="prov-old-name"><span class="prov-old-dot" style="background:#FCD34D"></span> محافظة بنغازى (7 مهندس)</div>
+            <span>$ 0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-label after">✓ بعد — أيقونة + شريط تقدم لكل محافظة</div>
+      <div>
+        <div class="prov-new">
+          <div class="prov-new-row">
+            <div class="prov-status-icon done">✓</div>
+            <div class="prov-name-block">
+              <div class="name">محافظة درنة</div>
+              <div class="meta">10 مهندس · كل النصفين مدفوع</div>
+            </div>
+            <div class="prov-progress-block">
+              <div class="prov-progress-row">
+                <span class="prov-progress-bar"><span class="prov-progress-fill done" style="width:100%"></span></span>
+                <span style="color:#34D399;font-weight:800">100%</span>
+              </div>
+            </div>
+            <div class="prov-amount">
+              <div class="prov-amount-usd">$1,200</div>
+              <div class="prov-amount-egp">63,276 ج.م</div>
+            </div>
+            <button class="prov-add-btn">+ إضافة</button>
+          </div>
+        </div>
+        <div class="prov-new">
+          <div class="prov-new-row">
+            <div class="prov-status-icon partial">⏳</div>
+            <div class="prov-name-block">
+              <div class="name">محافظة البيضاء</div>
+              <div class="meta">11 مهندس · النصف الأول فقط</div>
+            </div>
+            <div class="prov-progress-block">
+              <div class="prov-progress-row">
+                <span class="prov-progress-bar"><span class="prov-progress-fill partial" style="width:50%"></span></span>
+                <span style="color:#FCD34D;font-weight:800">50%</span>
+              </div>
+            </div>
+            <div class="prov-amount">
+              <div class="prov-amount-usd">$900</div>
+              <div class="prov-amount-egp">47,457 ج.م</div>
+            </div>
+            <button class="prov-add-btn">+ إضافة</button>
+          </div>
+        </div>
+        <div class="prov-new">
+          <div class="prov-new-row">
+            <div class="prov-status-icon empty">!</div>
+            <div class="prov-name-block">
+              <div class="name">محافظة بنغازى</div>
+              <div class="meta">7 مهندس · لم يبدأ بعد</div>
+            </div>
+            <div class="prov-progress-block">
+              <div class="prov-progress-row">
+                <span class="prov-progress-bar"><span class="prov-progress-fill empty" style="width:0%"></span></span>
+                <span style="color:#F87171;font-weight:800">0%</span>
+              </div>
+            </div>
+            <div class="prov-amount">
+              <div class="prov-amount-usd">$0</div>
+              <div class="prov-amount-egp">0 ج.م</div>
+            </div>
+            <button class="prov-add-btn">+ إضافة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Design 5 ═══ -->
+<div class="section">
+  <div class="section-title"><span class="section-num">5</span> زرار "تأشير الكل" بارز</div>
+  <p class="section-desc">دلوقتى صغير وخفى. لازم يكون ملفت لأنه action مهم.</p>
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-label before">⚡ قبل — صغير وخفى</div>
+      <div style="padding:14px;background:#0B0E15;border:1px solid #1F2937;border-radius:8px;text-align:center">
+        <button class="bulk-old">✓ تأشير الكل</button>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-label after">✓ بعد — Call-to-action واضح</div>
+      <div style="padding:14px;background:#0B0E15;border:1px solid #1F2937;border-radius:8px;text-align:center">
+        <button class="bulk-new">✓ تأشير كل المهندسين كمدفوع</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CTA ═══ -->
+<div class="cta-bar">
+  <span class="label">🤔 أى تصاميم تحب أنفّذها؟</span>
+  <select>
+    <option>كله (الـ5 تصاميم)</option>
+    <option>أهمهم: 1 + 2 + 4</option>
+    <option>أعمل واحد بس وأشوف نتيجته</option>
+  </select>
+</div>
+
+<p style="text-align:center;color:#6B7280;font-size:11px;margin-top:30px">
+  📌 ده preview ثابت — لسه ما اتعدلش حاجة فى الموقع. قولى أى تصاميم تنفّذ، وأنا هطبقهم على الصفحة الفعلية.
+</p>
+
+</div>
+</body>
+</html>
