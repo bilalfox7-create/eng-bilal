@@ -2834,12 +2834,14 @@ function App(){
     const pctLYD=Math.max(0,Math.min(100,Math.round(pctLYDraw)));
     /* احسب pctReal: المصروفات الفعلية على بنود (items فقط، بدون
        التحويلات) ÷ إجمالى ما استُلم من العهد (custody فقط).
-       نحوّل العملتين لقيمة واحدة بالدولار باستخدام rate آخر تحويل. */
+       نحوّل العملتين لقيمة واحدة بالدولار باستخدام متوسط ترجيحى لأسعار
+       كل التحويلات (أدق من آخر سعر فقط لو فى أكثر من تحويل بأسعار مختلفة). */
     let pctReal;
     let rateLYD=0;
     if(aggTransfers.length){
-      const last=aggTransfers[aggTransfers.length-1];
-      if(+last.rate>0)rateLYD=+last.rate;
+      const totUSDtrf=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
+      const totLYDtrf=aggTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
+      if(totUSDtrf>0)rateLYD=totLYDtrf/totUSDtrf;
     }
     if(rateLYD>0){
       const trueReceivedUSDeq=custodyUSD+custodyLYD/rateLYD;
