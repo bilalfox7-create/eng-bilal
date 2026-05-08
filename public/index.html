@@ -4148,7 +4148,69 @@ function App(){
       else if(d.s==='A')A++;else if(d.s==='AL')AL++;else if(d.s==='SL')SL++;else if(d.s==='EL')EL++;else if(d.s==='H')H++;
     });
     if(year&&month){const dim=new Date(year,month,0).getDate();for(let d=1;d<=dim;d++)if(new Date(year,month-1,d).getDay()===5)H++;}
-    return{P,A,AL,SL,EL,H,vac:AL+SL+EL,hrs:Math.floor(mins/60),min:mins%60};
+    /* ── Egypt-leave OVERRIDE (تطبيق على كل الإحصاءات) ──
+       لو المهندس فى إجازة مصر يوم معين، الـ cell بيظهر 'م' بغضّ النظر عن
+       الـ status اليدوى (P/A/إلخ). كده الـ summary لازم يطرح الأيام دى من
+       حسابات الحضور والغياب عشان الأرقام تطابق الخلايا.
+
+       هذا التطبيق هنا داخل attGetStats يجعل كل الـ call sites (live grid،
+       header summary، Excel، history، PDFs) متطابقة تلقائيًا — بدلاً من
+       تكرار المنطق فى كل مكان.
+       اشتراك ساعات العمل (mins) ما يتأثرش هنا — يفترض الإصلاح مفروض يخصم
+       ساعات أيام الإجازة من mins. سنعالجه بنفس المنطق. */
+    let pInLeave=0,aInLeave=0,egyptDays=0,minsInLeave=0;
+    if(year&&month){
+      /* فحص cross-month: لو الـ egyptLeaves[] مسجلة على سجل المهندس فى أى شهر،
+         الفحص لازم يلاقيها. فاحص داخلى يبحث عبر كل سجلات هذا المهندس. */
+      const _isEgyptLeaveDay=(ds)=>{
+        try{
+          for(const k of Object.keys(months||{})){
+            if(k==='leaves')continue;
+            const md=months[k];if(!md?.data)continue;
+            for(const p of Object.keys(md.data)){
+              const e=(md.data[p]||[]).find(x=>x?.id===engId);
+              if(e&&isOnEgyptLeaveDate(e,ds))return true;
+            }
+          }
+        }catch(_){}
+        return false;
+      };
+      const dim=new Date(year,month,0).getDate();
+      for(let d=1;d<=dim;d++){
+        if(new Date(year,month-1,d).getDay()===5)continue; /* تجاهل الجمعة */
+        const ds=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        if(_isEgyptLeaveDay(ds)){
+          egyptDays++;
+          const cell=ea[d];const cellSt=cell?.s;
+          if(cellSt==='P'){
+            pInLeave++;
+            /* اطرح ساعات هذا اليوم من mins */
+            if(cell.in&&cell.out){
+              const[ih,im]=cell.in.split(':').map(Number);
+              const[oh,om]=cell.out.split(':').map(Number);
+              const dm=(oh*60+om)-(ih*60+im);
+              minsInLeave+=dm>0?dm:8*60;
+            }else{
+              minsInLeave+=8*60;
+            }
+          }else if(cellSt==='A')aInLeave++;
+        }
+      }
+    }
+    const adjP=Math.max(0,P-pInLeave);
+    const adjA=Math.max(0,A-aInLeave);
+    const adjMins=Math.max(0,mins-minsInLeave);
+    return{
+      /* ADJUSTED counts — egypt-leave OVERRIDE applied (default — استخدمها فى الـ summary) */
+      P:adjP,A:adjA,
+      hrs:Math.floor(adjMins/60),min:adjMins%60,
+      /* RAW counts — قبل الـ override (للأماكن النادرة اللى محتاجة الرقم الخام) */
+      Praw:P,Araw:A,hrsRaw:Math.floor(mins/60),
+      /* Egypt-leave breakdown */
+      egyptDays,pInLeave,aInLeave,
+      /* الإجازات الرسمية (AL/SL/EL/H) — ما تتأثرش */
+      AL,SL,EL,H,vac:AL+SL+EL
+    };
   };
 
   /* ── Multi-month leave display helpers ──────────────────────────
@@ -8450,7 +8512,14 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           const bulkSet=status=>{if(!todayD||attSelected.size===0)return;attSelected.forEach(id=>attSetStatus(id,todayD,status));setAttSelected(new Set());};
           const handleRowKey=(e,engId)=>{if(!todayD)return;const k=e.key;if(k==="ح"||k==="p"||k==="P"){e.preventDefault();attSetStatus(engId,todayD,"P");}else if(k==="غ"||k==="a"||k==="A"){e.preventDefault();attSetStatus(engId,todayD,"A");}else if(k==="ا"||k==="l"||k==="L"){e.preventDefault();attSetStatus(engId,todayD,"AL");}};
           /* Multi-month leave: sum FULL leave durations across overlapping months for display */
-          const allStats=provEngs.reduce((a,e)=>{const s=attGetStats(e.id,att,cfg.year,cfg.month);const v=getDisplayLeaveDays(e.id,cfg.year,cfg.month,s.vac);return{P:a.P+s.P,A:a.A+s.A,H:a.H+s.H,vac:a.vac+v,hrs:a.hrs+s.hrs};},{P:0,A:0,H:0,vac:0,hrs:0});
+          /* allStats — s.P و s.A بقت adjusted تلقائياً بعد تطبيق egypt-leave OVERRIDE
+             داخل attGetStats. الـ egyptDays تُستخدم لعرض إجمالى أيام إجازة (مصر). */
+          const allStats=provEngs.reduce((a,e)=>{
+            const s=attGetStats(e.id,att,cfg.year,cfg.month);
+            const v=getDisplayLeaveDays(e.id,cfg.year,cfg.month,s.vac);
+            const eg=getDisplayEgyptLeaveDays(e.id,cfg.year,cfg.month,s.egyptDays||0);
+            return{P:a.P+s.P,A:a.A+s.A,H:a.H+s.H,vac:a.vac+v,egyptDays:a.egyptDays+eg,hrs:a.hrs+s.hrs};
+          },{P:0,A:0,H:0,vac:0,egyptDays:0,hrs:0});
 
           /* ── Vacation balance display REMOVED — engineers may take more than 15 days ── */
           const getAutoState=(eng,d)=>{
@@ -8523,20 +8592,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const rows=provEngs.map(eng=>{
               const s=attGetStats(eng.id,att,cfg.year,cfg.month);
               const eAtt=att[eng.id]||{};
-              /* Count egypt-leave days + adjust P/A counts: egypt-leave OVERRIDES any manual P/A,
-                 so subtract days where engineer was on egypt-leave from the P/A counts to keep
-                 the summary consistent with the cell display. */
-              let egyptDays=0,pInLeave=0,aInLeave=0;
-              for(let d=1;d<=daysInMonth;d++){
-                const ds=`${cfg.year}-${String(cfg.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                if(!isWknd(d)&&isLeaveDay(eng.id,ds)){
-                  egyptDays++;
-                  const cellSt=eAtt[d]?.s;
-                  if(cellSt==='P')pInLeave++;else if(cellSt==='A')aInLeave++;
-                }
-              }
-              const adjP=Math.max(0,s.P-pInLeave);
-              const adjA=Math.max(0,s.A-aInLeave);
+              /* attGetStats دلوقتى بيطبق egypt-leave OVERRIDE داخلياً — s.P و s.A
+                 بقت مضبوطة. egyptDays متاحة من s.egyptDays. */
+              const adjP=s.P,adjA=s.A,egyptDays=s.egyptDays||0;
               /* Multi-month leave display: sum FULL durations of leaves overlapping this month */
               const vacFull=getDisplayLeaveDays(eng.id,cfg.year,cfg.month,s.vac);
               const egyptFull=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,egyptDays);
@@ -8775,17 +8833,8 @@ ${PROVS.map(prov=>{
       }
       return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
     }).join('');
-    /* Egypt-leave OVERRIDES P/A counts in summary so it matches the cell display */
-    let pInLeave=0,aInLeave=0;
-    for(let d=1;d<=dIM;d++){
-      const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      if(!isFri(d)&&isLeaveDayPM(eng.id,ds)){
-        const cellSt=eAtt[d]?.s;
-        if(cellSt==='P')pInLeave++;else if(cellSt==='A')aInLeave++;
-      }
-    }
-    const adjP=Math.max(0,s.P-pInLeave);
-    const adjA=Math.max(0,s.A-aInLeave);
+    /* attGetStats دلوقتى بيطبق egypt-leave OVERRIDE داخلياً — s.P و s.A مضبوطة. */
+    const adjP=s.P,adjA=s.A;
     /* Multi-month leave: show full duration in summary */
     const vacFull=getDisplayLeaveDays(eng.id,y,m,s.vac);
     return`<tr><td style="${nmTdS}">${eng.name}<br><span style="font-size:8.5px;color:#64748B">${eng.spec}</span></td>${cells}
@@ -8876,6 +8925,8 @@ ${PROVS.map(prov=>{
               [{v:allStats.P,l:"إجمالي أيام الحضور",c:"#10B981",bg:"rgba(16,185,129,.1)"},
                {v:allStats.A,l:"إجمالي أيام الغياب",c:"#EF4444",bg:"rgba(239,68,68,.1)"},
                {v:allStats.vac,l:"إجمالي أيام الإجازات",c:"#60A5FA",bg:"rgba(96,165,250,.1)"},
+               /* أضيف فقط لو فى أيام إجازة مصر فعلاً — مش يعرض 0 صف فاضى */
+               ...(allStats.egyptDays>0?[{v:allStats.egyptDays,l:"إجمالي أيام إجازة (مصر)",c:"#EA580C",bg:"rgba(234,88,12,.1)"}]:[]),
                {v:allStats.hrs+"h",l:"ساعات العمل التقديرية",c:"#FCD34D",bg:"rgba(252,211,77,.1)"}]
               .map(({v,l,c,bg})=>h("div",{key:l,className:"att-sum-card",style:{borderColor:bg}},
                 h("div",{className:"att-sum-val",style:{color:c}},v),
@@ -9038,16 +9089,18 @@ ${PROVS.map(prov=>{
                                   )
                             );
                           })(),
-                          /* Summary */
-                          h("td",{className:"att-td-sum"},
+                          /* Summary — s.P و s.A بقت adjusted تلقائياً (egypt-leave OVERRIDE) */
+                          (()=>{const egFull=getDisplayEgyptLeaveDays(eng.id,cfg.year,cfg.month,s.egyptDays||0);
+                          return h("td",{className:"att-td-sum"},
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#10B981"}}),h("span",{className:"att-stat-val"},s.P),h("span",{className:"att-stat-lbl"},"حضور")),
                             h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EF4444"}}),h("span",{className:"att-stat-val"},s.A),h("span",{className:"att-stat-lbl"},"غياب")),
                             s.H>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#94A3B8"}}),h("span",{className:"att-stat-val"},s.H),h("span",{className:"att-stat-lbl"},"عطلة رسمية")),
                             sVacFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#60A5FA"}}),h("span",{className:"att-stat-val"},sVacFull),h("span",{className:"att-stat-lbl"},sVacFull>s.vac?"إجازة (كاملة)":"إجازة (شهر)")),
+                            egFull>0&&h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#EA580C"}}),h("span",{className:"att-stat-val"},egFull),h("span",{className:"att-stat-lbl"},"إجازة (مصر)")),
                             h("div",{className:"att-stat-div"},
                               h("div",{className:"att-stat-row"},h("div",{className:"att-stat-dot",style:{background:"#FCD34D"}}),h("span",{className:"att-stat-val"},s.hrs+"h"),h("span",{className:"att-stat-lbl"},"عمل"))
                             )
-                          )
+                          );})()
                         );
                       })
                     )
