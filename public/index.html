@@ -4870,13 +4870,31 @@ function App(){
   const submitExp=async()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
     const usd=+expForm.usd||0,lyd=+expForm.lyd||0;
-    // Balance warning
+    // Balance warning — تحقق منطقى لكل عملة على حدة
+    // (cfg.egp هو سعر الجنيه المصرى مش الدينار الليبى — كان السبب فى تحذيرات
+    // غلط. هنا نتحقق عملة عملة، ولو فى تحويلات نستخدم الـ rate الفعلى للتحويل
+    // عشان نعرض رصيد مكافئ موحد.)
     if(!expForm.id){
-      const rate=(+cfg.egp)||5;
-      const newSpentUSD=usd+lyd/rate;
-      if(newSpentUSD>aggBalance.balanceUSD+aggBalance.balanceLYD/rate){
-        if(!confirm("⚠️ المبلغ المطلوب أكبر من الرصيد المتبقى — هل تريد المتابعة؟"))return;
+      const lydRate=aggBalance.hasRate?aggBalance.rateLYD:0;
+      const overUSD=usd>aggBalance.balanceUSD;
+      const overLYD=lyd>aggBalance.balanceLYD;
+      let warn='';
+      if(overUSD&&overLYD){
+        warn=`⚠️ المبلغ أكبر من الرصيد المتبقى لكل عملة\n• الدولار: مطلوب ${usd}$ والمتبقى ${aggBalance.balanceUSD.toFixed(0)}$\n• الدينار: مطلوب ${lyd} والمتبقى ${aggBalance.balanceLYD.toFixed(0)}\n\nهل تريد المتابعة؟`;
+      }else if(overUSD){
+        warn=`⚠️ مبلغ الدولار (${usd}$) أكبر من الرصيد المتبقى (${aggBalance.balanceUSD.toFixed(0)}$)`;
+        if(lydRate>0&&aggBalance.balanceLYD/lydRate>=(usd-aggBalance.balanceUSD)){
+          warn+=`\n💡 يمكنك تحويل من رصيد الدينار (${aggBalance.balanceLYD.toFixed(0)} د.ل ≈ ${(aggBalance.balanceLYD/lydRate).toFixed(0)}$)`;
+        }
+        warn+='\n\nهل تريد المتابعة؟';
+      }else if(overLYD){
+        warn=`⚠️ مبلغ الدينار (${lyd} د.ل) أكبر من الرصيد المتبقى (${aggBalance.balanceLYD.toFixed(0)} د.ل)`;
+        if(lydRate>0&&aggBalance.balanceUSD*lydRate>=(lyd-aggBalance.balanceLYD)){
+          warn+=`\n💡 يمكنك تحويل من رصيد الدولار (${aggBalance.balanceUSD.toFixed(0)}$ ≈ ${(aggBalance.balanceUSD*lydRate).toFixed(0)} د.ل)`;
+        }
+        warn+='\n\nهل تريد المتابعة؟';
       }
+      if(warn&&!confirm(warn))return;
     }
     const ni=[...expItems];
     const item={...expForm,usd,lyd};
@@ -5066,7 +5084,10 @@ function App(){
       if(!byCat[k])byCat[k]={count:0,usd:0,lyd:0};
       byCat[k].count++;byCat[k].usd+=+e.usd||0;byCat[k].lyd+=+e.lyd||0;
     });
-    const catRows=Object.entries(byCat).sort((a,b)=>(b[1].usd+b[1].lyd/((+cfg.egp)||5))-(a[1].usd+a[1].lyd/((+cfg.egp)||5)));
+    /* استخدم سعر صرف الدينار (من آخر تحويل) بدل cfg.egp (سعر الجنيه المصرى)
+       — كان السبب فى ترتيب غلط للتصنيفات. */
+    const _lydRate=aggBalance.hasRate?aggBalance.rateLYD:5;
+    const catRows=Object.entries(byCat).sort((a,b)=>(b[1].usd+b[1].lyd/_lydRate)-(a[1].usd+a[1].lyd/_lydRate));
     // Group by province
     const byProv={};
     filteredExpItems.forEach(e=>{
@@ -7608,7 +7629,12 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     const trfIn=transfers.filter(t=>t.toCustodyId===c.id).reduce((a,t)=>a+(+t.lyd||0),0);
                     const remUSD=(+c.usd||0)-dedUSD-trfOut;
                     const remLYD=(+c.lyd||0)-dedLYD+trfIn;
-                    const pctUSD=c.usd>0?Math.min(100,(dedUSD+trfOut)/c.usd*100):0;
+                    /* استهلاك لكل عملة منفصل — pctUSD/pctLYD لـ pool الدولار/الدينار
+                       فى هذه العهدة فقط (وليس كل العهد). الشريطين منفصلين عشان
+                       لو الدولار خلص لكن الدينار لسه فيه (أو العكس) المستخدم يشوفها. */
+                    const pctUSD=c.usd>0?Math.max(0,Math.min(100,Math.round((dedUSD+trfOut)/c.usd*100))):0;
+                    const totalLYDpool=(+c.lyd||0)+trfIn;
+                    const pctLYD=totalLYDpool>0?Math.max(0,Math.min(100,Math.round(dedLYD/totalLYDpool*100))):0;
                     return h("div",{key:c.id,style:{background:"var(--bg3)",border:"1px solid var(--bdr2)",borderRadius:10,padding:14,position:"relative"}},
                       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
                         h("div",null,
@@ -7651,12 +7677,27 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                             c.usd>0?remUSD.toFixed(2)+" $":c.lyd>0?remLYD.toFixed(2)+" د.ل":"—")
                         )
                       ),
-                      /* شريط الاستهلاك */
-                      c.usd>0&&h("div",null,
-                        h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
-                          h("div",{style:{height:"100%",width:pctUSD.toFixed(1)+"%",background:pctUSD>80?"var(--red)":"var(--blue)",borderRadius:3,transition:"width .5s"}})
+                      /* شريط الاستهلاك — منفصل للدولار وللدينار (يخفى الشريط
+                         لو العملة المعنية مش موجودة فى هذه العهدة) */
+                      (c.usd>0||totalLYDpool>0)&&h("div",{style:{display:"flex",flexDirection:"column",gap:4}},
+                        c.usd>0&&h("div",null,
+                          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--sub)",marginBottom:2}},
+                            h("span",null,"$ الدولار"),
+                            h("span",{style:{fontWeight:700,color:pctUSD>=80?"var(--red)":pctUSD>=50?"var(--gold)":"var(--blue)"}},pctUSD+"% مستخدم")
+                          ),
+                          h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
+                            h("div",{style:{height:"100%",width:pctUSD+"%",background:pctUSD>=80?"var(--red)":pctUSD>=50?"var(--gold)":"var(--blue)",borderRadius:3,transition:"width .5s"}})
+                          )
                         ),
-                        h("div",{style:{fontSize:9,color:"var(--sub)",marginTop:3,textAlign:"left"}},pctUSD.toFixed(0)+"% مستخدم")
+                        totalLYDpool>0&&h("div",null,
+                          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--sub)",marginBottom:2}},
+                            h("span",null,"د.ل الدينار"),
+                            h("span",{style:{fontWeight:700,color:pctLYD>=80?"var(--red)":pctLYD>=50?"var(--gold)":"var(--blue)"}},pctLYD+"% مستخدم")
+                          ),
+                          h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
+                            h("div",{style:{height:"100%",width:pctLYD+"%",background:pctLYD>=80?"var(--red)":pctLYD>=50?"var(--gold)":"var(--blue)",borderRadius:3,transition:"width .5s"}})
+                          )
+                        )
                       ),
                       deducted.length>0&&h("div",{style:{marginTop:8,fontSize:10,color:"var(--sub)"}},
                         deducted.length+" مصروف مخصوم"
