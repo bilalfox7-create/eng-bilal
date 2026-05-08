@@ -5899,8 +5899,14 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   };
 
   /* ── Leaves PDF (all leaves with status) ── */
-  const printLeavesPDF=(mode='print')=>{
-    const fmtN=n=>(+n||0).toLocaleString('ar-EG');
+  /* printLeavesPDF — يطبع تقرير الإجازات.
+     filter يقبل:
+       null/'all'  → كل الطلبات (سلوك افتراضى)
+       'pending'   → فقط قيد الانتظار
+       'approved'  → فقط معتمدة (يفصل بين المسافرين الآن، المعتمدين قبل السفر،
+                     والذين أنهوا الإجازة)
+       'rejected'  → فقط مرفوضة/ملغية */
+  const printLeavesPDF=(mode='print',filter=null)=>{
     const list=isProvince?leaves.filter(l=>l.prov===userProv):leaves;
     const approved=list.filter(l=>l.status==='approved');
     const pending=list.filter(l=>l.status==='pending');
@@ -5911,15 +5917,43 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       const t=new Date(l.travelDate+'T12:00'),r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
       return t<=today&&(!r||today<=r);
     });
-    const summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-      <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${approved.length}</div><div style="font-size:10px;color:#065F46;font-weight:700">معتمدة</div></div>
-      <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#D97706">${pending.length}</div><div style="font-size:10px;color:#78350F;font-weight:700">معلقة</div></div>
-      <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${onLeaveNow.length}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">في إجازة الآن</div></div>
-      <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${cancelled.length}</div><div style="font-size:10px;color:#991B1B;font-weight:700">ملغية / مرفوضة</div></div>
-    </div>`;
+    /* النص المعروض فى الهيدر + الـ summary حسب الفلتر */
+    const f=filter==='all'?null:filter;
+    const titleMap={pending:'تقرير الإجازات — قيد الانتظار',approved:'تقرير الإجازات — معتمدة',rejected:'تقرير الإجازات — مرفوضة/ملغية'};
+    const subMap={pending:`الإجازات اللى لسه فى انتظار الموافقة (${pending.length} طلب)`,approved:`الإجازات المعتمدة (${approved.length} طلب)`,rejected:`الإجازات المرفوضة أو الملغية (${cancelled.length} طلب)`};
+    const title=titleMap[f]||'تقرير الإجازات الشامل';
+    const subtitle=subMap[f]||'كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ والمدة';
+    /* الـ summary cards: يعرض الـ4 لو الكل، أو واحدة بس لو فلتر معين */
+    let summary='';
+    if(!f){
+      summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+        <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#059669">${approved.length}</div><div style="font-size:10px;color:#065F46;font-weight:700">معتمدة</div></div>
+        <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#D97706">${pending.length}</div><div style="font-size:10px;color:#78350F;font-weight:700">معلقة</div></div>
+        <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563EB">${onLeaveNow.length}</div><div style="font-size:10px;color:#1E40AF;font-weight:700">في إجازة الآن</div></div>
+        <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#DC2626">${cancelled.length}</div><div style="font-size:10px;color:#991B1B;font-weight:700">ملغية / مرفوضة</div></div>
+      </div>`;
+    }
     const stBadge=st=>{const m={'approved':['#ECFDF5','#059669','معتمدة'],'pending':['#FFFBEB','#D97706','معلقة'],'cancelled':['#FEF2F2','#DC2626','ملغية'],'rejected':['#FEF2F2','#DC2626','مرفوضة']};const x=m[st]||['#F1F5F9','#64748B',st||'—'];return `<span style="background:${x[0]};color:${x[1]};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${x[2]}</span>`;};
-    const renderTable=(arr,title)=>arr.length?`<div class="section"><div class="section-title">${title} (${arr.length})</div><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th style="text-align:center">المدة</th><th>السبب</th><th>الحالة</th></tr></thead><tbody>${arr.map(l=>`<tr><td style="font-weight:700">${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td style="text-align:center;font-weight:700">${l.durationDays||'—'} ${l.durationDays?'يوم':''}</td><td style="font-size:10px;color:#64748B">${l.reason||'—'}</td><td>${stBadge(l.status)}</td></tr>`).join('')}</tbody></table></div>`:'';
-    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الإجازات</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الإجازات','كل الإجازات (معتمدة، معلقة، ملغية) مع التواريخ والمدة')}${summary}${renderTable(onLeaveNow,'✈️ في إجازة الآن')}${renderTable(approved.filter(l=>!onLeaveNow.includes(l)),'✅ إجازات معتمدة')}${renderTable(pending,'⏳ إجازات معلقة')}${renderTable(cancelled,'❌ إجازات ملغية / مرفوضة')}${list.length===0?'<div class="empty">لا توجد إجازات</div>':''}</body></html>`;
+    const renderTable=(arr,title)=>arr.length?`<div class="section"><div class="section-title">${title} (${arr.length})</div><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th style="text-align:center">المدة</th><th>التذكرة</th><th>ملاحظات</th><th>الحالة</th></tr></thead><tbody>${arr.map(l=>{const ts=l.ticketStatus||(l.ticketBooked?'booked':'notBooked');const tkt={booked:'محجوزة',notBooked:'غير محجوزة',postponed:'مؤجلة',cancelled:'ملغاة'}[ts]||'—';return `<tr><td style="font-weight:700">${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td style="text-align:center;font-weight:700">${l.durationDays||'—'} ${l.durationDays?'يوم':''}</td><td style="font-size:10px">${tkt}${l.ticketDetails?` · ${l.ticketDetails}`:''}</td><td style="font-size:10px;color:#64748B">${l.notes||l.cancelReason||'—'}</td><td>${stBadge(l.status)}</td></tr>`}).join('')}</tbody></table></div>`:'';
+    /* محتوى الـ tables — محسوب حسب الفلتر */
+    let content='';
+    if(!f){
+      content=renderTable(onLeaveNow,'✈️ في إجازة الآن')
+        +renderTable(approved.filter(l=>!onLeaveNow.includes(l)),'✅ إجازات معتمدة')
+        +renderTable(pending,'⏳ إجازات معلقة')
+        +renderTable(cancelled,'❌ إجازات ملغية / مرفوضة');
+      if(list.length===0)content='<div class="empty">لا توجد إجازات</div>';
+    }else if(f==='pending'){
+      content=renderTable(pending,'⏳ إجازات قيد الانتظار');
+      if(pending.length===0)content='<div class="empty">لا توجد طلبات قيد الانتظار</div>';
+    }else if(f==='approved'){
+      content=renderTable(onLeaveNow,'✈️ في إجازة الآن')+renderTable(approved.filter(l=>!onLeaveNow.includes(l)),'✅ إجازات معتمدة');
+      if(approved.length===0)content='<div class="empty">لا توجد إجازات معتمدة</div>';
+    }else if(f==='rejected'){
+      content=renderTable(cancelled,'❌ إجازات مرفوضة / ملغية');
+      if(cancelled.length===0)content='<div class="empty">لا توجد إجازات مرفوضة</div>';
+    }
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml(title,subtitle)}${summary}${content}</body></html>`;
     _openPdfWin(html,mode);
   };
 
@@ -9072,7 +9106,16 @@ ${PROVS.map(prov=>{
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
               leaveView==='list'
-                ?((isProvince||isAdmin)&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,isAdmin?"إضافة إجازة":"طلب إجازة جديد")))
+                ?h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+                    /* زرار الطباعة — يطبع التاب الحالى فقط (الكل/قيد الانتظار/موافق/مرفوض).
+                       يظهر فى عرض القائمة فقط (مش فى التقرير الشهرى أو الفورم) ولكل
+                       الأدوار اللى يقدروا يقرأوا الصفحة (admin/province/viewer/HR). */
+                    leaveTab!=='report'&&tabLvs.length>0&&h("button",{className:"btn",style:{gap:5,background:"rgba(127,119,221,.15)",borderColor:"rgba(127,119,221,.4)",color:"#7F77DD"},
+                      onClick:()=>printLeavesPDF('print',leaveTab),
+                      title:`طباعة ${tabLvs.length} طلب من تاب "${({all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض'})[leaveTab]||''}"`
+                    },h(Ic,{n:"pdf",sz:13}),h("span",null,`طباعة (${tabLvs.length})`)),
+                    (isProvince||isAdmin)&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,isAdmin?"إضافة إجازة":"طلب إجازة جديد"))
+                  )
                 :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
             returnAlerts.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
