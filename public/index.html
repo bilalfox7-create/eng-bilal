@@ -7335,13 +7335,18 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const anyLow=(aggBalance.hasUSD&&aggBalance.lowUSD)||(aggBalance.hasLYD&&aggBalance.lowLYD);
             const cardBg=anyCritical?"linear-gradient(135deg,rgba(248,113,113,.18),rgba(220,38,38,.05))":anyLow?"linear-gradient(135deg,rgba(252,211,77,.16),rgba(217,119,6,.04))":"linear-gradient(135deg,rgba(96,165,250,.14),rgba(167,139,250,.06))";
             const cardBorder=anyCritical?"#F87171":anyLow?"#FCD34D":"#60A5FA";
-            /* تحذير الكارت العلوى — يذكر أى عملة فى الخطر */
-            const warnings=[];
-            if(aggBalance.hasUSD&&aggBalance.criticalUSD)warnings.push(`الدولار ${aggBalance.pctUSD}%`);
-            else if(aggBalance.hasUSD&&aggBalance.lowUSD)warnings.push(`الدولار ${aggBalance.pctUSD}%`);
-            if(aggBalance.hasLYD&&aggBalance.criticalLYD)warnings.push(`الدينار ${aggBalance.pctLYD}%`);
-            else if(aggBalance.hasLYD&&aggBalance.lowLYD)warnings.push(`الدينار ${aggBalance.pctLYD}%`);
-            const warnText=warnings.length?(anyCritical?`⚠️ تجاوز 80%: ${warnings.join(' · ')}`:`⚠️ ${warnings.join(' · ')} — راقب المصروفات`):'';
+            /* تحذير الكارت العلوى — يفصل بدقّة بين العملات الـ critical
+               والـ low. لا يكتب "تجاوز 80%" قبل أرقام أصغر من ٨٠. */
+            const critList=[];
+            const lowList=[];
+            if(aggBalance.hasUSD&&aggBalance.criticalUSD)critList.push(`الدولار ${aggBalance.pctUSD}%`);
+            else if(aggBalance.hasUSD&&aggBalance.lowUSD)lowList.push(`الدولار ${aggBalance.pctUSD}%`);
+            if(aggBalance.hasLYD&&aggBalance.criticalLYD)critList.push(`الدينار ${aggBalance.pctLYD}%`);
+            else if(aggBalance.hasLYD&&aggBalance.lowLYD)lowList.push(`الدينار ${aggBalance.pctLYD}%`);
+            const parts=[];
+            if(critList.length)parts.push(`تجاوز 80%: ${critList.join(' · ')}`);
+            if(lowList.length)parts.push(`استهلاك مرتفع: ${lowList.join(' · ')}`);
+            const warnText=parts.length?`⚠️ ${parts.join(' · ')}`:'';
             /* بنّاء شريط لكل عملة — يُستخدم مرتين (دولار + دينار) */
             const buildBar=(label,pctVal,isCritical,isLow,hasIt,bal)=>{
               if(!hasIt)return null;
