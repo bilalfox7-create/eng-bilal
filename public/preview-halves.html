@@ -584,10 +584,124 @@ select.filter-sel{background:#0B0E15;border:1px solid #374151;border-radius:8px;
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
-<!-- SECTION 7: DATABASE CHANGES -->
+<!-- SECTION 7 (NEW): CARRY-OVER FROM PREVIOUS MONTHS -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 <div class="section">
-  <div class="sec-title"><span class="sec-num">٧</span> التغييرات المطلوبة في قاعدة البيانات</div>
+  <div class="sec-title"><span class="sec-num">٧</span> الأيام المرحّلة من شهور سابقة <span class="badge-new">جديد</span></div>
+  <div class="sec-desc">
+    لو فيه مهندس له أيام من شهر سابق ما تصرفتش (مثلاً النص التانى من شهر ٤ غير مدفوع لحد دلوقتي)، الأيام دي بتفضل ظاهرة فوق التقرير لحد ما تتصرف.<br>
+    بكدا ما حدش يضيع له حقه، والمدير يشوف الديون المستحقة في أي لحظة.
+  </div>
+
+  <!-- ── Top banner: Outstanding dues alert ── -->
+  <div style="background:linear-gradient(135deg,#78350F25,#92400E15);border:1px solid #D9770645;border-radius:14px;padding:18px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="font-size:32px;line-height:1;flex-shrink:0">⏳</div>
+    <div style="flex:1;min-width:200px">
+      <h4 style="font-size:14px;font-weight:900;color:#FCD34D;margin-bottom:4px">⚠️ يوجد ٤ مستحقات لم تُصرف من شهور سابقة</h4>
+      <p style="font-size:12px;color:#FDE68A;line-height:1.6">٤ مهندسين معلّقين دفعات من شهر مارس و إبريل — إجمالي ٥٢ يوم</p>
+    </div>
+    <button class="btn btn-pay1" style="padding:10px 18px">👁️ عرض التفاصيل</button>
+  </div>
+
+  <!-- ── Carry-over table ── -->
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المهندس</th>
+          <th>الشهر الأصلي</th>
+          <th>النصف</th>
+          <th>عدد الأيام</th>
+          <th>سبب التأخير</th>
+          <th>الإجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">١</td>
+          <td class="eng-name">محمد حمدي عبد الله</td>
+          <td><span class="chip chip-prov">إبريل ٢٠٢٦</span></td>
+          <td><span class="chip chip-half2">🟢 النص التانى</span></td>
+          <td><span class="days-val">١٤</span></td>
+          <td style="font-size:11px;color:#9CA3AF">لم يحضر للاستلام</td>
+          <td><button class="btn btn-pay2" style="padding:6px 12px;font-size:11px">💰 صرف الآن</button></td>
+        </tr>
+        <tr>
+          <td class="num">٢</td>
+          <td class="eng-name">أحمد محمود علي</td>
+          <td><span class="chip chip-prov">إبريل ٢٠٢٦</span></td>
+          <td><span class="chip chip-half2">🟢 النص التانى</span></td>
+          <td><span class="days-val">١٣</span></td>
+          <td style="font-size:11px;color:#9CA3AF">في إجازة</td>
+          <td><button class="btn btn-pay2" style="padding:6px 12px;font-size:11px">💰 صرف الآن</button></td>
+        </tr>
+        <tr>
+          <td class="num">٣</td>
+          <td class="eng-name">عمر سليمان حسن</td>
+          <td><span class="chip chip-prov">مارس ٢٠٢٦</span></td>
+          <td><span class="chip chip-half1">🔵 النص الأول</span></td>
+          <td><span class="days-val">١٥</span></td>
+          <td style="font-size:11px;color:#9CA3AF">خطأ إداري</td>
+          <td><button class="btn btn-pay1" style="padding:6px 12px;font-size:11px">💰 صرف الآن</button></td>
+        </tr>
+        <tr>
+          <td class="num">٤</td>
+          <td class="eng-name">سالم عمر المهدي</td>
+          <td><span class="chip chip-prov">إبريل ٢٠٢٦</span></td>
+          <td><span class="chip chip-half1">🔵 النص الأول</span></td>
+          <td><span class="days-val">١٠</span></td>
+          <td style="font-size:11px;color:#9CA3AF">صرف جزئي فقط</td>
+          <td><button class="btn btn-pay1" style="padding:6px 12px;font-size:11px">💰 صرف الباقي</button></td>
+        </tr>
+        <tr class="summary-row">
+          <td colspan="4" style="font-weight:800;color:#9CA3AF;font-size:11px">الإجمالي (٤ مستحقات معلّقة)</td>
+          <td><span class="days-val" style="font-size:15px;color:#FCD34D">٥٢</span><span style="font-size:10px;color:#9CA3AF"> يوم</span></td>
+          <td colspan="2"><button class="btn btn-full" style="padding:8px 14px;font-size:12px">💰 صرف جميع المستحقات المتأخرة</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── How it works: timeline / scenarios ── -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:18px">
+    <div style="background:#0B0E15;border-radius:12px;padding:16px;border:1px solid #1F2937">
+      <h4 style="font-size:13px;font-weight:800;color:#A78BFA;margin-bottom:8px">📅 سيناريو ١: مهندس في إجازة</h4>
+      <p style="font-size:11px;color:#9CA3AF;line-height:1.8">
+        مهندس كان في إجازة وقت صرف إعاشة النص التانى من شهر ٤.<br>
+        ⬇️<br>
+        في شهر ٥، النظام بيفكّرك إنه لسه له ١٣ يوم من شهر ٤، وبيقدر يقبضها مع إعاشة الشهر الحالي.
+      </p>
+    </div>
+    <div style="background:#0B0E15;border-radius:12px;padding:16px;border:1px solid #1F2937">
+      <h4 style="font-size:13px;font-weight:800;color:#A78BFA;margin-bottom:8px">⚠️ سيناريو ٢: صرف جزئي</h4>
+      <p style="font-size:11px;color:#9CA3AF;line-height:1.8">
+        مهندس قبض ٥ أيام من نص شهر ٤ بس بدل ١٠.<br>
+        ⬇️<br>
+        النظام بيحفظ إنه لسه له ٥ أيام، وبيظهرهم في "المستحقات المعلّقة" في الشهور الجاية لحد ما يقبضهم.
+      </p>
+    </div>
+    <div style="background:#0B0E15;border-radius:12px;padding:16px;border:1px solid #1F2937">
+      <h4 style="font-size:13px;font-weight:800;color:#A78BFA;margin-bottom:8px">📝 سيناريو ٣: خطأ إداري</h4>
+      <p style="font-size:11px;color:#9CA3AF;line-height:1.8">
+        أيام نص شهر ٣ ما تصرفتش بالغلط.<br>
+        ⬇️<br>
+        بمجرد ما تفتح كشف شهر ٥، البنر الأصفر فوق بيقولك "فيه مستحقات معلّقة من مارس" + زر صرف مباشر.
+      </p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:14px">
+    <strong>إزاي بيتكتشف؟</strong> النظام بيمشي على كل الشهور السابقة (٦ شهور للوراء مثلاً)، ولو لقى نصف فيه أيام (d1&gt;0 أو d2&gt;0) ومش مدفوع (paid1=false أو paid2=false) — بيضيفه للقائمة فوق تلقائياً.<br>
+    <strong>إزاي بيتدفع؟</strong> الضغط على "صرف الآن" بيحدّث paid1/paid2 للشهر الأصلي (مش الشهر الحالي) — كده الديون بتنتهي بدون ما تضيع.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: DATABASE CHANGES -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٨</span> التغييرات المطلوبة في قاعدة البيانات</div>
   <div class="sec-desc">
     الأعمدة الموجودة حالياً كافية — ما في حاجة لأعمدة جديدة.
     بس الـ API بيتغير عشان يقبل half=1 أو half=2 في طلبات الدفع.
@@ -613,7 +727,7 @@ select.filter-sel{background:#0B0E15;border:1px solid #374151;border-radius:8px;
   <div style="font-size:22px;margin-bottom:10px">👆</div>
   <h3 style="font-size:16px;font-weight:900;margin-bottom:8px;color:#A78BFA">شفت التصور؟ وديني نبدأ التنفيذ</h3>
   <p style="font-size:12px;color:#94A3B8;line-height:1.8;max-width:500px;margin:0 auto">
-    لو الشكل العام تمام، قول "تمام" وهنبدأ برمجة الـ ٧ أقسام في كشف الإعاشة الحقيقي.<br>
+    لو الشكل العام تمام، قول "تمام" وهنبدأ برمجة الـ ٨ أقسام في كشف الإعاشة الحقيقي.<br>
     لو في أي تعديل أو إضافة، اقولها وهنعدل التصور الأول.
   </p>
 </div>
