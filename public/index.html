@@ -1697,15 +1697,19 @@ const PROV_CITY={
 /* ── Helpers ────────────────────────────────────────────── */
 const f$=(n,d=2)=>isNaN(n)?"-":Number(n).toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' $';
 const fE=(n)=>isNaN(n)?"-":Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,",")+' ج.م';
-/* calc: e.extra carries to NEXT month (NOT in this month's tot).
-   incomingExtra is days carried IN from previous month — folded into a1 (d1 portion). */
-const calc=(e,r,eg,incomingExtra=0)=>{
+/* calc: manual model.
+   - d1 → إعاشة النص الأول
+   - d2 → إعاشة النص التانى
+   - e.extra → أيام قديمة (يدوي) — added directly to total, NOT folded into a1.
+   The 4th param is ignored (kept for legacy callers). */
+const calc=(e,r,eg,_legacyIgnored=0)=>{
   const dr=r/30;
-  const a1Reg=e.d1*dr;
-  const a2=e.d2*dr;
-  const inc=(+incomingExtra||0)*dr;
-  // a1 includes the incoming carryover so إعاشة 1 column shows combined amount
-  return{a1:a1Reg+inc,a1Reg,a1Inc:inc,a2,incoming:inc,incomingDays:+incomingExtra||0,tot:a1Reg+a2+inc,egp:(a1Reg+a2+inc)*eg};
+  const a1=(+e.d1||0)*dr;
+  const a2=(+e.d2||0)*dr;
+  const oldDays=+e.extra||0;
+  const oldAmt=oldDays*dr;
+  const tot=a1+a2+oldAmt;
+  return{a1,a2,oldDays,oldAmt,a1Reg:a1,a1Inc:0,incoming:0,incomingDays:0,tot,egp:tot*eg};
 };
 /* Auto-calc d1/d2/extra based on arrivalDate. Returns null if arrival not in target month.
    Disbursement model:
@@ -2567,13 +2571,9 @@ function App(){
     if(isNaN(y)||isNaN(m))return null;
     return m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,'0')}`;
   },[ak]);
-  /* Helper: get incoming extra days for engineer X from previous month */
-  const getIncomingExtra=useCallback((engId,prov)=>{
-    if(!prevAk)return 0;
-    const prevList=months[prevAk]?.data?.[prov]||[];
-    const prevEng=prevList.find(pe=>pe.id===engId);
-    return +(prevEng?.extra)||0;
-  },[months,prevAk]);
+  /* Deprecated: old days are now manual (entered by the user in the engineer row's "أيام قديمة" input).
+     This stub is kept so legacy callers don't throw — they all get 0. */
+  const getIncomingExtra=useCallback(()=>0,[]);
   /* Paid-status helpers: backwards compat with old `paid` field */
   const isP1=e=>e?.paid1!==undefined?!!e.paid1:!!e?.paid;
   const isP2=e=>e?.paid2!==undefined?!!e.paid2:!!e?.paid;
@@ -2729,7 +2729,7 @@ function App(){
     return res;
   },[months]);
   const filtered=useMemo(()=>search.trim()?allE.filter(e=>e.name.includes(search)||e.spec.includes(search)):[],[search,allE]);
-  const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0},cfg.rate,cfg.egp),[form.d1,form.d2,cfg.rate,cfg.egp]);
+  const prevC=useMemo(()=>calc({d1:+form.d1||0,d2:+form.d2||0,extra:+form.extra||0},cfg.rate,cfg.egp),[form.d1,form.d2,form.extra,cfg.rate,cfg.egp]);
   const expData=useMemo(()=>{
     const raw=am?.expenses;
     if(!raw) return {custody:[],items:[],transfers:[]};
@@ -3165,11 +3165,11 @@ function App(){
     if(!form.name.trim()){msg("أدخل اسم المهندس","err");return;}
     if(lockGuard())return;
     const nd=dc(data);
-    // Auto-calc d1/d2/extra if arrivalDate is in current month
+    // Auto-calc d1/d2 if arrivalDate is in current month. `extra` is manual — never auto-set.
     const arrCalc=calcArrivalDays(form.arrivalDate,cfg.year,cfg.month);
     const finalD1=arrCalc?arrCalc.d1:+form.d1;
     const finalD2=arrCalc?arrCalc.d2:+form.d2;
-    const finalExtra=arrCalc?arrCalc.extra:0;
+    const finalExtra=+form.extra||0;
     const engId=form.id||"u"+Date.now();
     if(form.id){
       nd[form.prov]=nd[form.prov].map(e=>e.id===form.id?{...e,name:form.name,spec:form.spec||"مهندس",d1:finalD1,d2:finalD2,extra:finalExtra,arrivalDate:form.arrivalDate||null}:e);
@@ -3247,41 +3247,38 @@ function App(){
         if(!form.arrivalDate||isBeforeArrival){
           return;// no arrival or month before arrival → don't add
         }
-        // Add engineer to this month (arrival month or after)
+        // Add engineer to this month (arrival month or after).
+        // `extra` is manual (أيام قديمة) — never auto-set; defaults to 0 for a new engineer.
         provKey=form.prov;
         newList=[...(m.data[provKey]||[])];
-        let nD1=15,nD2=15,nExtra=0;
-        if(arrCalcRes){nD1=arrCalcRes.d1;nD2=arrCalcRes.d2;nExtra=arrCalcRes.extra;}
+        let nD1=15,nD2=15;
+        if(arrCalcRes){nD1=arrCalcRes.d1;nD2=arrCalcRes.d2;}
         newList.push({
           id:engId,
           name:form.name.trim(),
           spec:form.spec||"مهندس",
-          d1:nD1,d2:nD2,extra:nExtra,
+          d1:nD1,d2:nD2,extra:0,
           arrivalDate:form.arrivalDate,
           addedAt:new Date().toISOString().split('T')[0]
         });
         idx=newList.length-1;
         newData={...m.data,[provKey]:newList};
       }else{
-        // Engineer exists — update
+        // Engineer exists — update arrivalDate + d1/d2 only. `extra` is preserved (manual).
         newList=[...m.data[provKey]];
         newList[idx]={...newList[idx],arrivalDate:form.arrivalDate||null};
         if(form.arrivalDate){
           if(arrCalcRes){
-            newList[idx]={...newList[idx],d1:arrCalcRes.d1,d2:arrCalcRes.d2,extra:arrCalcRes.extra};
+            newList[idx]={...newList[idx],d1:arrCalcRes.d1,d2:arrCalcRes.d2};
           }else if(isBeforeArrival){
-            newList[idx]={...newList[idx],d1:0,d2:0,extra:0};
+            newList[idx]={...newList[idx],d1:0,d2:0};
           }else if(isAfterArrival){
             const cur=newList[idx];
             const cd1=+cur.d1||0,cd2=+cur.d2||0;
             if(cd1===0&&cd2===0){
-              newList[idx]={...cur,d1:15,d2:15,extra:0};
-            }else{
-              newList[idx]={...cur,extra:0};
+              newList[idx]={...cur,d1:15,d2:15};
             }
           }
-        }else if(key!==ak){
-          newList[idx]={...newList[idx],extra:0};
         }
         newData={...m.data,[provKey]:newList};
       }
@@ -4463,7 +4460,8 @@ function App(){
     const _M=_cfg.month||1, _Y=_cfg.year||new Date().getFullYear();
     const _engsByProv={};
     PROVS.forEach(p=>{_engsByProv[p]=engsInProvDuringMonth(p,_Y,_M,_data);});
-    /* Recompute prov totals from split engineers so each prov gets its own portion */
+    /* Recompute prov totals from split engineers so each prov gets its own portion.
+       Includes manual oldDays (e.extra) — but only for non-split engineers (split rows show extra=0). */
     const _totalsSplit=PROVS.map(p=>{
       const list=_engsByProv[p]||[];
       const dr=(+_cfg.rate||300)/30;
@@ -4471,11 +4469,12 @@ function App(){
         const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
         const d1=isSplit?e.d1Split:(+e.d1||0);
         const d2=isSplit?e.d2Split:(+e.d2||0);
-        const a1=d1*dr,a2=d2*dr,tot=a1+a2,egp=tot*(+_cfg.egp||0);
-        return{n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,tot:a.tot+tot,egp:a.egp+egp};
-      },{n:0,a1:0,a2:0,tot:0,egp:0});
+        const oldD=isSplit?0:(+e.extra||0);
+        const a1=d1*dr,a2=d2*dr,oldAmt=oldD*dr,tot=a1+a2+oldAmt,egp=tot*(+_cfg.egp||0);
+        return{n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,oldDays:(a.oldDays||0)+oldD,oldAmt:(a.oldAmt||0)+oldAmt,tot:a.tot+tot,egp:a.egp+egp};
+      },{n:0,a1:0,a2:0,oldDays:0,oldAmt:0,tot:0,egp:0});
     });
-    const _Gsplit=_totalsSplit.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0});
+    const _Gsplit=_totalsSplit.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,oldDays:(a.oldDays||0)+(t.oldDays||0),oldAmt:(a.oldAmt||0)+(t.oldAmt||0),tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,oldDays:0,oldAmt:0,tot:0,egp:0});
     /* _G now reflects the split totals — keep variable name for the rest of the template */
     const _Gold=_G; /* preserved if ever needed */
     Object.assign(_G,_Gsplit);
@@ -4507,8 +4506,10 @@ function App(){
             }
           }
         }
-        /* halfMode-aware row total: only include the visible half(s) */
-        const _rowTot=(_showH1?c.a1:0)+(_showH2?c.a2:0);
+        /* halfMode-aware row total: include the visible half(s) + manual old days */
+        const _oldDays=isSplit?0:(+e.extra||0);
+        const _oldAmt=c.oldAmt||0;
+        const _rowTot=(_showH1?c.a1:0)+(_showH2?c.a2:0)+_oldAmt;
         const _rowEgp=_rowTot*(+_cfg.egp||0);
         return `<tr style="background:${bg};">
           <td style="padding:7px 8px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:1px solid #f1f5f9;">${i+1}</td>
@@ -4520,6 +4521,7 @@ function App(){
           ${_showH2?`<td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${effD2}</td>
           <td style="padding:5px 6px;text-align:center;border-bottom:1px solid #f1f5f9;">${dual(c.a2)}</td>
           <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p2)}</td>`:''}
+          <td style="padding:7px 8px;text-align:center;font-weight:700;color:#D97706;border-bottom:1px solid #f1f5f9;${_oldDays>0?'background:#fffbeb;':''}">${_oldDays>0?_oldDays:'—'}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${_rowTot.toFixed(2)}</td>
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${_rowEgp.toFixed(0)}</td>
         </tr>`;
@@ -4549,6 +4551,7 @@ function App(){
               ${_showH2?`<th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">16-${dim}</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 2 ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 2</th>`:''}
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:48px;" title="أيام قديمة من شهور سابقة (يدوي)">أيام قديمة</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">إجمالى ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:68px;">إجمالى (ج.م)</th>
             </tr>
@@ -4569,8 +4572,9 @@ function App(){
                 <div style="font-weight:700;color:#b45309;font-size:9.5px;">${(T.a2*rate).toFixed(0)} ج.م</div>
               </td>
               <td></td>`:''}
-              <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${((_showH1?T.a1:0)+(_showH2?T.a2:0)).toFixed(2)}</td>
-              <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${(((_showH1?T.a1:0)+(_showH2?T.a2:0))*rate).toFixed(0)}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#D97706;">${(T.oldDays||0)>0?T.oldDays:'—'}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${((_showH1?T.a1:0)+(_showH2?T.a2:0)+(T.oldAmt||0)).toFixed(2)}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${(((_showH1?T.a1:0)+(_showH2?T.a2:0)+(T.oldAmt||0))*rate).toFixed(0)}</td>
             </tr>
           </tbody>
         </table>
@@ -4586,13 +4590,16 @@ function App(){
       const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
-    /* halfMode-aware grand totals */
-    const _Gtot=(_showH1?_G.a1:0)+(_showH2?_G.a2:0);
+    /* halfMode-aware grand totals (include manual oldDays) */
+    const _Gold=_G.oldDays||0;
+    const _GoldAmt=_G.oldAmt||0;
+    const _Gtot=(_showH1?_G.a1:0)+(_showH2?_G.a2:0)+_GoldAmt;
     const _Gegp=_Gtot*(+_cfg.egp||0);
     const _summaryCardDefs=[
       {l:"إجمالى المهندسين",v:_G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe",show:true},
       {l:"إجمالى النصف الأول",v:_G.a1.toFixed(2)+" $",sub:(_G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0",show:_showH1},
       {l:"إجمالى النصف الثاني",v:_G.a2.toFixed(2)+" $",sub:(_G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe",show:_showH2},
+      {l:"أيام قديمة",v:_Gold+" يوم",sub:_GoldAmt.toFixed(2)+" $",c:"#D97706",bg:"#fffbeb",br:"#fde68a",show:_Gold>0},
       {l:"الإجمالى الكلى ($)",v:_Gtot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0",show:true},
       {l:"الإجمالى (ج.م)",v:_Gegp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a",show:true},
       {l:"الإعاشة اليومية",v:(_cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd",show:true},
@@ -6340,17 +6347,18 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const todayIso=todayYmd();
             if(v&&v>todayIso){msg('تاريخ القدوم لا يمكن أن يكون مستقبلياً','err');return;}
             const ac=v?calcArrivalDays(v,cfg.year,cfg.month):null;
-            setForm(f=>ac?{...f,arrivalDate:v,d1:ac.d1,d2:ac.d2,extra:ac.extra}:{...f,arrivalDate:v,extra:0});
+            // arrivalDate only auto-fills d1/d2; `extra` (أيام قديمة) stays manual
+            setForm(f=>ac?{...f,arrivalDate:v,d1:ac.d1,d2:ac.d2}:{...f,arrivalDate:v});
           },style:{fontSize:13}})),
           form.arrivalDate&&(()=>{
             const ac=calcArrivalDays(form.arrivalDate,cfg.year,cfg.month);
             if(!ac)return h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:13}),"تاريخ القدوم في شهر آخر — لن يتأثر هذا الشهر تلقائياً");
-            const total=ac.d1+ac.d2+ac.extra;
+            const total=ac.d1+ac.d2;
             return h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:13}),
-              `حساب تلقائي: ${ac.d1} أيام (1-15) + ${ac.d2} أيام (16-30)${ac.extra>0?` + ⭐ ${ac.extra} يوم إضافي للشهر القادم`:''} = ${total} يوم`
+              `حساب تلقائي للنصفين: ${ac.d1} أيام (1-15) + ${ac.d2} أيام (16-30) = ${total} يوم`
             );
           })(),
-          (form.extra>0||form.arrivalDate)&&h("div",{className:"fld"},h("label",null,"⭐ أيام إضافية (تنقل للشهر التالي)"),h("input",{type:"number",min:0,max:31,value:form.extra,onChange:ev=>setForm(f=>({...f,extra:Math.max(0,+ev.target.value||0)})),style:{fontSize:13}})),
+          h("div",{className:"fld"},h("label",null,"أيام قديمة (يدوي — من شهور سابقة)"),h("input",{type:"number",min:0,max:99,value:form.extra||0,onChange:ev=>setForm(f=>({...f,extra:Math.max(0,+ev.target.value||0)})),style:{fontSize:13},placeholder:"0"})),
           h("div",{className:"prev-box"},
             [{l:"إعاشة 1–15",v:f$(prevC.a1),c:"#2563EB"},{l:"إعاشة 16–30",v:f$(prevC.a2),c:"#16A34A"},{l:"إجمالى ($)",v:f$(prevC.tot)},{l:"إجمالى (ج.م)",v:fE(prevC.egp),c:"#D97706"}]
             .map((x,i)=>h("div",{key:i},h("div",{className:"prev-lbl"},x.l),h("div",{className:"prev-val",style:{color:x.c||"var(--text)"}},x.v)))
@@ -8123,10 +8131,13 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               const dr=(+cfg.rate||300)/30;
               const a1=(e.d1Split||0)*dr;
               const a2=(e.d2Split||0)*dr;
-              const tot=a1+a2;
+              const isSplitT=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
+              const oldD=isSplitT?0:(+e.extra||0);
+              const oldAmt=oldD*dr;
+              const tot=a1+a2+oldAmt;
               const egp=tot*(+cfg.egp||0);
-              return{p:prov,n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,tot:a.tot+tot,egp:a.egp+egp};
-            },{p:prov,n:0,a1:0,a2:0,tot:0,egp:0});
+              return{p:prov,n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,oldDays:(a.oldDays||0)+oldD,oldAmt:(a.oldAmt||0)+oldAmt,tot:a.tot+tot,egp:a.egp+egp};
+            },{p:prov,n:0,a1:0,a2:0,oldDays:0,oldAmt:0,tot:0,egp:0});
             const maxTv=!isProvince?maxT:T.tot||1;
             return h("div",{key:prov,className:"card",style:{borderTop:`2.5px solid ${color}`}},
               h("div",{className:"prov-hdr"},
@@ -8138,15 +8149,14 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               ),
               h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxTv*100).toFixed(1)}%`,background:color}})),
               h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),halfView!==2&&h("th",null,"أيام\n1-15"),halfView!==2&&h("th",null,"إعاشة\n1 ($)"),halfView!==2&&h("th",null,"حالة\nنص أول"),halfView!==1&&h("th",null,"أيام\n16-"+new Date(cfg.year,cfg.month,0).getDate()),halfView!==1&&h("th",null,"إعاشة\n2 ($)"),halfView!==1&&h("th",null,"حالة\nنص تاني"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),isAdmin&&h("th",null,""))),
+                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),halfView!==2&&h("th",null,"أيام\n1-15"),halfView!==2&&h("th",null,"إعاشة\n1 ($)"),halfView!==2&&h("th",null,"حالة\nنص أول"),halfView!==1&&h("th",null,"أيام\n16-"+new Date(cfg.year,cfg.month,0).getDate()),halfView!==1&&h("th",null,"إعاشة\n2 ($)"),halfView!==1&&h("th",null,"حالة\nنص تاني"),h("th",{title:"أيام قديمة من شهور سابقة — يدوي"},"أيام\nقديمة"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),isAdmin&&h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
-                    const inc=getIncomingExtra(e.id,prov);
                     /* For split engineers, use the d1Split/d2Split portions to calc instead of raw d1/d2 */
                     const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
                     const effD1=isSplit?e.d1Split:(+e.d1||0);
                     const effD2=isSplit?e.d2Split:(+e.d2||0);
-                    const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:e.extra},cfg.rate,cfg.egp,isSplit?0:inc);
+                    const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},cfg.rate,cfg.egp);
                     const p1=isP1(e),p2=isP2(e);
                     const rowBg=e.isReadOnlyHere?"rgba(139,92,246,.05)":p1&&p2?"rgba(52,211,153,.10)":(p1||p2)?"rgba(252,211,77,.06)":i%2===0?"rgba(255,255,255,.015)":"";
                     return h("tr",{key:e.id+'-'+prov,style:{background:rowBg}},
@@ -8157,7 +8167,6 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         /* Tenure badge: shows day range engineer was in this prov during the month */
                         isSplit&&h("span",{title:`فى ${prov} من يوم ${e.firstDay} إلى ${e.lastDay} (${e.daysInProv.length} يوم)`,style:{display:"inline-block",fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"📅 يوم ",e.firstDay,"–",e.lastDay),
                         e.isReadOnlyHere&&h("span",{title:`المهندس فى ${e.currentProv} حالياً — البيانات للقراءة فقط هنا`,style:{display:"inline-block",fontSize:9,padding:"2px 7px",borderRadius:100,background:"rgba(148,163,184,.15)",border:"1px solid rgba(148,163,184,.35)",color:"#94a3b8",fontWeight:800,marginRight:4,whiteSpace:"nowrap"}},"🔒 قراءة فقط"),
-                        (+e.extra||0)>0&&!isSplit&&h("span",{className:"extra-badge",title:"أيام إضافية ستُحتسب في الشهر التالي"},"⭐ ",e.extra," أيام تنقل للشهر التالي"),
                         /* Recent transfer indicator: show ONLY in the destination prov of the latest transfer (current location) */
                         !e.isReadOnlyHere&&(()=>{
                           const ts=getTransfers(e);
@@ -8181,19 +8190,16 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         })()
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
-                      halfView!==2&&h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
-                        h("input",{
-                          type:"number",className:"day-inp",
-                          style:{borderColor:isSplit?"#a78bfa":"#2563EB",opacity:isSplit?.85:1},
-                          min:0,max:isSplit?e.inH1:15,
-                          value:effD1,
-                          readOnly:isSplit||(!isAdmin&&!isProvince),
-                          disabled:isSplit||(!isAdmin&&!isProvince),
-                          title:isSplit?`d1 محسوب تلقائياً من ${e.inH1} يوم فى ${prov} × ${(e.d1Ratio*100).toFixed(0)}%`:undefined,
-                          onChange:ev=>updData(e.currentProv||prov,e.id,"d1",ev.target.value)
-                        }),
-                        inc>0&&!isSplit&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
-                      )),
+                      halfView!==2&&h("td",null,h("input",{
+                        type:"number",className:"day-inp",
+                        style:{borderColor:isSplit?"#a78bfa":"#2563EB",opacity:isSplit?.85:1},
+                        min:0,max:isSplit?e.inH1:15,
+                        value:effD1,
+                        readOnly:isSplit||(!isAdmin&&!isProvince),
+                        disabled:isSplit||(!isAdmin&&!isProvince),
+                        title:isSplit?`d1 محسوب تلقائياً من ${e.inH1} يوم فى ${prov} × ${(e.d1Ratio*100).toFixed(0)}%`:undefined,
+                        onChange:ev=>updData(e.currentProv||prov,e.id,"d1",ev.target.value)
+                      })),
                       halfView!==2&&h("td",null,
                         h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                           h("span",{style:{color:"#2563EB",fontWeight:700,fontSize:12}},c.a1.toFixed(1)+" $"),
@@ -8228,8 +8234,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           p2?"مدفوع":"معلق"
                         )
                       ),
-                      h("td",{style:{fontWeight:700}},((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0)).toFixed(1)),
-                      h("td",{style:{fontWeight:700,color:"#D97706"}},(((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0))*(liveRate||cfg.egp)).toFixed(0)),
+                      /* أيام قديمة (يدوي) — مدخل قابل للتعديل، يُضاف للإجمالى */
+                      h("td",null,h("input",{
+                        type:"number",className:"day-inp",
+                        style:{borderColor:"#F59E0B",opacity:isSplit||e.isReadOnlyHere?.6:1,width:60,background:(+e.extra||0)>0?"rgba(245,158,11,.08)":undefined},
+                        min:0,max:99,
+                        value:+e.extra||0,
+                        readOnly:isSplit||e.isReadOnlyHere||(!isAdmin&&!isProvince),
+                        disabled:isSplit||e.isReadOnlyHere||(!isAdmin&&!isProvince),
+                        title:isSplit?"أيام قديمة لا تُحرر مع نقل وسط الشهر":(isAdmin||isProvince)?"أيام قديمة من شهور سابقة — يدوي":"للقراءة فقط",
+                        onChange:ev=>updData(e.currentProv||prov,e.id,"extra",ev.target.value)
+                      })),
+                      h("td",{style:{fontWeight:700}},((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0)+(c.oldAmt||0)).toFixed(1)),
+                      h("td",{style:{fontWeight:700,color:"#D97706"}},(((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0)+(c.oldAmt||0))*(liveRate||cfg.egp)).toFixed(0)),
                       isAdmin&&h("td",null,!e.isReadOnlyHere&&h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov:e.currentProv||prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delEng(e.currentProv||prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
@@ -8250,8 +8267,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       h("span",{style:{color:"#D97706",fontSize:10,fontWeight:700}},(T.a2*(liveRate||cfg.egp)).toFixed(0)+" ج.م")
                     )),
                     halfView!==1&&h("td",null,""),
-                    h("td",null,((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0)).toFixed(1)),
-                    h("td",{style:{color:"#D97706"}},(((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0))*(liveRate||cfg.egp)).toFixed(0)),
+                    h("td",{style:{color:"#F59E0B",fontWeight:800}},(T.oldDays||0)>0?(T.oldDays+" يوم"):"—"),
+                    h("td",null,((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0)+(T.oldAmt||0)).toFixed(1)),
+                    h("td",{style:{color:"#D97706"}},(((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0)+(T.oldAmt||0))*(liveRate||cfg.egp)).toFixed(0)),
                     isAdmin&&h("td",null,"")
                   )
                 )
