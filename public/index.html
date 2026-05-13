@@ -2129,77 +2129,6 @@ function OcOrgChart(props){
 }
 
 /* ══════════════════════════════════════════════════════
-   OUTSTANDING DUES PANEL — أيام مرحّلة من شهور سابقة
-   Shows engineers with unpaid d1/d2 days from prior months.
-   Collapsible: shows banner alert by default, expands to full table.
-══════════════════════════════════════════════════════ */
-function OutstandingDuesPanel({dues,onPay,rate,engRate}){
-  const [expanded,setExpanded]=useState(false);
-  if(!dues||dues.length===0)return null;
-  const totalDays=dues.reduce((a,d)=>a+(+d.days||0),0);
-  const dr=(+engRate||300)/30;
-  const totalUSD=totalDays*dr;
-  const totalEGP=totalUSD*(+rate||0);
-  const uniqEngs=new Set(dues.map(d=>d.engId)).size;
-  return h("div",{style:{background:"linear-gradient(135deg,rgba(120,53,15,.20),rgba(146,64,14,.10))",border:"1px solid rgba(217,119,6,.45)",borderRadius:14,overflow:"hidden"}},
-    h("div",{
-      onClick:()=>setExpanded(!expanded),
-      style:{padding:"14px 18px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",transition:"background .2s"}
-    },
-      h("div",{style:{fontSize:24,lineHeight:1,flexShrink:0}},"⏳"),
-      h("div",{style:{flex:1,minWidth:200}},
-        h("div",{style:{fontSize:13,fontWeight:900,color:"#FCD34D",marginBottom:3}},"⚠️ يوجد ",dues.length," مستحق غير مصروف من شهور سابقة"),
-        h("div",{style:{fontSize:11,color:"#FDE68A",lineHeight:1.5}},uniqEngs," مهندس — إجمالى ",totalDays," يوم"," · ",totalUSD.toFixed(0)," $ · ",totalEGP.toFixed(0)," ج.م")
-      ),
-      h("button",{
-        style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",boxShadow:"0 4px 12px rgba(245,158,11,.3)",display:"inline-flex",alignItems:"center",gap:6}
-      },expanded?"إخفاء التفاصيل ▴":"عرض التفاصيل ▾")
-    ),
-    expanded&&h("div",{style:{padding:"4px 14px 14px",borderTop:"1px solid rgba(217,119,6,.25)"}},
-      h("div",{className:"tbl-wrap",style:{marginTop:10,background:"var(--card)",borderRadius:10,border:"1px solid var(--bd)"}},
-        h("table",{className:"tbl",style:{width:"100%"}},
-          h("thead",null,h("tr",null,
-            h("th",null,"#"),
-            h("th",{className:"l"},"المهندس"),
-            h("th",{className:"l"},"التخصص"),
-            h("th",{className:"l"},"المحافظة"),
-            h("th",null,"الشهر"),
-            h("th",null,"النصف"),
-            h("th",null,"عدد الأيام"),
-            h("th",null,"المبلغ ($)"),
-            h("th",null,"الإجراء")
-          )),
-          h("tbody",null,dues.map((d,i)=>{
-            const usd=(+d.days||0)*dr;
-            const isH1=d.half===1;
-            return h("tr",{key:d.monthKey+"-"+d.engId+"-"+d.half},
-              h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
-              h("td",{className:"l",style:{fontWeight:700,color:"#C4B5FD"}},d.engName),
-              h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},d.spec||"—"),
-              h("td",{className:"l",style:{fontSize:11}},d.prov.replace("محافظة ","")),
-              h("td",{style:{fontSize:11,fontWeight:700}},d.monthLabel),
-              h("td",null,h("span",{
-                style:{display:"inline-block",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:100,background:isH1?"rgba(168,85,247,.15)":"rgba(16,185,129,.15)",color:isH1?"#A78BFA":"#6EE7B7",border:"1px solid "+(isH1?"rgba(168,85,247,.35)":"rgba(16,185,129,.35)")}
-              },isH1?"🔵 النص الأول":"🟢 النص التانى")),
-              h("td",{style:{fontWeight:800,color:"#FBBF24"}},d.days),
-              h("td",{style:{fontWeight:700,color:"#60A5FA"}},usd.toFixed(1)+" $"),
-              h("td",null,h("button",{
-                onClick:()=>{if(confirm(`تأكيد صرف مستحق ${d.engName} عن ${d.monthLabel} (${isH1?'النص الأول':'النص التانى'}) — ${d.days} يوم؟`))onPay(d.monthKey,d.prov,d.engId,d.half);},
-                style:{padding:"5px 12px",borderRadius:8,fontSize:11,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:isH1?"linear-gradient(135deg,#A855F7,#7C3AED)":"linear-gradient(135deg,#10B981,#059669)",color:"#fff",display:"inline-flex",alignItems:"center",gap:4}
-              },"💰 صرف الآن"))
-            );
-          }))
-        )
-      ),
-      h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:10,lineHeight:1.7,padding:"8px 12px",background:"var(--bg)",borderRadius:8}},
-        h("strong",{style:{color:"#FCD34D"}},"💡 ملاحظة: "),
-        "هذه الأيام تخص شهور سابقة لم يتم صرفها بعد. الضغط على \"صرف الآن\" يحدّث حالة الدفع في الشهر الأصلى، وليس الشهر الحالى."
-      )
-    )
-  );
-}
-
-/* ══════════════════════════════════════════════════════
    MAIN APP
 ══════════════════════════════════════════════════════ */
 function App(){
@@ -3944,26 +3873,6 @@ function App(){
     msg(paid?`تم تأشير ${lbl} كمدفوع ✓`:`تم إلغاء ${lbl}`);
   };
 
-  /* Pay an outstanding due from a PREVIOUS month — updates paid1/paid2 on that month, not the current one */
-  const payOutstanding=(monthKey,prov,engId,half)=>{
-    if(lockGuard())return;
-    if(isProvince&&prov!==userProv){msg('غير مصرح','err');return;}
-    const m=months[monthKey];
-    if(!m||!m.data||!m.data[prov]){msg('لا توجد بيانات للشهر','err');return;}
-    const newData=dc(m.data);
-    newData[prov]=newData[prov].map(e=>{
-      if(e.id!==engId)return e;
-      const cur1=e.paid1!==undefined?!!e.paid1:!!e.paid;
-      const cur2=e.paid2!==undefined?!!e.paid2:!!e.paid;
-      const out={...e,paid1:half===1?true:cur1,paid2:half===2?true:cur2};
-      delete out.paid;
-      return out;
-    });
-    const updated={...m,data:newData,savedAt:null};
-    setMonths(prev=>({...prev,[monthKey]:updated}));
-    queueSave(monthKey,updated);
-    msg('تم صرف المستحق ✓');
-  };
 
   /* ── Attendance helpers ───────────────────────────────
      Engineers in Libya don't take regular AL or EL leave — they only get:
@@ -4394,41 +4303,6 @@ function App(){
     }
     return total>0?total:(sEgy||0);
   };
-
-  /* Outstanding dues from previous months: engineers with d1/d2>0 but paid1/paid2=false.
-     Scans up to 6 previous months. For province users, only their own province is included.
-     Used to render the "أيام مرحّلة من شهور سابقة" banner + table in the eng page. */
-  const outstandingDues=useMemo(()=>{
-    const out=[];
-    const curM=cfg.month||(now.getMonth()+1), curY=cfg.year||now.getFullYear();
-    /* Build list of (year,month) pairs for the previous 6 months */
-    const prevMonths=[];
-    let m=curM, y=curY;
-    for(let i=0;i<6;i++){
-      m--;
-      if(m<1){m=12;y--;}
-      prevMonths.push({m,y,key:mkKey(m,y)});
-    }
-    prevMonths.forEach(({m:pm,y:py,key:pk})=>{
-      const mObj=months[pk];
-      if(!mObj||!mObj.data)return;
-      const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
-      provsScope.forEach(p=>{
-        (mObj.data[p]||[]).forEach(e=>{
-          const d1=+e.d1||0, d2=+e.d2||0;
-          const p1=e.paid1!==undefined?!!e.paid1:!!e.paid;
-          const p2=e.paid2!==undefined?!!e.paid2:!!e.paid;
-          if(d1>0&&!p1){
-            out.push({monthKey:pk,monthLabel:MONTHS[pm-1]+' '+py,prov:p,engId:e.id,engName:e.name,spec:e.spec,half:1,days:d1});
-          }
-          if(d2>0&&!p2){
-            out.push({monthKey:pk,monthLabel:MONTHS[pm-1]+' '+py,prov:p,engId:e.id,engName:e.name,spec:e.spec,half:2,days:d2});
-          }
-        });
-      });
-    });
-    return out;
-  },[months,cfg.month,cfg.year,isProvince,userProv]);
 
   const paidStats=useMemo(()=>{
     let p1N=0,p2N=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
@@ -8171,8 +8045,6 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#10B981,#059669)",color:"#fff",boxShadow:"0 4px 12px rgba(16,185,129,.3)",display:"inline-flex",alignItems:"center",gap:6,transition:"all .2s"}
             },"🟢 النص التانى (16–"+new Date(cfg.year,cfg.month,0).getDate()+")")
           ),
-          /* ══ OUTSTANDING DUES FROM PREVIOUS MONTHS ══ */
-          outstandingDues.length>0&&h(OutstandingDuesPanel,{key:"outstanding",dues:outstandingDues,onPay:payOutstanding,rate:liveRate||cfg.egp||0,engRate:cfg.rate||300}),
           (()=>{
             const rate=liveRate||cfg.egp||0;
             const totalH1USD=paidStats.paid1USD+paidStats.unpaid1USD;
