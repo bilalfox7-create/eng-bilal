@@ -1,0 +1,623 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>معاينة فصل النص الأول/التانى — كشف الإعاشة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Cairo','Segoe UI',sans-serif}
+body{background:#0F1117;color:#E5E7EB;padding:20px;min-height:100vh}
+.shell{max-width:1400px;margin:0 auto}
+.hdr{background:linear-gradient(135deg,#1E1B4B,#312E81);border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #4338CA40}
+.hdr h1{font-size:24px;font-weight:900;margin-bottom:8px}
+.hdr p{font-size:13px;opacity:.85;line-height:1.7}
+.section{margin-bottom:48px;background:#161922;border-radius:18px;padding:24px;border:1px solid #1F2937}
+.sec-title{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:18px;font-weight:800;color:#A78BFA}
+.sec-num{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0}
+.sec-desc{font-size:12px;color:#94A3B8;margin-bottom:18px;padding-right:42px;line-height:1.7}
+.badge-new{background:#10B981;color:#fff;font-size:10px;padding:2px 8px;border-radius:100px;font-weight:800;margin-right:4px}
+.badge-changed{background:#F59E0B;color:#000;font-size:10px;padding:2px 8px;border-radius:100px;font-weight:800;margin-right:4px}
+
+/* ───── Tabs ───── */
+.tabs-bar{display:flex;gap:6px;padding:10px;background:#0B0E15;border-radius:12px;border:1px solid #1F2937;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;border:1px solid transparent;transition:all .2s;display:inline-flex;align-items:center;gap:6px;background:transparent;color:#9CA3AF;font-family:inherit}
+.tab:hover{background:rgba(99,102,241,.08);color:#A5B4FC}
+.tab.active{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;border-color:#3B82F6;box-shadow:0 4px 14px rgba(59,130,246,.35)}
+.tab.active.h1{background:linear-gradient(135deg,#A855F7,#7C3AED);box-shadow:0 4px 14px rgba(168,85,247,.35)}
+.tab.active.h2{background:linear-gradient(135deg,#10B981,#059669);box-shadow:0 4px 14px rgba(16,185,129,.35)}
+.tab-badge{font-size:10px;padding:1px 7px;border-radius:100px;background:rgba(255,255,255,.2);font-weight:800}
+.tab-icon{font-size:14px}
+
+/* ───── Toolbar ───── */
+.toolbar{display:flex;gap:6px;padding:10px;background:#0B0E15;border-radius:12px;border:1px solid #1F2937;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:none;transition:all .2s;white-space:nowrap}
+.btn-full{background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn-h1{background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;box-shadow:0 4px 12px rgba(139,92,246,.3)}
+.btn-h2{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+.btn-outline{background:transparent;color:#9CA3AF;border:1px solid #374151}
+.btn-outline:hover{border-color:#6366F1;color:#A5B4FC}
+.btn-pay1{background:linear-gradient(135deg,#8B5CF6,#7C3AED);color:#fff;font-size:11px}
+.btn-pay2{background:linear-gradient(135deg,#10B981,#059669);color:#fff;font-size:11px}
+.btn-xl{padding:11px 22px;font-size:13px}
+.spacer{flex:1}
+
+/* ───── Table ───── */
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid #1F2937;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:820px}
+th{background:#0B0E15;padding:10px 12px;font-weight:700;color:#9CA3AF;border-bottom:1px solid #1F2937;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid #1F293720;white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(99,102,241,.04)}
+.num{font-weight:800;color:#E5E7EB}
+.eng-name{font-weight:700;color:#C4B5FD}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700}
+.chip-prov{background:#1E293B;color:#94A3B8;border:1px solid #334155}
+.chip-paid{background:#065F4620;color:#34D399;border:1px solid #065F46}
+.chip-not{background:#7F1D1D20;color:#F87171;border:1px solid #7F1D1D}
+.chip-part{background:#78350F20;color:#FBBF24;border:1px solid #78350F}
+.chip-half1{background:#312E8120;color:#A78BFA;border:1px solid #312E81}
+.chip-half2{background:#064E3B20;color:#6EE7B7;border:1px solid #064E3B}
+.ts{font-size:10px;color:#6B7280;direction:ltr}
+.days-val{font-weight:800;color:#FBBF24}
+.days-val.h1{color:#C4B5FD}
+.days-val.h2{color:#6EE7B7}
+.col-h1{background:rgba(139,92,246,.04)}
+.col-h2{background:rgba(16,185,129,.04)}
+.col-dim{opacity:.35}
+.summary-row td{background:#0F172A;font-weight:800}
+.summary-row .days-val{font-size:14px}
+
+/* ───── Filters bar ───── */
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.filter-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid #374151;background:transparent;color:#9CA3AF;font-family:inherit;transition:all .2s}
+.filter-pill.active{background:#1E1B4B;border-color:#4338CA;color:#A5B4FC}
+.filter-pill.active.p2{background:#064E3B20;border-color:#059669;color:#6EE7B7}
+select.filter-sel{background:#0B0E15;border:1px solid #374151;border-radius:8px;color:#9CA3AF;padding:6px 12px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer}
+.month-label{font-weight:800;color:#E5E7EB;font-size:13px}
+.month-nav{display:inline-flex;align-items:center;gap:8px;background:#0B0E15;border:1px solid #374151;border-radius:10px;padding:5px 10px}
+.month-nav button{background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:16px;font-family:inherit;padding:0 4px;line-height:1}
+.month-nav button:hover{color:#A5B4FC}
+
+/* ───── Notification cards ───── */
+.notif-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:14px}
+.notif{border-radius:14px;padding:16px;display:flex;gap:12px;border:1px solid transparent}
+.notif.warn{background:#78350F15;border-color:#92400E40}
+.notif.info{background:#1E3A5F15;border-color:#1E40AF40}
+.notif.success{background:#065F4615;border-color:#065F4640}
+.notif-icon{font-size:22px;flex-shrink:0;line-height:1.2}
+.notif-body h4{font-size:13px;font-weight:800;margin-bottom:4px}
+.notif-body p{font-size:11px;color:#9CA3AF;line-height:1.6}
+.notif.warn .notif-body h4{color:#FCD34D}
+.notif.info .notif-body h4{color:#93C5FD}
+.notif.success .notif-body h4{color:#6EE7B7}
+
+/* ───── PDF mock ───── */
+.pdf-mock{background:#1a1a2e;border-radius:14px;border:1px solid #2D2B55;padding:20px;font-size:12px}
+.pdf-hdr{text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #2D2B55}
+.pdf-hdr h2{font-size:16px;font-weight:900;color:#A78BFA;margin-bottom:4px}
+.pdf-hdr h3{font-size:13px;font-weight:700;color:#E5E7EB;margin-bottom:6px}
+.pdf-hdr p{font-size:11px;color:#94A3B8}
+.pdf-kpi{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.pdf-kpi-card{flex:1;min-width:100px;background:#0B0E15;border-radius:10px;padding:12px;text-align:center;border:1px solid #1F2937}
+.pdf-kpi-card .val{font-size:22px;font-weight:900;margin-bottom:4px}
+.pdf-kpi-card .lbl{font-size:10px;color:#9CA3AF;font-weight:600}
+.pdf-kpi-card.purple .val{color:#C4B5FD}
+.pdf-kpi-card.blue .val{color:#93C5FD}
+.pdf-kpi-card.red .val{color:#FCA5A5}
+.pdf-kpi-card.yellow .val{color:#FCD34D}
+.pdf-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.pdf-tbl th{background:#0B0E15;padding:8px 10px;font-weight:700;color:#9CA3AF;border:1px solid #1F2937}
+.pdf-tbl td{padding:7px 10px;border:1px solid #1F293730;vertical-align:middle}
+.pdf-tbl tr:nth-child(even) td{background:#ffffff05}
+.pdf-tbl .eng{font-weight:700;color:#C4B5FD}
+.pdf-tbl .num{font-weight:800;color:#FBBF24}
+.pdf-footer{margin-top:14px;padding-top:12px;border-top:1px solid #2D2B55;font-size:10px;color:#6B7280;text-align:center}
+
+/* ───── Half-indicator header ───── */
+.half-header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;margin-bottom:14px;font-size:13px;font-weight:800}
+.half-header.h1{background:#312E8118;border:1px solid #4C1D9540;color:#C4B5FD}
+.half-header.h2{background:#064E3B18;border:1px solid #065F4640;color:#6EE7B7}
+.half-header span{font-size:18px}
+.half-date{font-size:11px;font-weight:600;opacity:.75;margin-right:auto}
+
+/* ───── Legend / callout ───── */
+.callout{background:#1E293B;border-right:4px solid #6366F1;border-radius:10px;padding:12px 16px;font-size:12px;color:#CBD5E1;line-height:1.8;margin-bottom:14px}
+.callout strong{color:#A5B4FC}
+
+/* ───── Before/After ───── */
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.ba-grid{grid-template-columns:1fr}}
+.ba-box{border-radius:12px;padding:14px}
+.ba-box.before{background:#7F1D1D10;border:1px solid #7F1D1D40}
+.ba-box.after{background:#065F4610;border:1px solid #065F4640}
+.ba-label{font-size:10px;font-weight:800;padding:3px 10px;border-radius:100px;display:inline-block;margin-bottom:10px}
+.ba-box.before .ba-label{background:#7F1D1D;color:#FCA5A5}
+.ba-box.after .ba-label{background:#065F46;color:#6EE7B7}
+.ba-content{font-size:11px;line-height:1.8;color:#CBD5E1}
+.ba-content ul{padding-right:16px;list-style:disc}
+.ba-content li{margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- HEADER -->
+<div class="hdr">
+  <h1>🔀 معاينة تصميم — فصل نصف الشهر في كشف الإعاشة</h1>
+  <p>
+    هذه معاينة تصميمية <strong>قبل التنفيذ</strong> — تظهر الشكل النهائي لفصل النص الأول (١–١٥) عن النص التانى (١٦–آخر الشهر).<br>
+    ⬇️ راجع كل قسم واعطينا الموافقة أو الملاحظات قبل ما نبدأ البرمجة.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: TABS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">١</span> تبويبات عرض النصف <span class="badge-new">جديد</span></div>
+  <div class="sec-desc">
+    بدل ما الجدول يعرض كل الشهر دفعة واحدة، يبقى فيه ٣ تبويبات: كل الشهر — النص الأول (١–١٥) — النص التانى (١٦–آخر الشهر).<br>
+    لما تضغط تبويب، الجدول والـ PDF والإجراءات الجماعية كلها بتتغير تلقائياً.
+  </div>
+
+  <div class="tabs-bar">
+    <button class="tab active">
+      <span class="tab-icon">📋</span>
+      كل الشهر
+      <span class="tab-badge">٣٠</span>
+    </button>
+    <button class="tab h1" onclick="this.classList.add('active');this.parentElement.querySelectorAll('.tab').forEach(t=>t!==this&&t.classList.remove('active'))">
+      <span class="tab-icon">🔵</span>
+      النص الأول
+      <span class="tab-badge">١–١٥</span>
+    </button>
+    <button class="tab h2" onclick="this.classList.add('active');this.parentElement.querySelectorAll('.tab').forEach(t=>t!==this&&t.classList.remove('active'))">
+      <span class="tab-icon">🟢</span>
+      النص التانى
+      <span class="tab-badge">١٦–٣٠</span>
+    </button>
+    <div class="spacer"></div>
+    <div class="month-nav">
+      <button>›</button>
+      <span class="month-label">مايو ٢٠٢٦</span>
+      <button>‹</button>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>السلوك:</strong> التبويب النشط يحدد أي بيانات تظهر في الجدول + أي PDF يصدّر + أي أزرار دفع تشتغل.
+    يمكن الانتقال بين التبويبات بدون أي إعادة تحميل.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: PDF BUTTONS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٢</span> أزرار PDF المنفصلة <span class="badge-changed">تعديل</span></div>
+  <div class="sec-desc">
+    بدل زر PDF واحد، يبقى ٣ أزرار — كل نص بـ PDF منفصل جاهز للإرسال للمدير.
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-full btn-xl">
+      <span>📄</span> PDF — كامل الشهر
+    </button>
+    <button class="btn btn-h1 btn-xl">
+      <span>📄</span> PDF — النص الأول (١–١٥)
+    </button>
+    <button class="btn btn-h2 btn-xl">
+      <span>📄</span> PDF — النص التانى (١٦–٣٠)
+    </button>
+    <div class="spacer"></div>
+    <button class="btn btn-outline">
+      <span>📊</span> Excel
+    </button>
+    <button class="btn btn-outline">
+      <span>🖨️</span> طباعة
+    </button>
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba-box before">
+      <div class="ba-label">قبل</div>
+      <div class="ba-content">
+        <ul>
+          <li>زر PDF واحد بس للشهر كامل</li>
+          <li>لو عايز تبعت نص أول لوحده ما فيش حل</li>
+          <li>بتضطر تعمل PDF وتقص الصفحات يدوياً</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ba-box after">
+      <div class="ba-label">بعد</div>
+      <div class="ba-content">
+        <ul>
+          <li>✅ PDF النص الأول جاهز مباشرة للمدير</li>
+          <li>✅ PDF النص التانى منفصل بعنوان واضح</li>
+          <li>✅ PDF كامل الشهر لا يزال موجود</li>
+          <li>✅ كل PDF بياناته محدودة بأيام نصفه فقط</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: TABLE VIEW — HALF-FILTERED -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٣</span> الجدول مع فصل الأعمدة <span class="badge-changed">تعديل</span></div>
+  <div class="sec-desc">
+    عند اختيار تبويب نص، الجدول يعرض عمود أيام ذلك النص فقط، مع حالة الدفع المقابلة وتاريخها.
+    الأعمدة الخاصة بالنص الآخر بتتخفّى أو تتعتم.
+  </div>
+
+  <!-- Half 1 view -->
+  <div class="half-header h1">
+    <span>🔵</span>
+    عرض النص الأول
+    <span class="half-date">١ مايو — ١٥ مايو ٢٠٢٦</span>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-pill active">الكل</button>
+    <button class="filter-pill">غير المدفوعين</button>
+    <button class="filter-pill">المدفوعين</button>
+    <select class="filter-sel">
+      <option>كل الفئات</option>
+      <option>مقيم</option>
+      <option>إقامة مؤقتة</option>
+      <option>زيارة</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="btn btn-pay1">✅ دفع المحددين — النص الأول</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المهندس</th>
+          <th>الفئة</th>
+          <th class="col-h1">أيام النص الأول</th>
+          <th class="col-h1">حالة الدفع</th>
+          <th class="col-h1">تاريخ الدفع</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">١</td>
+          <td class="eng-name">محمد صلاح محمد</td>
+          <td><span class="chip chip-prov">مقيم</span></td>
+          <td class="col-h1"><span class="days-val h1">١٣</span></td>
+          <td class="col-h1"><span class="chip chip-paid">✅ مدفوع</span></td>
+          <td class="col-h1"><span class="ts">2026-05-16 09:32</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٢</td>
+          <td class="eng-name">أحمد محمود علي</td>
+          <td><span class="chip chip-prov">إقامة مؤقتة</span></td>
+          <td class="col-h1"><span class="days-val h1">١٥</span></td>
+          <td class="col-h1"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h1"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٣</td>
+          <td class="eng-name">بهاء أحمد محمود</td>
+          <td><span class="chip chip-prov">زيارة</span></td>
+          <td class="col-h1"><span class="days-val h1">١٠</span></td>
+          <td class="col-h1"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h1"><span class="ts">—</span></td>
+          <td>أجازة ٥ أيام</td>
+        </tr>
+        <tr>
+          <td class="num">٤</td>
+          <td class="eng-name">خالد إبراهيم الصادق</td>
+          <td><span class="chip chip-prov">مقيم</span></td>
+          <td class="col-h1"><span class="days-val h1">١٤</span></td>
+          <td class="col-h1"><span class="chip chip-paid">✅ مدفوع</span></td>
+          <td class="col-h1"><span class="ts">2026-05-15 14:10</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٥</td>
+          <td class="eng-name">سالم عمر المهدي</td>
+          <td><span class="chip chip-prov">إقامة مؤقتة</span></td>
+          <td class="col-h1"><span class="days-val h1">١١</span></td>
+          <td class="col-h1"><span class="chip chip-part">⚠️ جزئي</span></td>
+          <td class="col-h1"><span class="ts">2026-05-14 11:05</span></td>
+          <td>—</td>
+        </tr>
+        <tr class="summary-row">
+          <td colspan="3" style="font-weight:800;color:#9CA3AF;font-size:11px">الإجمالي (٥ مهندسين)</td>
+          <td class="col-h1"><span class="days-val h1" style="font-size:15px">٦٣</span><span style="font-size:10px;color:#9CA3AF"> يوم</span></td>
+          <td class="col-h1" colspan="3"><span class="chip chip-paid">٢ مدفوع</span> <span class="chip chip-not" style="margin-right:4px">٢ غير مدفوع</span> <span class="chip chip-part" style="margin-right:4px">١ جزئي</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Half 2 view hint -->
+  <div class="half-header h2" style="margin-top:18px">
+    <span>🟢</span>
+    عرض النص التانى
+    <span class="half-date">١٦ مايو — ٣١ مايو ٢٠٢٦</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المهندس</th>
+          <th>الفئة</th>
+          <th class="col-h2">أيام النص التانى</th>
+          <th class="col-h2">حالة الدفع</th>
+          <th class="col-h2">تاريخ الدفع</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">١</td>
+          <td class="eng-name">محمد صلاح محمد</td>
+          <td><span class="chip chip-prov">مقيم</span></td>
+          <td class="col-h2"><span class="days-val h2">١٤</span></td>
+          <td class="col-h2"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h2"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٢</td>
+          <td class="eng-name">أحمد محمود علي</td>
+          <td><span class="chip chip-prov">إقامة مؤقتة</span></td>
+          <td class="col-h2"><span class="days-val h2">١٣</span></td>
+          <td class="col-h2"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h2"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٣</td>
+          <td class="eng-name">بهاء أحمد محمود</td>
+          <td><span class="chip chip-prov">زيارة</span></td>
+          <td class="col-h2"><span class="days-val h2">١٢</span></td>
+          <td class="col-h2"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h2"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٤</td>
+          <td class="eng-name">خالد إبراهيم الصادق</td>
+          <td><span class="chip chip-prov">مقيم</span></td>
+          <td class="col-h2"><span class="days-val h2">١٥</span></td>
+          <td class="col-h2"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h2"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="num">٥</td>
+          <td class="eng-name">سالم عمر المهدي</td>
+          <td><span class="chip chip-prov">إقامة مؤقتة</span></td>
+          <td class="col-h2"><span class="days-val h2">١٣</span></td>
+          <td class="col-h2"><span class="chip chip-not">❌ لم يُدفع</span></td>
+          <td class="col-h2"><span class="ts">—</span></td>
+          <td>—</td>
+        </tr>
+        <tr class="summary-row">
+          <td colspan="3" style="font-weight:800;color:#9CA3AF;font-size:11px">الإجمالي (٥ مهندسين)</td>
+          <td class="col-h2"><span class="days-val h2" style="font-size:15px">٦٧</span><span style="font-size:10px;color:#9CA3AF"> يوم</span></td>
+          <td class="col-h2" colspan="3"><span class="chip chip-not">٥ غير مدفوع</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: BULK PAYMENT BUTTONS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٤</span> أزرار الدفع الجماعي المنفصلة <span class="badge-new">جديد</span></div>
+  <div class="sec-desc">
+    فيه زرين للدفع الجماعي — واحد للنص الأول وواحد للنص التانى — بدل زر واحد للكل.
+    الزر الفعّال بيتحدد حسب التبويب الحالي.
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-h1" style="font-size:13px;padding:11px 22px">
+      💰 دفع النص الأول للمحددين
+      <span class="tab-badge" style="background:rgba(255,255,255,.25)">٣ محدد</span>
+    </button>
+    <button class="btn btn-h2" style="font-size:13px;padding:11px 22px">
+      💰 دفع النص التانى للمحددين
+      <span class="tab-badge" style="background:rgba(255,255,255,.25)">٠ محدد</span>
+    </button>
+    <div class="spacer"></div>
+    <button class="btn btn-outline">☑️ تحديد الكل</button>
+    <button class="btn btn-outline">✖️ إلغاء التحديد</button>
+  </div>
+
+  <div class="callout">
+    <strong>المنطق:</strong> لما تكون في تبويب "النص الأول" وتضغط دفع جماعي، الدفع بيمشي على <strong>paid1</strong> فقط.
+    لما تكون في "النص التانى"، الدفع بيمشي على <strong>paid2</strong> فقط.
+    عدم الخلط بين نصفي الشهر مضمون من التصميم نفسه.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: SMART NOTIFICATIONS -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٥</span> إشعارات ذكية للتذكير <span class="badge-new">جديد</span></div>
+  <div class="sec-desc">
+    الصفحة بتعرض تنبيه تلقائي في اليوم ١٤ (تذكير النص الأول) واليوم ٢٩ (تذكير النص التانى).
+  </div>
+
+  <div class="notif-grid">
+    <div class="notif warn">
+      <div class="notif-icon">⚠️</div>
+      <div class="notif-body">
+        <h4>غداً آخر يوم للنص الأول!</h4>
+        <p>تأكد من صرف إعاشة النص الأول قبل نهاية يوم ١٥ مايو.<br>
+        يتبقى <strong style="color:#FCD34D">٢ مهندس</strong> لم يُصرف لهم.</p>
+      </div>
+    </div>
+    <div class="notif info">
+      <div class="notif-icon">📬</div>
+      <div class="notif-body">
+        <h4>حان وقت إرسال تقرير النص الأول</h4>
+        <p>النص الأول (١–١٥ مايو) اكتمل.<br>
+        اضغط PDF — النص الأول لتحميل التقرير وإرساله للمدير.</p>
+      </div>
+    </div>
+    <div class="notif success">
+      <div class="notif-icon">✅</div>
+      <div class="notif-body">
+        <h4>النص الأول مكتمل</h4>
+        <p>تم صرف إعاشة النص الأول لجميع المهندسين المستحقين.<br>
+        يمكنك الانتقال لمتابعة النص التانى.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: PDF MOCK PREVIEW -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٦</span> شكل الـ PDF للنص الأول</div>
+  <div class="sec-desc">
+    PDF مخصص للنص الأول يشمل: عنوان واضح يذكر الفترة، ملخص KPIs، جدول المهندسين لأيام ١–١٥ فقط.
+  </div>
+
+  <div class="pdf-mock">
+    <div class="pdf-hdr">
+      <h2>نظام إدارة مشاريع الهندسة — ليبيا</h2>
+      <h3>كشف الإعاشة — النص الأول</h3>
+      <p>الفترة: ١ مايو ٢٠٢٦ — ١٥ مايو ٢٠٢٦ &nbsp;|&nbsp; المنطقة: شرق ليبيا &nbsp;|&nbsp; صدر بتاريخ: ١٥ مايو ٢٠٢٦</p>
+    </div>
+
+    <div class="pdf-kpi">
+      <div class="pdf-kpi-card purple">
+        <div class="val">٥</div>
+        <div class="lbl">إجمالي المهندسين</div>
+      </div>
+      <div class="pdf-kpi-card blue">
+        <div class="val">٦٣</div>
+        <div class="lbl">مجموع الأيام (النص الأول)</div>
+      </div>
+      <div class="pdf-kpi-card yellow">
+        <div class="val">٢</div>
+        <div class="lbl">تم صرفهم</div>
+      </div>
+      <div class="pdf-kpi-card red">
+        <div class="val">٣</div>
+        <div class="lbl">لم يُصرف بعد</div>
+      </div>
+    </div>
+
+    <table class="pdf-tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>اسم المهندس</th>
+          <th>الفئة</th>
+          <th>أيام الحضور (١–١٥)</th>
+          <th>حالة الصرف</th>
+          <th>تاريخ الصرف</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>١</td>
+          <td class="eng">محمد صلاح محمد</td>
+          <td>مقيم</td>
+          <td class="num">١٣</td>
+          <td>✅ مدفوع</td>
+          <td>2026-05-16</td>
+        </tr>
+        <tr>
+          <td>٢</td>
+          <td class="eng">أحمد محمود علي</td>
+          <td>إقامة مؤقتة</td>
+          <td class="num">١٥</td>
+          <td>❌ لم يُدفع</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>٣</td>
+          <td class="eng">بهاء أحمد محمود</td>
+          <td>زيارة</td>
+          <td class="num">١٠</td>
+          <td>❌ لم يُدفع</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>٤</td>
+          <td class="eng">خالد إبراهيم الصادق</td>
+          <td>مقيم</td>
+          <td class="num">١٤</td>
+          <td>✅ مدفوع</td>
+          <td>2026-05-15</td>
+        </tr>
+        <tr>
+          <td>٥</td>
+          <td class="eng">سالم عمر المهدي</td>
+          <td>إقامة مؤقتة</td>
+          <td class="num">١١</td>
+          <td>⚠️ جزئي</td>
+          <td>2026-05-14</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="pdf-footer">
+      نظام إدارة مشاريع الهندسة — ليبيا &nbsp;|&nbsp; هذا التقرير خاص بالنص الأول فقط (١–١٥ مايو ٢٠٢٦) &nbsp;|&nbsp; صفحة ١ من ١
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: DATABASE CHANGES -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٧</span> التغييرات المطلوبة في قاعدة البيانات</div>
+  <div class="sec-desc">
+    الأعمدة الموجودة حالياً كافية — ما في حاجة لأعمدة جديدة.
+    بس الـ API بيتغير عشان يقبل half=1 أو half=2 في طلبات الدفع.
+  </div>
+
+  <div class="callout">
+    <strong>الأعمدة الموجودة حالياً:</strong><br>
+    &nbsp;&nbsp;• <strong>d1</strong> — أيام النص الأول (١–١٥)<br>
+    &nbsp;&nbsp;• <strong>d2</strong> — أيام النص التانى (١٦–آخر الشهر)<br>
+    &nbsp;&nbsp;• <strong>paid1</strong> — حالة دفع النص الأول (true/false)<br>
+    &nbsp;&nbsp;• <strong>paid2</strong> — حالة دفع النص التانى (true/false)<br>
+    &nbsp;&nbsp;• <strong>paidAt1</strong> — تاريخ دفع النص الأول<br>
+    &nbsp;&nbsp;• <strong>paidAt2</strong> — تاريخ دفع النص التانى<br>
+    <br>
+    <strong>التغيير الوحيد:</strong> الـ Frontend بيستخدم هذه الأعمدة بشكل منفصل بدل عرضهم مدمجين.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- FOOTER CTA -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="text-align:center;padding:32px 20px;background:#161922;border-radius:18px;border:1px solid #1F2937;margin-bottom:24px">
+  <div style="font-size:22px;margin-bottom:10px">👆</div>
+  <h3 style="font-size:16px;font-weight:900;margin-bottom:8px;color:#A78BFA">شفت التصور؟ وديني نبدأ التنفيذ</h3>
+  <p style="font-size:12px;color:#94A3B8;line-height:1.8;max-width:500px;margin:0 auto">
+    لو الشكل العام تمام، قول "تمام" وهنبدأ برمجة الـ ٧ أقسام في كشف الإعاشة الحقيقي.<br>
+    لو في أي تعديل أو إضافة، اقولها وهنعدل التصور الأول.
+  </p>
+</div>
+
+</div><!-- /shell -->
+</body>
+</html>
