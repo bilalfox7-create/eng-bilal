@@ -3148,7 +3148,7 @@ function App(){
       const attMap=m?.attendance?.[eng.id]||{};
       const cnt=s=>Object.values(attMap).filter(d=>d?.s===s).length;
       const[y,mo]=k.split('-');
-      return{key:k,monthLabel:MONTHS[+mo-1]+' '+y,d1:e.d1,d2:e.d2,c,
+      return{key:k,monthLabel:MONTHS[+mo-1]+' '+y,d1:e.d1,d2:e.d2,extra:+e.extra||0,c,
         present:cnt('P'),egypt:cnt('EG'),absent:cnt('A'),leave:cnt('AL'),sick:cnt('SL')};
     }).filter(Boolean);
     const engLeaves=leaves.filter(l=>l.engineerId===eng.id);
@@ -4455,15 +4455,19 @@ function App(){
 
   const exportXLSX=()=>{
     const wb=XLSX.utils.book_new();
-    const rows=[[`كشف إعاشات – ${mn} ${cfg.year}`],[cfg.company],[`الإعاشة الشهرية: ${cfg.rate}$  |  سعر الصرف: ${cfg.egp} ج.م`],[],["م","الاسم","التخصص","المحافظة","أيام 1-15","إعاشة 1($)","أيام 16-30","إعاشة 2($)","إجمالى($)","إجمالى(ج.م)"]];
+    const rows=[[`كشف إعاشات – ${mn} ${cfg.year}`],[cfg.company],[`الإعاشة الشهرية: ${cfg.rate}$  |  سعر الصرف: ${cfg.egp} ج.م`],[],["م","الاسم","التخصص","المحافظة","أيام 1-15","إعاشة 1($)","أيام 16-30","إعاشة 2($)","أيام قديمة","إجمالى($)","إجمالى(ج.م)"]];
     let n=1;
     PROVS.forEach((p,pi)=>{
       rows.push(["◆ "+p]);
-      (data[p]||[]).forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+c.tot.toFixed(2),+c.egp.toFixed(2)]);});
-      const T=totals[pi];rows.push(["","","","إجمالى "+p,"",+T.a1.toFixed(2),"",+T.a2.toFixed(2),+T.tot.toFixed(2),+T.egp.toFixed(2)]);rows.push([]);
+      (data[p]||[]).forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+e.extra||0,+c.tot.toFixed(2),+c.egp.toFixed(2)]);});
+      const T=totals[pi];
+      /* Sum oldDays for the province totals row */
+      const Told=(data[p]||[]).reduce((s,e)=>s+(+e.extra||0),0);
+      rows.push(["","","","إجمالى "+p,"",+T.a1.toFixed(2),"",+T.a2.toFixed(2),Told,+T.tot.toFixed(2),+T.egp.toFixed(2)]);rows.push([]);
     });
-    rows.push(["","","","الإجمالى الكلى","",+G.a1.toFixed(2),"",+G.a2.toFixed(2),+G.tot.toFixed(2),+G.egp.toFixed(2)]);
-    const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:4},{wch:28},{wch:22},{wch:20},{wch:9},{wch:16},{wch:9},{wch:16},{wch:14},{wch:18}];
+    const Gold=PROVS.reduce((s,p)=>s+(data[p]||[]).reduce((s2,e)=>s2+(+e.extra||0),0),0);
+    rows.push(["","","","الإجمالى الكلى","",+G.a1.toFixed(2),"",+G.a2.toFixed(2),Gold,+G.tot.toFixed(2),+G.egp.toFixed(2)]);
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:4},{wch:28},{wch:22},{wch:20},{wch:9},{wch:16},{wch:9},{wch:16},{wch:11},{wch:14},{wch:18}];
     XLSX.utils.book_append_sheet(wb,ws,"الإعاشات");XLSX.writeFile(wb,`اعاشات_${mn}_${cfg.year}.xlsx`);msg("تم تصدير Excel ✓");
   };
 
@@ -5590,15 +5594,17 @@ ${provRows.length>1?`
     // KPIs
     const totalEngs=PROVS.reduce((a,p)=>a+(_data[p]||[]).length,0);
     const monthRate=+_cfg.rate||300;
-    let paid1Engs=0,paid2Engs=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
+    let paid1Engs=0,paid2Engs=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0,oldDaysSum=0,oldDaysUSD=0;
     PROVS.forEach(p=>{(_data[p]||[]).forEach(e=>{
       const dr=monthRate/30;
       const a1=(+e.d1||0)*dr,a2=(+e.d2||0)*dr;
+      const oldD=+e.extra||0;
       if(isP1(e)){paid1Engs++;paid1USD+=a1;}else{unpaid1USD+=a1;}
       if(isP2(e)){paid2Engs++;paid2USD+=a2;}else{unpaid2USD+=a2;}
+      oldDaysSum+=oldD;oldDaysUSD+=oldD*dr;
     });});
     const paidUsdSum=paid1USD+paid2USD;
-    const unpaidUsdSum=unpaid1USD+unpaid2USD;
+    const unpaidUsdSum=unpaid1USD+unpaid2USD+oldDaysUSD;
     const paidEngs=paid1Engs+paid2Engs;// total halves paid (out of totalEngs*2)
     const unpaidEngs=(totalEngs*2)-paidEngs;
     // Attendance for prev month (which has been completed)
@@ -5702,7 +5708,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         const engs=_data[p]||[];
         const p1=engs.filter(e=>isP1(e)).length;
         const p2=engs.filter(e=>isP2(e)).length;
-        const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0))/30*monthRate),0);
+        const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0)+(+e.extra||0))/30*monthRate),0);
         return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${p1}/${engs.length}</td><td class="paid-yes">${p2}/${engs.length}</td><td>${fmt(tot)} $</td></tr>`;
       }).join('')}
     </tbody>
@@ -10219,16 +10225,18 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
               !engProfileData||engProfileData.monthly.length===0
                 ?h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)"}},"لا توجد بيانات إعاشة")
                 :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                  h("thead",null,h("tr",null,h("th",{className:"l"},"الشهر"),h("th",null,"نصف أول"),h("th",null,"نصف ثاني"),h("th",null,"الإجمالي $"),h("th",null,"ج.م"))),
+                  h("thead",null,h("tr",null,h("th",{className:"l"},"الشهر"),h("th",null,"نصف أول"),h("th",null,"نصف ثاني"),h("th",null,"أيام قديمة"),h("th",null,"الإجمالي $"),h("th",null,"ج.م"))),
                   h("tbody",null,
                     engProfileData.monthly.map(m=>h("tr",{key:m.key},
                       h("td",{className:"l",style:{fontWeight:600}},m.monthLabel),
                       h("td",null,m.d1," يوم"),h("td",null,m.d2," يوم"),
+                      h("td",{style:{color:(m.extra||0)>0?"#D97706":"var(--sub)",fontWeight:(m.extra||0)>0?700:400}},(m.extra||0)>0?(m.extra+" يوم"):"—"),
                       h("td",{style:{fontWeight:700,color:"var(--blue)"}},f$(m.c.tot)),
                       h("td",{style:{color:"var(--sub)"}},fE(m.c.egp))
                     )),
                     h("tr",{className:"sub-row"},
                       h("td",{className:"l"},"الإجمالى"),h("td",null),h("td",null),
+                      h("td",{style:{color:"#D97706",fontWeight:800}},engProfileData.monthly.reduce((a,m)=>a+(m.extra||0),0)+" يوم"),
                       h("td",{style:{fontWeight:800,color:"var(--green)"}},f$(engProfileData.monthly.reduce((a,m)=>a+m.c.tot,0))),
                       h("td",{style:{color:"var(--sub)"}},fE(engProfileData.monthly.reduce((a,m)=>a+m.c.egp,0)))
                     )
