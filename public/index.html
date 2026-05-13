@@ -2129,6 +2129,77 @@ function OcOrgChart(props){
 }
 
 /* ══════════════════════════════════════════════════════
+   OUTSTANDING DUES PANEL — أيام مرحّلة من شهور سابقة
+   Shows engineers with unpaid d1/d2 days from prior months.
+   Collapsible: shows banner alert by default, expands to full table.
+══════════════════════════════════════════════════════ */
+function OutstandingDuesPanel({dues,onPay,rate,engRate}){
+  const [expanded,setExpanded]=useState(false);
+  if(!dues||dues.length===0)return null;
+  const totalDays=dues.reduce((a,d)=>a+(+d.days||0),0);
+  const dr=(+engRate||300)/30;
+  const totalUSD=totalDays*dr;
+  const totalEGP=totalUSD*(+rate||0);
+  const uniqEngs=new Set(dues.map(d=>d.engId)).size;
+  return h("div",{style:{background:"linear-gradient(135deg,rgba(120,53,15,.20),rgba(146,64,14,.10))",border:"1px solid rgba(217,119,6,.45)",borderRadius:14,overflow:"hidden"}},
+    h("div",{
+      onClick:()=>setExpanded(!expanded),
+      style:{padding:"14px 18px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",cursor:"pointer",transition:"background .2s"}
+    },
+      h("div",{style:{fontSize:24,lineHeight:1,flexShrink:0}},"⏳"),
+      h("div",{style:{flex:1,minWidth:200}},
+        h("div",{style:{fontSize:13,fontWeight:900,color:"#FCD34D",marginBottom:3}},"⚠️ يوجد ",dues.length," مستحق غير مصروف من شهور سابقة"),
+        h("div",{style:{fontSize:11,color:"#FDE68A",lineHeight:1.5}},uniqEngs," مهندس — إجمالى ",totalDays," يوم"," · ",totalUSD.toFixed(0)," $ · ",totalEGP.toFixed(0)," ج.م")
+      ),
+      h("button",{
+        style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",boxShadow:"0 4px 12px rgba(245,158,11,.3)",display:"inline-flex",alignItems:"center",gap:6}
+      },expanded?"إخفاء التفاصيل ▴":"عرض التفاصيل ▾")
+    ),
+    expanded&&h("div",{style:{padding:"4px 14px 14px",borderTop:"1px solid rgba(217,119,6,.25)"}},
+      h("div",{className:"tbl-wrap",style:{marginTop:10,background:"var(--card)",borderRadius:10,border:"1px solid var(--bd)"}},
+        h("table",{className:"tbl",style:{width:"100%"}},
+          h("thead",null,h("tr",null,
+            h("th",null,"#"),
+            h("th",{className:"l"},"المهندس"),
+            h("th",{className:"l"},"التخصص"),
+            h("th",{className:"l"},"المحافظة"),
+            h("th",null,"الشهر"),
+            h("th",null,"النصف"),
+            h("th",null,"عدد الأيام"),
+            h("th",null,"المبلغ ($)"),
+            h("th",null,"الإجراء")
+          )),
+          h("tbody",null,dues.map((d,i)=>{
+            const usd=(+d.days||0)*dr;
+            const isH1=d.half===1;
+            return h("tr",{key:d.monthKey+"-"+d.engId+"-"+d.half},
+              h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+              h("td",{className:"l",style:{fontWeight:700,color:"#C4B5FD"}},d.engName),
+              h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},d.spec||"—"),
+              h("td",{className:"l",style:{fontSize:11}},d.prov.replace("محافظة ","")),
+              h("td",{style:{fontSize:11,fontWeight:700}},d.monthLabel),
+              h("td",null,h("span",{
+                style:{display:"inline-block",fontSize:10,fontWeight:800,padding:"3px 10px",borderRadius:100,background:isH1?"rgba(168,85,247,.15)":"rgba(16,185,129,.15)",color:isH1?"#A78BFA":"#6EE7B7",border:"1px solid "+(isH1?"rgba(168,85,247,.35)":"rgba(16,185,129,.35)")}
+              },isH1?"🔵 النص الأول":"🟢 النص التانى")),
+              h("td",{style:{fontWeight:800,color:"#FBBF24"}},d.days),
+              h("td",{style:{fontWeight:700,color:"#60A5FA"}},usd.toFixed(1)+" $"),
+              h("td",null,h("button",{
+                onClick:()=>{if(confirm(`تأكيد صرف مستحق ${d.engName} عن ${d.monthLabel} (${isH1?'النص الأول':'النص التانى'}) — ${d.days} يوم؟`))onPay(d.monthKey,d.prov,d.engId,d.half);},
+                style:{padding:"5px 12px",borderRadius:8,fontSize:11,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:isH1?"linear-gradient(135deg,#A855F7,#7C3AED)":"linear-gradient(135deg,#10B981,#059669)",color:"#fff",display:"inline-flex",alignItems:"center",gap:4}
+              },"💰 صرف الآن"))
+            );
+          }))
+        )
+      ),
+      h("div",{style:{fontSize:11,color:"var(--sub)",marginTop:10,lineHeight:1.7,padding:"8px 12px",background:"var(--bg)",borderRadius:8}},
+        h("strong",{style:{color:"#FCD34D"}},"💡 ملاحظة: "),
+        "هذه الأيام تخص شهور سابقة لم يتم صرفها بعد. الضغط على \"صرف الآن\" يحدّث حالة الدفع في الشهر الأصلى، وليس الشهر الحالى."
+      )
+    )
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    MAIN APP
 ══════════════════════════════════════════════════════ */
 function App(){
@@ -2155,6 +2226,7 @@ function App(){
   const [form,setForm]=useState({prov:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});
   const [nmForm,setNmForm]=useState({month:now.getMonth()+1,year:now.getFullYear()});
   const [search,setSearch]=useState("");
+  const [halfView,setHalfView]=useState(0);
   const [toast,setToast]=useState(null);
   const [mobOpen,setMobOpen]=useState(false);
   const [importPrev,setImportPrev]=useState(null);
@@ -3872,6 +3944,27 @@ function App(){
     msg(paid?`تم تأشير ${lbl} كمدفوع ✓`:`تم إلغاء ${lbl}`);
   };
 
+  /* Pay an outstanding due from a PREVIOUS month — updates paid1/paid2 on that month, not the current one */
+  const payOutstanding=(monthKey,prov,engId,half)=>{
+    if(lockGuard())return;
+    if(isProvince&&prov!==userProv){msg('غير مصرح','err');return;}
+    const m=months[monthKey];
+    if(!m||!m.data||!m.data[prov]){msg('لا توجد بيانات للشهر','err');return;}
+    const newData=dc(m.data);
+    newData[prov]=newData[prov].map(e=>{
+      if(e.id!==engId)return e;
+      const cur1=e.paid1!==undefined?!!e.paid1:!!e.paid;
+      const cur2=e.paid2!==undefined?!!e.paid2:!!e.paid;
+      const out={...e,paid1:half===1?true:cur1,paid2:half===2?true:cur2};
+      delete out.paid;
+      return out;
+    });
+    const updated={...m,data:newData,savedAt:null};
+    setMonths(prev=>({...prev,[monthKey]:updated}));
+    queueSave(monthKey,updated);
+    msg('تم صرف المستحق ✓');
+  };
+
   /* ── Attendance helpers ───────────────────────────────
      Engineers in Libya don't take regular AL or EL leave — they only get:
      - egypt-leave (recorded via the egypt-leave button, not as cell status)
@@ -4302,6 +4395,41 @@ function App(){
     return total>0?total:(sEgy||0);
   };
 
+  /* Outstanding dues from previous months: engineers with d1/d2>0 but paid1/paid2=false.
+     Scans up to 6 previous months. For province users, only their own province is included.
+     Used to render the "أيام مرحّلة من شهور سابقة" banner + table in the eng page. */
+  const outstandingDues=useMemo(()=>{
+    const out=[];
+    const curM=cfg.month||(now.getMonth()+1), curY=cfg.year||now.getFullYear();
+    /* Build list of (year,month) pairs for the previous 6 months */
+    const prevMonths=[];
+    let m=curM, y=curY;
+    for(let i=0;i<6;i++){
+      m--;
+      if(m<1){m=12;y--;}
+      prevMonths.push({m,y,key:mkKey(m,y)});
+    }
+    prevMonths.forEach(({m:pm,y:py,key:pk})=>{
+      const mObj=months[pk];
+      if(!mObj||!mObj.data)return;
+      const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
+      provsScope.forEach(p=>{
+        (mObj.data[p]||[]).forEach(e=>{
+          const d1=+e.d1||0, d2=+e.d2||0;
+          const p1=e.paid1!==undefined?!!e.paid1:!!e.paid;
+          const p2=e.paid2!==undefined?!!e.paid2:!!e.paid;
+          if(d1>0&&!p1){
+            out.push({monthKey:pk,monthLabel:MONTHS[pm-1]+' '+py,prov:p,engId:e.id,engName:e.name,spec:e.spec,half:1,days:d1});
+          }
+          if(d2>0&&!p2){
+            out.push({monthKey:pk,monthLabel:MONTHS[pm-1]+' '+py,prov:p,engId:e.id,engName:e.name,spec:e.spec,half:2,days:d2});
+          }
+        });
+      });
+    });
+    return out;
+  },[months,cfg.month,cfg.year,isProvince,userProv]);
+
   const paidStats=useMemo(()=>{
     let p1N=0,p2N=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0;
     allE.forEach(e=>{
@@ -4424,7 +4552,8 @@ function App(){
   },[pendingPrint,page]);
 
 
-  const exportPDF=(mode='print',monthKey=null)=>{
+  const exportPDF=(mode='print',monthKey=null,halfMode=0)=>{
+    /* halfMode: 0=full month, 1=first half only (1-15), 2=second half only (16-end) */
     const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     const PL=["#eff6ff","#f0fdf4","#fffbeb","#f5f3ff"];
     const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
@@ -4452,6 +4581,10 @@ function App(){
       custTotalLYD:_custody.reduce((a,c)=>a+(+c.lyd||0),0),
     }:expTotals;
     const rate=liveRate||_cfg.egp||0;
+    /* halfMode helpers */
+    const _showH1=halfMode!==2;
+    const _showH2=halfMode!==1;
+    const _halfLabel=halfMode===1?' — النصف الأول (1-15)':halfMode===2?' — النصف الثانى (16-آخر الشهر)':'';
     /* Build engsByProv with transfer-aware split — engineers transferred during the month appear in BOTH old and new prov with d1/d2 split */
     const _M=_cfg.month||1, _Y=_cfg.year||new Date().getFullYear();
     const _engsByProv={};
@@ -4500,18 +4633,21 @@ function App(){
             }
           }
         }
+        /* halfMode-aware row total: only include the visible half(s) */
+        const _rowTot=(_showH1?c.a1:0)+(_showH2?c.a2:0);
+        const _rowEgp=_rowTot*(+_cfg.egp||0);
         return `<tr style="background:${bg};">
           <td style="padding:7px 8px;text-align:center;color:#94a3b8;font-size:10px;border-bottom:1px solid #f1f5f9;">${i+1}</td>
           <td style="padding:7px 8px;font-weight:600;color:#0f172a;border-bottom:1px solid #f1f5f9;">${e.name}${nameBadges}</td>
           <td style="padding:7px 8px;color:#64748b;font-size:10px;border-bottom:1px solid #f1f5f9;">${e.spec}</td>
-          <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${effD1}</td>
+          ${_showH1?`<td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${effD1}</td>
           <td style="padding:5px 6px;text-align:center;border-bottom:1px solid #f1f5f9;">${dual(c.a1)}</td>
-          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p1)}</td>
-          <td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${effD2}</td>
+          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p1)}</td>`:''}
+          ${_showH2?`<td style="padding:7px 8px;text-align:center;font-weight:600;color:#475569;border-bottom:1px solid #f1f5f9;">${effD2}</td>
           <td style="padding:5px 6px;text-align:center;border-bottom:1px solid #f1f5f9;">${dual(c.a2)}</td>
-          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p2)}</td>
-          <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${c.tot.toFixed(2)}</td>
-          <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${c.egp.toFixed(0)}</td>
+          <td style="padding:7px 8px;text-align:center;border-bottom:1px solid #f1f5f9;">${badge(p2)}</td>`:''}
+          <td style="padding:7px 8px;text-align:center;font-weight:800;color:#0f172a;border-bottom:1px solid #f1f5f9;">${_rowTot.toFixed(2)}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${_rowEgp.toFixed(0)}</td>
         </tr>`;
       }).join('');
       return `
@@ -4533,12 +4669,12 @@ function App(){
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:26px;">م</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;min-width:120px;">الاسم</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;">التخصص</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">1-15</th>
+              ${_showH1?`<th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">1-15</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 1 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 1</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">16-30</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 1</th>`:''}
+              ${_showH2?`<th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">16-${dim}</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 2 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 2</th>
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 2</th>`:''}
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">إجمالى ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:68px;">إجمالى (ج.م)</th>
             </tr>
@@ -4547,20 +4683,20 @@ function App(){
             ${rows}
             <tr style="background:${light};border-top:2px solid ${border};">
               <td colspan="3" style="padding:8px 10px;font-weight:700;color:${color};">◆ إجمالى ${prov}</td>
-              <td></td>
+              ${_showH1?`<td></td>
               <td style="padding:6px;text-align:center;line-height:1.3;">
                 <div style="font-weight:800;color:${color};font-size:11px;">${T.a1.toFixed(2)} $</div>
                 <div style="font-weight:700;color:#b45309;font-size:9.5px;">${(T.a1*rate).toFixed(0)} ج.م</div>
               </td>
-              <td></td>
-              <td></td>
+              <td></td>`:''}
+              ${_showH2?`<td></td>
               <td style="padding:6px;text-align:center;line-height:1.3;">
                 <div style="font-weight:800;color:${color};font-size:11px;">${T.a2.toFixed(2)} $</div>
                 <div style="font-weight:700;color:#b45309;font-size:9.5px;">${(T.a2*rate).toFixed(0)} ج.م</div>
               </td>
-              <td></td>
-              <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${T.tot.toFixed(2)}</td>
-              <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${T.egp.toFixed(0)}</td>
+              <td></td>`:''}
+              <td style="padding:8px;text-align:center;font-weight:800;color:#0f172a;">${((_showH1?T.a1:0)+(_showH2?T.a2:0)).toFixed(2)}</td>
+              <td style="padding:8px;text-align:center;font-weight:800;color:#b45309;">${(((_showH1?T.a1:0)+(_showH2?T.a2:0))*rate).toFixed(0)}</td>
             </tr>
           </tbody>
         </table>
@@ -4576,14 +4712,18 @@ function App(){
       const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
-    const summaryCards=[
-      {l:"إجمالى المهندسين",v:_G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe"},
-      {l:"إجمالى النصف الأول",v:_G.a1.toFixed(2)+" $",sub:(_G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0"},
-      {l:"إجمالى النصف الثاني",v:_G.a2.toFixed(2)+" $",sub:(_G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe"},
-      {l:"الإجمالى الكلى ($)",v:_G.tot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0"},
-      {l:"الإجمالى (ج.م)",v:_G.egp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a"},
-      {l:"الإعاشة اليومية",v:(_cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd"},
-    ].map(s=>`<div style="background:${s.bg};border:1.5px solid ${s.br};border-radius:10px;padding:12px 10px;text-align:center;flex:1;min-width:0;">
+    /* halfMode-aware grand totals */
+    const _Gtot=(_showH1?_G.a1:0)+(_showH2?_G.a2:0);
+    const _Gegp=_Gtot*(+_cfg.egp||0);
+    const _summaryCardDefs=[
+      {l:"إجمالى المهندسين",v:_G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe",show:true},
+      {l:"إجمالى النصف الأول",v:_G.a1.toFixed(2)+" $",sub:(_G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0",show:_showH1},
+      {l:"إجمالى النصف الثاني",v:_G.a2.toFixed(2)+" $",sub:(_G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe",show:_showH2},
+      {l:"الإجمالى الكلى ($)",v:_Gtot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0",show:true},
+      {l:"الإجمالى (ج.م)",v:_Gegp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a",show:true},
+      {l:"الإعاشة اليومية",v:(_cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd",show:true},
+    ];
+    const summaryCards=_summaryCardDefs.filter(s=>s.show).map(s=>`<div style="background:${s.bg};border:1.5px solid ${s.br};border-radius:10px;padding:12px 10px;text-align:center;flex:1;min-width:0;">
       <div style="font-size:16px;font-weight:800;color:${s.c};margin-bottom:${s.sub?2:4}px;">${s.v}</div>
       ${s.sub?`<div style="font-size:11px;font-weight:700;color:#b45309;margin-bottom:3px;">${s.sub}</div>`:''}
       <div style="font-size:9px;color:#64748b;font-weight:600;letter-spacing:.3px;">${s.l}</div>
@@ -4593,7 +4733,7 @@ function App(){
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>كشف إعاشات – ${_mn} ${_cfg.year}</title>
+<title>كشف إعاشات – ${_mn} ${_cfg.year}${_halfLabel}</title>
 <style>
   @page{size:A4;margin:12mm 10mm}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -4609,7 +4749,7 @@ function App(){
 <body>
 
 <div class="print-bar no-print">
-  <div style="font-size:13px;font-weight:700;color:#1e293b;">كشف إعاشات – ${_mn} ${_cfg.year} · ${_cfg.company}</div>
+  <div style="font-size:13px;font-weight:700;color:#1e293b;">كشف إعاشات – ${_mn} ${_cfg.year}${_halfLabel} · ${_cfg.company}</div>
   <button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
 </div>
 
@@ -4620,7 +4760,7 @@ function App(){
     <div style="display:flex;align-items:center;gap:14px;">
       ${logoHtml}
       <div>
-        <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:3px;letter-spacing:-.3px;">كشف إعاشات المهندسين</div>
+        <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:3px;letter-spacing:-.3px;">كشف إعاشات المهندسين${_halfLabel?` <span style="display:inline-block;font-size:12px;font-weight:800;padding:3px 12px;border-radius:100px;background:${halfMode===1?'linear-gradient(135deg,#A855F7,#7C3AED)':'linear-gradient(135deg,#10B981,#059669)'};color:#fff;margin-right:6px;vertical-align:middle">${halfMode===1?'النص الأول (1–15)':'النص التانى (16–'+new Date(_Y,_M,0).getDate()+')'}</span>`:''}</div>
         <div style="color:rgba(255,255,255,.65);font-size:11px;font-weight:500;">${_cfg.company}</div>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الإعاشة: ${_cfg.rate} $</span>
@@ -7983,13 +8123,65 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             liveRate&&h("span",{style:{fontSize:11,color:"var(--sub)"}},rateAt?"آخر تحديث: "+new Date(rateAt).toLocaleTimeString("ar-EG"):""),
             (isAdmin||isProvince)&&h("button",{className:"btn",style:{padding:"3px 10px",fontSize:11,marginRight:"auto"},onClick:fetchLiveRate,disabled:rateFetching},rateFetching?"جارٍ التحديث...":"تحديث")
           ),
+          /* ══ HALF-VIEW TABS ══ */
+          h("div",{key:"half-tabs",style:{display:"flex",gap:6,padding:"8px 10px",background:"var(--card)",borderRadius:12,border:"1px solid var(--bd)",flexWrap:"wrap",alignItems:"center"}},
+            h("span",{style:{fontSize:11,fontWeight:800,color:"var(--sub)",marginLeft:6}},"عرض:"),
+            h("button",{
+              onClick:()=>setHalfView(0),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"1px solid "+(halfView===0?"#6366F1":"transparent"),background:halfView===0?"linear-gradient(135deg,#6366F1,#4F46E5)":"transparent",color:halfView===0?"#fff":"var(--sub)",boxShadow:halfView===0?"0 4px 14px rgba(99,102,241,.35)":"none",transition:"all .2s",display:"inline-flex",alignItems:"center",gap:6}
+            },"📋 كل الشهر",h("span",{style:{fontSize:10,padding:"1px 7px",borderRadius:100,background:halfView===0?"rgba(255,255,255,.2)":"var(--bd)",fontWeight:800}},new Date(cfg.year,cfg.month,0).getDate())),
+            h("button",{
+              onClick:()=>setHalfView(1),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"1px solid "+(halfView===1?"#7C3AED":"transparent"),background:halfView===1?"linear-gradient(135deg,#A855F7,#7C3AED)":"transparent",color:halfView===1?"#fff":"var(--sub)",boxShadow:halfView===1?"0 4px 14px rgba(168,85,247,.35)":"none",transition:"all .2s",display:"inline-flex",alignItems:"center",gap:6}
+            },"🔵 النص الأول",h("span",{style:{fontSize:10,padding:"1px 7px",borderRadius:100,background:halfView===1?"rgba(255,255,255,.2)":"var(--bd)",fontWeight:800}},"1–15")),
+            h("button",{
+              onClick:()=>setHalfView(2),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"1px solid "+(halfView===2?"#059669":"transparent"),background:halfView===2?"linear-gradient(135deg,#10B981,#059669)":"transparent",color:halfView===2?"#fff":"var(--sub)",boxShadow:halfView===2?"0 4px 14px rgba(16,185,129,.35)":"none",transition:"all .2s",display:"inline-flex",alignItems:"center",gap:6}
+            },"🟢 النص التانى",h("span",{style:{fontSize:10,padding:"1px 7px",borderRadius:100,background:halfView===2?"rgba(255,255,255,.2)":"var(--bd)",fontWeight:800}},"16–"+new Date(cfg.year,cfg.month,0).getDate())),
+            /* Smart reminder pills (day 14/15 → h1 close, day 29/30 → h2 close) */
+            (()=>{
+              const today=new Date();
+              const curM=cfg.month||(today.getMonth()+1), curY=cfg.year||today.getFullYear();
+              const isCurMonth=today.getMonth()+1===curM && today.getFullYear()===curY;
+              if(!isCurMonth) return null;
+              const d=today.getDate();
+              const dim=new Date(curY,curM,0).getDate();
+              if(d===14||d===15){
+                return h("span",{style:{marginRight:"auto",fontSize:11,fontWeight:800,padding:"5px 12px",borderRadius:100,background:"linear-gradient(135deg,rgba(168,85,247,.18),rgba(124,58,237,.10))",border:"1px solid rgba(168,85,247,.35)",color:"#A78BFA",display:"inline-flex",alignItems:"center",gap:6}},"⚠️ اليوم آخر/قبل آخر يوم في النص الأول");
+              }
+              if(d===dim-1||d===dim){
+                return h("span",{style:{marginRight:"auto",fontSize:11,fontWeight:800,padding:"5px 12px",borderRadius:100,background:"linear-gradient(135deg,rgba(16,185,129,.18),rgba(5,150,105,.10))",border:"1px solid rgba(16,185,129,.35)",color:"#6EE7B7",display:"inline-flex",alignItems:"center",gap:6}},"⚠️ اليوم آخر/قبل آخر يوم في النص التانى");
+              }
+              return null;
+            })()
+          ),
+          /* ══ PDF EXPORT TOOLBAR (3 separate buttons) ══ */
+          (isAdmin||isProvince)&&h("div",{key:"pdf-toolbar",style:{display:"flex",gap:6,padding:"8px 10px",background:"var(--card)",borderRadius:12,border:"1px solid var(--bd)",flexWrap:"wrap",alignItems:"center"}},
+            h("span",{style:{fontSize:11,fontWeight:800,color:"var(--sub)",marginLeft:6}},"📄 تصدير PDF:"),
+            h("button",{
+              onClick:()=>exportPDF('print',null,0),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#6366F1,#4F46E5)",color:"#fff",boxShadow:"0 4px 12px rgba(99,102,241,.3)",display:"inline-flex",alignItems:"center",gap:6,transition:"all .2s"}
+            },"📄 كامل الشهر"),
+            h("button",{
+              onClick:()=>exportPDF('print',null,1),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#A855F7,#7C3AED)",color:"#fff",boxShadow:"0 4px 12px rgba(168,85,247,.3)",display:"inline-flex",alignItems:"center",gap:6,transition:"all .2s"}
+            },"🔵 النص الأول (1–15)"),
+            h("button",{
+              onClick:()=>exportPDF('print',null,2),
+              style:{padding:"7px 14px",borderRadius:10,fontSize:12,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"none",background:"linear-gradient(135deg,#10B981,#059669)",color:"#fff",boxShadow:"0 4px 12px rgba(16,185,129,.3)",display:"inline-flex",alignItems:"center",gap:6,transition:"all .2s"}
+            },"🟢 النص التانى (16–"+new Date(cfg.year,cfg.month,0).getDate()+")")
+          ),
+          /* ══ OUTSTANDING DUES FROM PREVIOUS MONTHS ══ */
+          outstandingDues.length>0&&h(OutstandingDuesPanel,{key:"outstanding",dues:outstandingDues,onPay:payOutstanding,rate:liveRate||cfg.egp||0,engRate:cfg.rate||300}),
           (()=>{
             const rate=liveRate||cfg.egp||0;
             const totalH1USD=paidStats.paid1USD+paidStats.unpaid1USD;
             const totalH2USD=paidStats.paid2USD+paidStats.unpaid2USD;
+            const _showH1view=halfView!==2;
+            const _showH2view=halfView!==1;
             return [
-              h("div",{key:"egp-summary",style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:6}},
-                h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(99,102,241,.18) 0%,rgba(59,130,246,.10) 100%)",border:"1px solid rgba(99,102,241,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(99,102,241,.20)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+              h("div",{key:"egp-summary",style:{display:"grid",gridTemplateColumns:(_showH1view&&_showH2view)?"1fr 1fr":"1fr",gap:12,marginBottom:6}},
+                _showH1view&&h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(99,102,241,.18) 0%,rgba(59,130,246,.10) 100%)",border:"1px solid rgba(99,102,241,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(99,102,241,.20)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
                   h("div",{style:{position:"absolute",top:-20,right:-20,width:100,height:100,background:"radial-gradient(circle,rgba(99,102,241,.30),transparent 70%)",pointerEvents:"none"}}),
                   h("div",{style:{position:"relative",display:"flex",flexDirection:"column",gap:5}},
                     h("span",{style:{fontSize:11,fontWeight:800,color:"#A5B4FC",letterSpacing:".5px"}},"النصف الأول"),
@@ -8000,7 +8192,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     h("span",{style:{fontSize:26,fontWeight:900,background:"linear-gradient(135deg,#818cf8,#a78bfa)",backgroundClip:"text",WebkitBackgroundClip:"text",color:"transparent",letterSpacing:"-1px",lineHeight:1}},fE(totalH1USD*rate))
                   )
                 ),
-                h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(16,185,129,.16) 0%,rgba(34,211,238,.08) 100%)",border:"1px solid rgba(16,185,129,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(16,185,129,.18)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
+                _showH2view&&h("div",{style:{padding:"16px 20px",background:"linear-gradient(135deg,rgba(16,185,129,.16) 0%,rgba(34,211,238,.08) 100%)",border:"1px solid rgba(16,185,129,.35)",borderRadius:16,backdropFilter:"blur(20px)",boxShadow:"0 8px 28px rgba(16,185,129,.18)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}},
                   h("div",{style:{position:"absolute",top:-20,right:-20,width:100,height:100,background:"radial-gradient(circle,rgba(16,185,129,.30),transparent 70%)",pointerEvents:"none"}}),
                   h("div",{style:{position:"relative",display:"flex",flexDirection:"column",gap:5}},
                     h("span",{style:{fontSize:11,fontWeight:800,color:"#6EE7B7",letterSpacing:".5px"}},"النصف الثاني"),
@@ -8012,7 +8204,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                   )
                 )
               ),
-              h("div",{key:"h1",className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
+              _showH1view&&h("div",{key:"h1",className:"pay-strip",style:{borderRight:"3px solid #2563EB"}},
                 h(Ic,{n:"paid",sz:14,c:"#2563EB"}),
                 h("span",{style:{fontSize:11,fontWeight:800,color:"#2563EB",minWidth:80}},"النصف الأول"),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid1N+" مدفوع"),
@@ -8024,7 +8216,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 (isAdmin||isProvince)&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:12}),"تأشير الكل"),
                 (isAdmin||isProvince)&&paidStats.paid1N>0&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>markAllPaid(false,1)},"إلغاء الكل")
               ),
-              h("div",{key:"h2",className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
+              _showH2view&&h("div",{key:"h2",className:"pay-strip",style:{borderRight:"3px solid #16A34A"}},
                 h(Ic,{n:"paid",sz:14,c:"#16A34A"}),
                 h("span",{style:{fontSize:11,fontWeight:800,color:"#16A34A",minWidth:80}},"النصف الثاني"),
                 h("span",{style:{fontSize:12,fontWeight:700,color:"var(--green)"}},paidStats.paid2N+" مدفوع"),
@@ -8074,7 +8266,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               ),
               h("div",{className:"prov-bar-bg"},h("div",{className:"prov-bar-fill",style:{width:`${(T.tot/maxTv*100).toFixed(1)}%`,background:color}})),
               h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
-                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),h("th",null,"أيام\n1-15"),h("th",null,"إعاشة\n1 ($)"),h("th",null,"حالة\nنص أول"),h("th",null,"أيام\n16-30"),h("th",null,"إعاشة\n2 ($)"),h("th",null,"حالة\nنص تاني"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),isAdmin&&h("th",null,""))),
+                h("thead",null,h("tr",null,h("th",null,"م"),h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"التخصص"),halfView!==2&&h("th",null,"أيام\n1-15"),halfView!==2&&h("th",null,"إعاشة\n1 ($)"),halfView!==2&&h("th",null,"حالة\nنص أول"),halfView!==1&&h("th",null,"أيام\n16-"+new Date(cfg.year,cfg.month,0).getDate()),halfView!==1&&h("th",null,"إعاشة\n2 ($)"),halfView!==1&&h("th",null,"حالة\nنص تاني"),h("th",null,"إجمالى\n($)"),h("th",null,"إجمالى\n(ج.م)"),isAdmin&&h("th",null,""))),
                 h("tbody",null,
                   engs.map((e,i)=>{
                     const inc=getIncomingExtra(e.id,prov);
@@ -8117,7 +8309,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         })()
                       ),
                       h("td",{className:"l",style:{color:"var(--sub)",minWidth:80}},e.spec),
-                      h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
+                      halfView!==2&&h("td",null,h("div",{style:{display:"flex",alignItems:"center",gap:6,justifyContent:"center",flexWrap:"wrap"}},
                         h("input",{
                           type:"number",className:"day-inp",
                           style:{borderColor:isSplit?"#a78bfa":"#2563EB",opacity:isSplit?.85:1},
@@ -8130,19 +8322,19 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         }),
                         inc>0&&!isSplit&&h("span",{className:"d1-bonus",title:`+${inc} أيام مرحلة من الشهر السابق`},"+ ⭐ ",inc)
                       )),
-                      h("td",null,
+                      halfView!==2&&h("td",null,
                         h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                           h("span",{style:{color:"#2563EB",fontWeight:700,fontSize:12}},c.a1.toFixed(1)+" $"),
                           h("span",{style:{color:"#D97706",fontSize:10,fontWeight:600}},(c.a1*(liveRate||cfg.egp)).toFixed(0)+" ج.م")
                         )
                       ),
-                      h("td",null,
+                      halfView!==2&&h("td",null,
                         h("span",{className:`paid-badge ${p1?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)&&!e.isReadOnlyHere?"pointer":"default",opacity:e.isReadOnlyHere?.6:1},onClick:(isAdmin||isProvince)&&!e.isReadOnlyHere?()=>togglePaid1(e.currentProv||prov,e.id):undefined,title:e.isReadOnlyHere?`الحالة تُدار من ${e.currentProv}`:(isAdmin||isProvince)?"اضغط للتغيير":""},
                           h(Ic,{n:p1?"paid":"clock",sz:11}),
                           p1?"مدفوع":"معلق"
                         )
                       ),
-                      h("td",null,h("input",{
+                      halfView!==1&&h("td",null,h("input",{
                         type:"number",className:"day-inp",
                         style:{borderColor:isSplit?"#a78bfa":"#16A34A",opacity:isSplit?.85:1},
                         min:0,max:isSplit?e.inH2:15,
@@ -8152,20 +8344,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         title:isSplit?`d2 محسوب تلقائياً من ${e.inH2} يوم فى ${prov} × ${(e.d2Ratio*100).toFixed(0)}%`:undefined,
                         onChange:ev=>updData(e.currentProv||prov,e.id,"d2",ev.target.value)
                       })),
-                      h("td",null,
+                      halfView!==1&&h("td",null,
                         h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                           h("span",{style:{color:"#16A34A",fontWeight:700,fontSize:12}},c.a2.toFixed(1)+" $"),
                           h("span",{style:{color:"#D97706",fontSize:10,fontWeight:600}},(c.a2*(liveRate||cfg.egp)).toFixed(0)+" ج.م")
                         )
                       ),
-                      h("td",null,
+                      halfView!==1&&h("td",null,
                         h("span",{className:`paid-badge ${p2?"yes":"no"}`,style:{cursor:(isAdmin||isProvince)&&!e.isReadOnlyHere?"pointer":"default",opacity:e.isReadOnlyHere?.6:1},onClick:(isAdmin||isProvince)&&!e.isReadOnlyHere?()=>togglePaid2(e.currentProv||prov,e.id):undefined,title:e.isReadOnlyHere?`الحالة تُدار من ${e.currentProv}`:(isAdmin||isProvince)?"اضغط للتغيير":""},
                           h(Ic,{n:p2?"paid":"clock",sz:11}),
                           p2?"مدفوع":"معلق"
                         )
                       ),
-                      h("td",{style:{fontWeight:700}},c.tot.toFixed(1)),
-                      h("td",{style:{fontWeight:700,color:"#D97706"}},(c.tot*(liveRate||cfg.egp)).toFixed(0)),
+                      h("td",{style:{fontWeight:700}},((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0)).toFixed(1)),
+                      h("td",{style:{fontWeight:700,color:"#D97706"}},(((halfView!==2?c.a1:0)+(halfView!==1?c.a2:0))*(liveRate||cfg.egp)).toFixed(0)),
                       isAdmin&&h("td",null,!e.isReadOnlyHere&&h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                         h("button",{className:"btn-icon edit",onClick:()=>{setForm({prov:e.currentProv||prov,...e});setModal("form");}},h(Ic,{n:"edit",sz:12})),
                         h("button",{className:"btn-icon del",onClick:()=>delEng(e.currentProv||prov,e.id,e.name)},h(Ic,{n:"del",sz:12}))
@@ -8174,20 +8366,20 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                   }),
                   h("tr",{className:"sub-row"},
                     h("td",{colSpan:3,className:"l"},"إجمالى "+prov),
-                    h("td",null,""),
-                    h("td",null,h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
+                    halfView!==2&&h("td",null,""),
+                    halfView!==2&&h("td",null,h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                       h("span",{style:{color:"#2563EB",fontWeight:800}},T.a1.toFixed(1)+" $"),
                       h("span",{style:{color:"#D97706",fontSize:10,fontWeight:700}},(T.a1*(liveRate||cfg.egp)).toFixed(0)+" ج.م")
                     )),
-                    h("td",null,""),
-                    h("td",null,""),
-                    h("td",null,h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
+                    halfView!==2&&h("td",null,""),
+                    halfView!==1&&h("td",null,""),
+                    halfView!==1&&h("td",null,h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:1}},
                       h("span",{style:{color:"#16A34A",fontWeight:800}},T.a2.toFixed(1)+" $"),
                       h("span",{style:{color:"#D97706",fontSize:10,fontWeight:700}},(T.a2*(liveRate||cfg.egp)).toFixed(0)+" ج.م")
                     )),
-                    h("td",null,""),
-                    h("td",null,T.tot.toFixed(1)),
-                    h("td",{style:{color:"#D97706"}},T.egp.toFixed(0)),
+                    halfView!==1&&h("td",null,""),
+                    h("td",null,((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0)).toFixed(1)),
+                    h("td",{style:{color:"#D97706"}},(((halfView!==2?T.a1:0)+(halfView!==1?T.a2:0))*(liveRate||cfg.egp)).toFixed(0)),
                     isAdmin&&h("td",null,"")
                   )
                 )
