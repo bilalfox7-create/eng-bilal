@@ -1,0 +1,572 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>معاينة إعادة تصميم — كشف الإعاشة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Cairo','Segoe UI',sans-serif}
+body{background:#0F1117;color:#E5E7EB;padding:20px;min-height:100vh}
+.shell{max-width:1400px;margin:0 auto}
+
+/* ───── Header ───── */
+.hdr{background:linear-gradient(135deg,#1E1B4B,#312E81);border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #4338CA40}
+.hdr h1{font-size:24px;font-weight:900;margin-bottom:8px}
+.hdr p{font-size:13px;opacity:.85;line-height:1.7}
+
+/* ───── Section frame ───── */
+.section{margin-bottom:48px;background:#161922;border-radius:18px;padding:24px;border:1px solid #1F2937}
+.sec-title{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:18px;font-weight:800;color:#A78BFA}
+.sec-num{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0}
+.sec-desc{font-size:12px;color:#94A3B8;margin-bottom:18px;padding-right:42px;line-height:1.7}
+
+/* ───── Before / After labels ───── */
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.ba-grid{grid-template-columns:1fr}}
+.ba-box{border-radius:12px;padding:14px;min-height:200px}
+.ba-box.before{background:#7F1D1D10;border:1px solid #7F1D1D40}
+.ba-box.after{background:#065F4610;border:1px solid #065F4640}
+.ba-label{font-size:10px;font-weight:800;padding:3px 10px;border-radius:100px;display:inline-block;margin-bottom:10px}
+.ba-box.before .ba-label{background:#7F1D1D;color:#FCA5A5}
+.ba-box.after .ba-label{background:#065F46;color:#6EE7B7}
+.ba-stat{font-size:10px;color:#9CA3AF;margin-bottom:8px;font-weight:700}
+.ba-stat.before{color:#FCA5A5}
+.ba-stat.after{color:#6EE7B7}
+
+/* ───── Mock components ───── */
+.mock{background:#0B0E15;border-radius:10px;padding:10px;border:1px solid #1F2937;font-size:11px}
+.mock-row{display:flex;gap:6px;padding:8px 10px;background:#161922;border-radius:8px;margin-bottom:6px;align-items:center;flex-wrap:wrap;border:1px solid #1F2937}
+.mock-row:last-child{margin-bottom:0}
+
+.kpi-card{padding:10px 14px;background:#0B0E15;border-radius:10px;border:1px solid #1F2937;font-size:11px;margin-bottom:6px}
+.kpi-card-title{font-size:10px;color:#6B7280;font-weight:700;margin-bottom:3px}
+.kpi-card-val{font-size:14px;font-weight:900;color:#E5E7EB}
+
+/* ───── Unified toolbar (after) ───── */
+.toolbar-new{display:flex;gap:8px;padding:10px;background:#0F1117;border-radius:12px;border:1px solid #1F2937;align-items:center;flex-wrap:wrap}
+.tab-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid transparent;background:transparent;color:#9CA3AF;transition:all .2s}
+.tab-pill.active{background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;border-color:#6366F1;box-shadow:0 2px 8px rgba(99,102,241,.3)}
+.tab-pill:hover{background:rgba(99,102,241,.08);color:#A5B4FC}
+.tab-pill.active:hover{background:linear-gradient(135deg,#6366F1,#4F46E5)}
+.btn-icon-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:transparent;color:#9CA3AF;font-family:inherit;transition:all .2s}
+.btn-icon-pill:hover{background:rgba(99,102,241,.08);color:#A5B4FC}
+.btn-icon-pill.primary{background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff}
+.btn-icon-pill.purple{background:linear-gradient(135deg,#A855F7,#7C3AED);color:#fff}
+.btn-icon-pill.green{background:linear-gradient(135deg,#10B981,#059669);color:#fff}
+.btn-icon-pill.blue{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff}
+.rate-pill{padding:4px 10px;border-radius:100px;background:#1A1100;color:#FCD34D;font-size:10px;font-weight:800;border:1px solid #78350F40}
+.sep{width:1px;height:18px;background:#1F2937;margin:0 4px}
+
+/* ───── Single summary bar ───── */
+.summary-bar{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:0;background:#0F1117;border:1px solid #1F2937;border-radius:14px;padding:0;overflow:hidden}
+@media(max-width:700px){.summary-bar{grid-template-columns:1fr 1fr}}
+.summary-cell{padding:12px 14px;border-left:1px solid #1F2937;display:flex;flex-direction:column;gap:3px}
+.summary-cell:last-child{border-left:none}
+.summary-cell .lbl{font-size:9px;color:#6B7280;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.summary-cell .val{font-size:18px;font-weight:900}
+.summary-cell .sub{font-size:10px;color:#9CA3AF;font-weight:600}
+.summary-cell.purple .val{color:#C4B5FD}
+.summary-cell.green .val{color:#6EE7B7}
+.summary-cell.blue .val{color:#93C5FD}
+.summary-cell.amber .val{color:#FCD34D}
+.summary-cell.red .val{color:#FCA5A5}
+
+/* ───── Compact engineer table ───── */
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid #1F2937;background:#0B0E15}
+.tbl-new{width:100%;border-collapse:collapse;font-size:11px;min-width:700px}
+.tbl-new th{background:#0F1117;padding:9px 10px;font-weight:700;color:#9CA3AF;border-bottom:1px solid #1F2937;white-space:nowrap;text-align:center}
+.tbl-new th.l{text-align:right}
+.tbl-new td{padding:8px 10px;border-bottom:1px solid #1F293730;text-align:center;vertical-align:middle}
+.tbl-new td.l{text-align:right}
+.tbl-new tr:last-child td{border-bottom:none}
+.tbl-new tr:hover td{background:rgba(99,102,241,.04)}
+.combo-cell{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2)}
+.combo-cell.h2{background:rgba(16,185,129,.06);border-color:rgba(16,185,129,.2)}
+.combo-cell.old{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.25)}
+.combo-cell .num{font-weight:800;color:#fff;font-size:11px;min-width:18px;text-align:center;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.08)}
+.combo-cell .money{font-size:10px;color:#9CA3AF;font-weight:700}
+.combo-cell .st{font-size:11px}
+.combo-cell.h1 .st-paid{color:#34D399}
+.combo-cell.h1 .st-unpaid{color:#FCD34D}
+.combo-cell.h2 .st-paid{color:#34D399}
+.combo-cell.h2 .st-unpaid{color:#FCD34D}
+.eng-name{font-weight:700;color:#C4B5FD;display:inline-flex;align-items:center;gap:6px}
+.tot-cell{display:flex;flex-direction:column;align-items:center;gap:1px}
+.tot-cell .usd{font-weight:800;color:#E5E7EB;font-size:12px}
+.tot-cell .egp{font-size:10px;color:#D97706;font-weight:700}
+
+/* ───── Compact badge icons ───── */
+.badge-icon{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;cursor:help;border:1px solid transparent}
+.badge-icon.transfer{background:rgba(139,92,246,.15);color:#A78BFA;border-color:rgba(139,92,246,.4)}
+.badge-icon.tenure{background:rgba(59,130,246,.15);color:#93C5FD;border-color:rgba(59,130,246,.4)}
+.badge-icon.readonly{background:rgba(148,163,184,.15);color:#94A3B8;border-color:rgba(148,163,184,.4)}
+.badge-icon.leave{background:rgba(245,158,11,.15);color:#FCD34D;border-color:rgba(245,158,11,.4)}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.status-dot.active{background:#10B981;box-shadow:0 0 0 2px rgba(16,185,129,.2)}
+.status-dot.ended{background:#6B7280}
+.status-dot.leave{background:#F59E0B}
+
+/* ───── Old (cluttered) demo ───── */
+.old-toolbar-row{display:flex;align-items:center;padding:8px 12px;background:#1A1A2E;border-radius:8px;margin-bottom:6px;font-size:11px;color:#9CA3AF;gap:6px}
+.old-toolbar-row.rate{background:#1A1100;color:#FCD34D;font-weight:800}
+.old-egp-card{padding:14px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(59,130,246,.06));border:1px solid rgba(99,102,241,.3);border-radius:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.old-egp-card.green{background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(34,211,238,.06));border-color:rgba(16,185,129,.3)}
+.old-pay-strip{padding:8px 14px;background:#161922;border-right:3px solid #2563EB;border-radius:8px;margin-bottom:6px;font-size:10px;color:#9CA3AF;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.old-pay-strip.h2{border-right-color:#16A34A}
+
+/* ───── Footer CTA ───── */
+.cta-footer{text-align:center;padding:32px 20px;background:#161922;border-radius:18px;border:1px solid #1F2937;margin-bottom:24px}
+.cta-footer h3{font-size:18px;font-weight:900;margin-bottom:8px;color:#A78BFA}
+.cta-footer p{font-size:12px;color:#94A3B8;line-height:1.8;max-width:500px;margin:0 auto}
+
+.tip{background:#1E293B;border-right:4px solid #6366F1;border-radius:10px;padding:10px 14px;font-size:11px;color:#CBD5E1;line-height:1.7;margin-top:14px}
+.tip strong{color:#A5B4FC}
+
+/* counters comparison */
+.count-strip{display:flex;justify-content:center;gap:24px;margin:8px 0 16px;flex-wrap:wrap}
+.count-pill{padding:8px 16px;border-radius:100px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
+.count-pill.bad{background:#7F1D1D30;color:#FCA5A5;border:1px solid #7F1D1D60}
+.count-pill.good{background:#065F4630;color:#6EE7B7;border:1px solid #065F4660}
+.count-pill .num{font-size:14px}
+.arrow{color:#6366F1;font-size:16px;font-weight:900}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── HEADER ── -->
+<div class="hdr">
+  <h1>🎨 معاينة إعادة تصميم — كشف الإعاشة</h1>
+  <p>
+    الصفحة الحالية فيها <strong>٧ صفوف</strong> فوق بعض قبل ما تشوف أول مهندس + جدول بـ <strong>١٢ عمود</strong> + بادجات نصية طويلة.<br>
+    التصميم الجديد بيدمج كل ده في <strong>٣ صفوف</strong> + جدول بـ <strong>٧ أعمدة</strong> + أيقونات صغيرة مع tooltips.
+  </p>
+  <div class="count-strip" style="margin-top:14px">
+    <span class="count-pill bad">قبل: <span class="num">٧</span> صفوف toolbar</span>
+    <span class="arrow">→</span>
+    <span class="count-pill good">بعد: <span class="num">٢</span> صف فقط</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: Unified Toolbar -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">١</span> شريط أدوات موحّد</div>
+  <div class="sec-desc">
+    الـ rate banner + تابات النص + أزرار PDF + Excel + بحث = شريط واحد ذكي بدل ٤ صفوف منفصلة. ٧٥% توفير في المساحة.
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba-box before">
+      <div class="ba-label">قبل — ٤ صفوف</div>
+      <div class="ba-stat before">يأخذ ~٢٠٠px من ارتفاع الشاشة</div>
+      <div class="old-toolbar-row rate">💱 52.92 ج.م / $ &nbsp;·&nbsp; آخر تحديث: 1:54م &nbsp;·&nbsp; <span style="margin-right:auto;background:#1F2937;padding:2px 8px;border-radius:6px">تحديث</span></div>
+      <div class="old-toolbar-row" style="justify-content:space-between">
+        <span>عرض:</span>
+        <span style="display:flex;gap:6px">
+          <span style="background:#7C3AED;color:#fff;padding:4px 10px;border-radius:6px;font-weight:700">🔵 النص الأول 1-15</span>
+          <span style="padding:4px 10px">🟢 النص التانى 16-31</span>
+          <span style="padding:4px 10px">📋 كل الشهر 31</span>
+        </span>
+      </div>
+      <div class="old-toolbar-row" style="justify-content:space-between">
+        <span>تصدير PDF:</span>
+        <span style="display:flex;gap:6px">
+          <span style="background:#A855F7;color:#fff;padding:4px 10px;border-radius:6px">🔵 النص الأول</span>
+          <span style="background:#10B981;color:#fff;padding:4px 10px;border-radius:6px">🟢 النص التانى</span>
+          <span style="background:#6366F1;color:#fff;padding:4px 10px;border-radius:6px">📋 كامل</span>
+        </span>
+      </div>
+      <div class="old-toolbar-row" style="justify-content:space-between">
+        <span style="display:flex;gap:6px">
+          <span style="background:#0B4F1A;color:#34D399;padding:4px 10px;border-radius:6px">📊 Excel</span>
+          <span style="background:#7F1D1D;color:#FCA5A5;padding:4px 10px;border-radius:6px">🇪🇬 نقل لمصر</span>
+          <span style="background:#1E1B4B;color:#A5B4FC;padding:4px 10px;border-radius:6px">+ مهندس</span>
+        </span>
+        <input type="text" placeholder="بحث..." style="background:#0F1117;border:1px solid #1F2937;color:#9CA3AF;padding:4px 10px;border-radius:6px;font-size:10px;width:120px">
+      </div>
+    </div>
+    <div class="ba-box after">
+      <div class="ba-label">بعد — صف واحد</div>
+      <div class="ba-stat after">يأخذ ~50px فقط · موفر ٧٥%</div>
+
+      <div class="toolbar-new" style="margin-top:30px">
+        <span class="rate-pill">💱 52.92 ج.م</span>
+        <div class="sep"></div>
+        <span class="tab-pill active">📋 الكل</span>
+        <span class="tab-pill">🔵 ١-١٥</span>
+        <span class="tab-pill">🟢 ١٦-٣١</span>
+        <div class="sep"></div>
+        <button class="btn-icon-pill primary">📄 PDF</button>
+        <button class="btn-icon-pill">📊 Excel</button>
+        <div class="sep"></div>
+        <button class="btn-icon-pill blue">➕ مهندس</button>
+        <button class="btn-icon-pill" style="margin-right:auto">🔍</button>
+      </div>
+      <div class="tip" style="margin-top:30px">
+        <strong>💡 لاحظ:</strong> زر "PDF" واحد بيفتح قائمة منسدلة فيها ٣ خيارات (كامل / النص الأول / النص التانى) — يوفر مساحة و يحافظ على الوظيفة.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: Single Summary Bar -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٢</span> شريط ملخّص واحد</div>
+  <div class="sec-desc">
+    بدل ٢ بطاقة EGP كبيرة + ٢ شريط دفع منفصلين = ٤ صفوف، يبقى شريط واحد فيه: المهندسين + النصف الأول + النصف الثانى + المدفوع + الباقى.
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba-box before">
+      <div class="ba-label">قبل — ٤ صفوف</div>
+      <div class="ba-stat before">~280px ارتفاع · ٤ بطاقات منفصلة</div>
+      <div class="old-egp-card">
+        <div>
+          <div style="font-size:10px;color:#A5B4FC;font-weight:800">النصف الأول</div>
+          <div style="font-size:12px;color:#fff;font-weight:800">4,770.00 $ بالدولار</div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:9px;color:#A5B4FC">بالجنيه المصرى</div>
+          <div style="font-size:22px;color:#C4B5FD;font-weight:900">252,420</div>
+        </div>
+      </div>
+      <div class="old-egp-card green">
+        <div>
+          <div style="font-size:10px;color:#6EE7B7;font-weight:800">النصف الثانى</div>
+          <div style="font-size:12px;color:#fff;font-weight:800">0.00 $ بالدولار</div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:9px;color:#6EE7B7">بالجنيه المصرى</div>
+          <div style="font-size:22px;color:#6EE7B7;font-weight:900">0 ج.م</div>
+        </div>
+      </div>
+      <div class="old-pay-strip">
+        <span style="color:#2563EB;font-weight:800">النصف الأول</span>
+        <span style="color:#34D399">0 مدفوع</span>
+        <span>0 ج.م</span>
+        <span style="flex:1;background:#1F2937;height:3px;border-radius:100px"></span>
+        <span style="color:#FCD34D">38 معلق</span>
+        <span>252,420 ج.م</span>
+        <span>٠٪</span>
+      </div>
+      <div class="old-pay-strip h2">
+        <span style="color:#16A34A;font-weight:800">النصف الثانى</span>
+        <span style="color:#34D399">0 مدفوع</span>
+        <span>0 ج.م</span>
+        <span style="flex:1;background:#1F2937;height:3px;border-radius:100px"></span>
+        <span style="color:#FCD34D">38 معلق</span>
+        <span>0 ج.م</span>
+        <span>٠٪</span>
+      </div>
+    </div>
+    <div class="ba-box after">
+      <div class="ba-label">بعد — شريط واحد</div>
+      <div class="ba-stat after">~80px فقط · كل المعلومات في لمحة</div>
+
+      <div class="summary-bar" style="margin-top:30px">
+        <div class="summary-cell blue">
+          <div class="lbl">المهندسين</div>
+          <div class="val">٣٨</div>
+          <div class="sub">٤ محافظات</div>
+        </div>
+        <div class="summary-cell purple">
+          <div class="lbl">النص الأول</div>
+          <div class="val">252,420</div>
+          <div class="sub">4,770 $</div>
+        </div>
+        <div class="summary-cell green">
+          <div class="lbl">النص التانى</div>
+          <div class="val">0</div>
+          <div class="sub">0 $</div>
+        </div>
+        <div class="summary-cell amber">
+          <div class="lbl">معلق</div>
+          <div class="val">٣٨</div>
+          <div class="sub">252,420 ج.م</div>
+        </div>
+        <div class="summary-cell red">
+          <div class="lbl">الإجمالى</div>
+          <div class="val">252,420</div>
+          <div class="sub">ج.م</div>
+        </div>
+      </div>
+
+      <!-- progress strip below summary -->
+      <div style="margin-top:14px;padding:10px 14px;background:#0F1117;border-radius:10px;border:1px solid #1F2937">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#9CA3AF;margin-bottom:6px;font-weight:700">
+          <span>تقدم الدفع</span>
+          <span>0% (0/76)</span>
+        </div>
+        <div style="height:6px;background:#1F2937;border-radius:100px;overflow:hidden">
+          <div style="width:0%;height:100%;background:linear-gradient(90deg,#10B981,#6EE7B7);border-radius:100px"></div>
+        </div>
+      </div>
+      <div class="tip" style="margin-top:30px">
+        <strong>💡 لاحظ:</strong> شريط التقدم بيظهر تحت الـ summary — تشوف كم مدفوع وكم باقى في خط واحد بدل صفّين منفصلين.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: Compact Table -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٣</span> جدول مدمج — ٧ أعمدة بدل ١٢</div>
+  <div class="sec-desc">
+    دمج "أيام + إعاشة + حالة" لكل نصف في خانة واحدة. الجدول يتقري بدون scroll أفقي حتى على شاشة لاب توب.
+  </div>
+
+  <div class="count-strip">
+    <span class="count-pill bad">قبل: <span class="num">١٢</span> عمود</span>
+    <span class="arrow">→</span>
+    <span class="count-pill good">بعد: <span class="num">٧</span> أعمدة</span>
+  </div>
+
+  <!-- BEFORE table -->
+  <div class="ba-label" style="background:#7F1D1D;color:#FCA5A5;margin-bottom:8px">قبل</div>
+  <div class="tbl-wrap" style="margin-bottom:18px">
+    <table class="tbl-new" style="min-width:900px">
+      <thead>
+        <tr>
+          <th>م</th>
+          <th class="l">الاسم</th>
+          <th class="l">التخصص</th>
+          <th>أيام 1-15</th>
+          <th>إعاشة 1</th>
+          <th>حالة 1</th>
+          <th>أيام 16-31</th>
+          <th>إعاشة 2</th>
+          <th>حالة 2</th>
+          <th>أيام قديمة</th>
+          <th>إجمالى $</th>
+          <th>إجمالى ج.م</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>١</td>
+          <td class="l"><span class="eng-name">محمد صلاح <span style="font-size:9px;background:#312E81;color:#A5B4FC;padding:1px 6px;border-radius:100px">نشط</span> <span style="font-size:9px;background:#F5F3FF15;color:#A78BFA;padding:1px 6px;border-radius:100px">📅 يوم 5-15</span></span></td>
+          <td class="l" style="color:#9CA3AF">مدنى</td>
+          <td><input type="number" value="15" style="width:50px;background:#0F1117;border:1px solid #2563EB;color:#fff;padding:3px;border-radius:6px;text-align:center"></td>
+          <td><div><span style="color:#2563EB;font-weight:800">150.0 $</span><br><span style="color:#D97706;font-size:9px">7938 ج.م</span></div></td>
+          <td><span style="background:#78350F40;color:#FCD34D;padding:3px 8px;border-radius:100px;font-size:9px;font-weight:700">⏳ معلق</span></td>
+          <td><input type="number" value="15" style="width:50px;background:#0F1117;border:1px solid #16A34A;color:#fff;padding:3px;border-radius:6px;text-align:center"></td>
+          <td><div><span style="color:#16A34A;font-weight:800">150.0 $</span><br><span style="color:#D97706;font-size:9px">7938 ج.م</span></div></td>
+          <td><span style="background:#78350F40;color:#FCD34D;padding:3px 8px;border-radius:100px;font-size:9px;font-weight:700">⏳ معلق</span></td>
+          <td><input type="number" value="0" style="width:40px;background:#0F1117;border:1px solid #F59E0B;color:#fff;padding:3px;border-radius:6px;text-align:center"></td>
+          <td style="font-weight:800">300.0</td>
+          <td style="color:#D97706;font-weight:800">15,876</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AFTER table -->
+  <div class="ba-label" style="background:#065F46;color:#6EE7B7;margin-bottom:8px">بعد</div>
+  <div class="tbl-wrap">
+    <table class="tbl-new">
+      <thead>
+        <tr>
+          <th>م</th>
+          <th class="l">المهندس</th>
+          <th class="l">التخصص</th>
+          <th>النص الأول</th>
+          <th>النص التانى</th>
+          <th>أيام قديمة</th>
+          <th>الإجمالى</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>١</td>
+          <td class="l">
+            <span class="eng-name">
+              <span class="status-dot active" title="نشط"></span>
+              محمد صلاح محمد
+              <span class="badge-icon tenure" title="فى البيضاء من يوم 5 إلى 15">📅</span>
+            </span>
+          </td>
+          <td class="l" style="color:#9CA3AF">مدنى</td>
+          <td>
+            <div class="combo-cell h1">
+              <input type="number" value="15" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">150$</span>
+              <span class="st st-unpaid" title="معلق">⏳</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell h2">
+              <input type="number" value="15" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">150$</span>
+              <span class="st st-unpaid" title="معلق">⏳</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell old">
+              <input type="number" value="0" placeholder="0" style="width:30px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">0$</span>
+            </div>
+          </td>
+          <td>
+            <div class="tot-cell">
+              <span class="usd">300 $</span>
+              <span class="egp">15,876 ج.م</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>٢</td>
+          <td class="l">
+            <span class="eng-name">
+              <span class="status-dot active"></span>
+              أحمد محمود علي
+              <span class="badge-icon transfer" title="نُقل من البيضاء">🔄</span>
+            </span>
+          </td>
+          <td class="l" style="color:#9CA3AF">معمارى</td>
+          <td>
+            <div class="combo-cell h1">
+              <input type="number" value="15" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">150$</span>
+              <span class="st st-paid" title="مدفوع">✅</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell h2">
+              <input type="number" value="0" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">0$</span>
+              <span class="st st-unpaid" title="معلق">⏳</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell old">
+              <input type="number" value="5" style="width:30px;background:transparent;border:none;color:#FCD34D;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">50$</span>
+            </div>
+          </td>
+          <td>
+            <div class="tot-cell">
+              <span class="usd">200 $</span>
+              <span class="egp">10,584 ج.م</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>٣</td>
+          <td class="l">
+            <span class="eng-name">
+              <span class="status-dot leave"></span>
+              بهاء أحمد محمود
+              <span class="badge-icon leave" title="في إجازة">🌴</span>
+            </span>
+          </td>
+          <td class="l" style="color:#9CA3AF">طرق</td>
+          <td>
+            <div class="combo-cell h1">
+              <input type="number" value="10" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">100$</span>
+              <span class="st st-paid" title="مدفوع">✅</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell h2">
+              <input type="number" value="12" style="width:36px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">120$</span>
+              <span class="st st-paid" title="مدفوع">✅</span>
+            </div>
+          </td>
+          <td>
+            <div class="combo-cell old">
+              <input type="number" value="0" placeholder="0" style="width:30px;background:transparent;border:none;color:#fff;font-weight:800;text-align:center;font-size:11px">
+              <span class="money">0$</span>
+            </div>
+          </td>
+          <td>
+            <div class="tot-cell">
+              <span class="usd">220 $</span>
+              <span class="egp">11,640 ج.م</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tip">
+    <strong>💡 كل خانة نصف فيها ٣ معلومات:</strong>
+    <span style="background:rgba(59,130,246,.15);padding:2px 6px;border-radius:6px;margin:0 3px">[ 15 ]</span> العدد +
+    <span style="background:rgba(59,130,246,.05);padding:2px 6px;border-radius:6px;margin:0 3px">150$</span> المبلغ +
+    <span style="margin:0 3px">✅/⏳</span> الحالة — كل واحد قابل للنقر للتعديل، تماماً زى دلوقتى.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: Compact Badges -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="sec-title"><span class="sec-num">٤</span> بادجات المهندس — أيقونات فقط</div>
+  <div class="sec-desc">
+    البادجات النصية الطويلة (📅 يوم 5-15 / 🔄 منقول من البيضاء / 🔒 قراءة فقط) → أيقونات صغيرة ٢٠×٢٠ مع tooltips. ضع المؤشر لتعرف التفاصيل.
+  </div>
+
+  <div class="ba-grid">
+    <div class="ba-box before">
+      <div class="ba-label">قبل — بادجات نصية</div>
+      <div class="ba-stat before">تأخذ ~80% عرض الصف</div>
+      <div style="background:#0B0E15;padding:14px;border-radius:10px;font-size:11px;color:#E5E7EB;margin-top:10px;line-height:2">
+        محمد صلاح محمد
+        <span style="background:#312E81;color:#A5B4FC;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;margin:0 3px">نشط</span>
+        <span style="background:#F5F3FF;color:#6D28D9;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;margin:0 3px">📅 يوم 5-15</span>
+        <span style="background:#FFF7ED;color:#C2410C;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;margin:0 3px">🔄 منقول من البيضاء</span>
+        <span style="background:#F1F5F9;color:#475569;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;margin:0 3px">🔒 قراءة فقط</span>
+      </div>
+    </div>
+    <div class="ba-box after">
+      <div class="ba-label">بعد — أيقونات</div>
+      <div class="ba-stat after">عرض ٢٠٪ فقط · tooltip للتفاصيل</div>
+      <div style="background:#0B0E15;padding:14px;border-radius:10px;font-size:13px;color:#E5E7EB;margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span class="status-dot active" title="نشط"></span>
+        <span style="font-weight:700;color:#C4B5FD">محمد صلاح محمد</span>
+        <span class="badge-icon tenure" title="فى البيضاء من يوم 5 إلى 15">📅</span>
+        <span class="badge-icon transfer" title="نُقل من البيضاء بتاريخ 2026-05-05">🔄</span>
+        <span class="badge-icon readonly" title="البيانات تُدار من البيضاء — للقراءة فقط هنا">🔒</span>
+      </div>
+
+      <div style="margin-top:16px;font-size:11px;color:#9CA3AF">
+        <strong style="color:#A5B4FC">دليل الأيقونات:</strong>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+          <div style="display:flex;gap:6px;align-items:center"><span class="status-dot active"></span> نشط</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="status-dot ended"></span> انتهى</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="status-dot leave"></span> فى إجازة</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="badge-icon tenure">📅</span> فترة عمل وسط الشهر</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="badge-icon transfer">🔄</span> منقول</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="badge-icon readonly">🔒</span> قراءة فقط</div>
+          <div style="display:flex;gap:6px;align-items:center"><span class="badge-icon leave">🌴</span> فى إجازة مرضية</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- FOOTER CTA -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="cta-footer">
+  <div style="font-size:32px;margin-bottom:10px">🎯</div>
+  <h3>هذا التصور النهائى — قبل البرمجة الفعلية</h3>
+  <p>
+    لو الاتجاه عجبك، قول "تمام نفّذ" وهبدأ تطبيق التغييرات على كشف الإعاشة الحقيقى.<br>
+    لو عايز تختار <strong>أقسام معينة</strong> (مثلاً ١ + ٣ فقط بدون ٢ و ٤)، قول الأرقام اللى عايزها.<br>
+    لو في أى تعديل على الشكل، قول وهنعدل المعاينة قبل البرمجة.
+  </p>
+</div>
+
+</div>
+</body>
+</html>
