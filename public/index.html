@@ -4591,7 +4591,7 @@ function App(){
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
     /* halfMode-aware grand totals (include manual oldDays) */
-    const _Gold=_G.oldDays||0;
+    const _GoldDays=_G.oldDays||0;
     const _GoldAmt=_G.oldAmt||0;
     const _Gtot=(_showH1?_G.a1:0)+(_showH2?_G.a2:0)+_GoldAmt;
     const _Gegp=_Gtot*(+_cfg.egp||0);
@@ -4599,7 +4599,7 @@ function App(){
       {l:"إجمالى المهندسين",v:_G.n+" مهندس",sub:"",c:"#1d4ed8",bg:"#eff6ff",br:"#bfdbfe",show:true},
       {l:"إجمالى النصف الأول",v:_G.a1.toFixed(2)+" $",sub:(_G.a1*rate).toFixed(0)+" ج.م",c:"#15803d",bg:"#f0fdf4",br:"#bbf7d0",show:_showH1},
       {l:"إجمالى النصف الثاني",v:_G.a2.toFixed(2)+" $",sub:(_G.a2*rate).toFixed(0)+" ج.م",c:"#6d28d9",bg:"#f5f3ff",br:"#ddd6fe",show:_showH2},
-      {l:"أيام قديمة",v:_Gold+" يوم",sub:_GoldAmt.toFixed(2)+" $",c:"#D97706",bg:"#fffbeb",br:"#fde68a",show:_Gold>0},
+      {l:"أيام قديمة",v:_GoldDays+" يوم",sub:_GoldAmt.toFixed(2)+" $",c:"#D97706",bg:"#fffbeb",br:"#fde68a",show:_GoldDays>0},
       {l:"الإجمالى الكلى ($)",v:_Gtot.toFixed(2)+" $",sub:"",c:"#0f172a",bg:"#f8fafc",br:"#e2e8f0",show:true},
       {l:"الإجمالى (ج.م)",v:_Gegp.toFixed(0)+" ج.م",sub:"",c:"#b45309",bg:"#fffbeb",br:"#fde68a",show:true},
       {l:"الإعاشة اليومية",v:(_cfg.rate/30).toFixed(2)+" $",sub:"",c:"#0369a1",bg:"#f0f9ff",br:"#bae6fd",show:true},
