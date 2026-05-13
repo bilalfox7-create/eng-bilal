@@ -4455,7 +4455,8 @@ function App(){
 
   const exportXLSX=()=>{
     const wb=XLSX.utils.book_new();
-    const rows=[[`كشف إعاشات – ${mn} ${cfg.year}`],[cfg.company],[`الإعاشة الشهرية: ${cfg.rate}$  |  سعر الصرف: ${cfg.egp} ج.م`],[],["م","الاسم","التخصص","المحافظة","أيام 1-15","إعاشة 1($)","أيام 16-30","إعاشة 2($)","أيام قديمة","إجمالى($)","إجمالى(ج.م)"]];
+    const xRate=liveRate||cfg.egp||0;
+    const rows=[[`كشف إعاشات – ${mn} ${cfg.year}`],[cfg.company],[`الإعاشة الشهرية: ${cfg.rate}$  |  سعر الصرف: ${xRate.toFixed(2)} ج.م`],[],["م","الاسم","التخصص","المحافظة","أيام 1-15","إعاشة 1($)","أيام 16-30","إعاشة 2($)","أيام قديمة","إجمالى($)","إجمالى(ج.م)"]];
     let n=1;
     PROVS.forEach((p,pi)=>{
       rows.push(["◆ "+p]);
@@ -4728,7 +4729,7 @@ function App(){
         <div style="color:rgba(255,255,255,.65);font-size:11px;font-weight:500;">${_cfg.company}</div>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الإعاشة: ${_cfg.rate} $</span>
-          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الصرف: ${_cfg.egp} ج.م/$</span>
+          <span style="background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:2px 10px;border-radius:100px;">الصرف: ${rate.toFixed(2)} ج.م/$</span>
         </div>
       </div>
     </div>
