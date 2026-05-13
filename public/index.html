@@ -8917,8 +8917,13 @@ ${PROVS.map(prov=>{
     /* attGetStats دلوقتى بيطبق egypt-leave OVERRIDE داخلياً — s.P و s.A مضبوطة. */
     const adjP=s.P,adjA=s.A;
     const vacCount=s.vac; /* cell-based SL count (لا يلتفت للطلبات) */
-    /* aggregate provincial totals */
-    provP+=adjP;provA+=adjA;provVac+=vacCount;provEg+=egyptDays;
+    /* للإجازة المصرية: نستخدم getDisplayEgyptLeaveDays عشان يراعى:
+       - إجازة مغلقة → يعرض المدة الكاملة (cross-month aggregate)
+       - إجازة مفتوحة → يعرض clip للشهر المعروض
+       egyptDays المحلية cells-only — تُستخدم كـ fallback. */
+    const egyptFull=getDisplayEgyptLeaveDays(eng.id,y,m,egyptDays);
+    /* aggregate provincial totals — egyptFull يعكس المدة الفعلية */
+    provP+=adjP;provA+=adjA;provVac+=vacCount;provEg+=egyptFull;
     provLateDays+=lateDays;provLateMins+=lateMins;provHrs+=s.hrs;
     /* format late HH:MM */
     const lateHrs=Math.floor(lateMins/60),lateRem=lateMins%60;
@@ -8928,7 +8933,7 @@ ${PROVS.map(prov=>{
 <td style="padding:6px 8px;border:1px solid #E2E8F0;font-size:9px;background:#FAFAFA;line-height:1.6;white-space:nowrap">
 <span style="color:#059669;font-weight:800">${adjP} حضور</span>
 ${adjA>0?` · <span style="color:#DC2626;font-weight:800">${adjA} غياب</span>`:''}
-${egyptDays>0?`<br><span style="color:#C2410C;font-weight:800">${egyptDays} إجازة (مصر)</span>`:''}
+${egyptFull>0?`<br><span style="color:#C2410C;font-weight:800">${egyptFull} إجازة (مصر)</span>`:''}
 ${vacCount>0?`<br><span style="color:#D97706;font-weight:800">${vacCount} مرضية</span>`:''}
 ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} يوم تأخير · ${lateLbl}</span>`:''}
 <br><span style="color:#92400E;font-weight:700">⏱ ${s.hrs}h عمل</span>
