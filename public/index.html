@@ -5365,6 +5365,18 @@ function App(){
         remLYD:(+c.lyd||0)+trfInLYD-dedLYD-trfOutLYD,
         remEGP:(+c.egp||0)+trfInEGP-dedEGP-trfOutEGP};
     });
+    /* Unlinked expenses — items without a custodyId. Shown as a separate card so the user
+       sees that not every expense is deducted from a specific custody. These can drive a
+       negative aggregate balance ("paid out of pocket"). */
+    const unlinkedItems=aggExpItems.filter(e=>!e.custodyId);
+    const unlinkedUSD=unlinkedItems.reduce((a,e)=>a+(+e.usd||0),0);
+    const unlinkedLYD=unlinkedItems.reduce((a,e)=>a+(+e.lyd||0),0);
+    const unlinkedEGP=unlinkedItems.reduce((a,e)=>a+(+e.egp||0),0);
+    /* Out-of-pocket = aggregate balance gone negative in any currency */
+    const oopUSD=Math.min(0,aggBalance.balanceUSD);
+    const oopLYD=Math.min(0,aggBalance.balanceLYD);
+    const oopEGP=Math.min(0,aggBalance.balanceEGP||0);
+    const hasOOP=oopUSD<0||oopLYD<0||oopEGP<0;
     // All transfers (filtered by date if filter applied)
     const filteredTransfers=aggTransfers.filter(t=>{
       if(filt.dateFrom&&t.date&&t.date<filt.dateFrom)return false;
@@ -5478,11 +5490,24 @@ tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
 
 <div class="filter-bar">🔍 <b>الفلاتر المطبقة:</b> ${filterTxt}</div>
 
+${hasOOP?`<div style="margin:10px 0 14px;padding:14px 18px;background:linear-gradient(135deg,#FEF2F2,#FFE4E6);border:2px solid #F87171;border-radius:10px;display:flex;align-items:center;gap:14px">
+  <div style="font-size:32px;line-height:1">⚠️</div>
+  <div style="flex:1">
+    <div style="font-size:13px;font-weight:900;color:#991B1B;margin-bottom:3px">💸 دفعت من جيبك (رصيد سالب)</div>
+    <div style="font-size:11px;color:#7F1D1D;line-height:1.6">المصروفات تجاوزت العهد المستلمة. الفرق ده مستحق ليك:</div>
+    <div style="font-size:13px;font-weight:800;color:#DC2626;margin-top:4px">
+      ${[oopUSD<0?Math.abs(oopUSD).toFixed(2)+' $':null,oopLYD<0?Math.abs(oopLYD).toFixed(2)+' د.ل':null,oopEGP<0?Math.abs(oopEGP).toFixed(2)+' ج.م':null].filter(Boolean).join(' · ')}
+    </div>
+  </div>
+</div>`:''}
+
 <div class="kpi-grid">
   <div class="kpi green"><div class="kpi-lbl">📥 إجمالى العهد الواردة</div><div class="kpi-val">${fmt(aggBalance.receivedUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.receivedLYD)} د.ل${(aggBalance.receivedEGP||0)>0?' · '+fmt(aggBalance.receivedEGP)+' ج.م':''}</div></div>
   <div class="kpi red"><div class="kpi-lbl">📤 إجمالى المصروفات</div><div class="kpi-val">${fmt(aggBalance.spentUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.spentLYD)} د.ل${(aggBalance.spentEGP||0)>0?' · '+fmt(aggBalance.spentEGP)+' ج.م':''}</div></div>
   <div class="kpi gold"><div class="kpi-lbl">🔄 التحويلات</div><div class="kpi-val">${[totalTrfFromUSD>0?fmt(totalTrfFromUSD)+'$':null,totalTrfFromLYD>0?fmt(totalTrfFromLYD)+' د.ل':null,totalTrfFromEGP>0?fmt(totalTrfFromEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</div><div class="kpi-val-sm">→ ${[totalTrfToUSD>0?fmt(totalTrfToUSD)+'$':null,totalTrfToLYD>0?fmt(totalTrfToLYD)+' د.ل':null,totalTrfToEGP>0?fmt(totalTrfToEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</div></div>
-  <div class="kpi ${aggBalance.criticalUSD?'red':aggBalance.lowUSD?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.balanceLYD)} د.ل${(aggBalance.balanceEGP||0)>0?' · '+fmt(aggBalance.balanceEGP)+' ج.م':''}</div></div>
+  <div class="kpi ${aggBalance.balanceUSD<0||aggBalance.balanceLYD<0||(aggBalance.balanceEGP||0)<0?'red':aggBalance.criticalUSD?'red':aggBalance.lowUSD?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val" style="${aggBalance.balanceUSD<0?'color:#DC2626':''}">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">
+    <span style="${aggBalance.balanceLYD<0?'color:#DC2626;font-weight:800':''}">${fmt(aggBalance.balanceLYD)} د.ل</span>${(aggBalance.balanceEGP||0)!==0?' · <span style="'+(aggBalance.balanceEGP<0?'color:#DC2626;font-weight:800':'')+'">'+fmt(aggBalance.balanceEGP)+' ج.م</span>':''}
+  </div></div>
 </div>
 
 <div style="margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
@@ -5558,6 +5583,17 @@ ${filteredCustody.length>0?`
     </div>
   </div>`;
   }).join('')}
+  ${unlinkedItems.length>0?`<div class="cust-card" style="border:2px dashed #F87171;background:#FEF2F2">
+    <div class="cust-card-hdr">
+      <div>
+        <div class="cust-card-name" style="color:#991B1B">⚠️ مصروفات غير مرتبطة بعهدة</div>
+        <div class="cust-card-meta">${unlinkedItems.length} بند صُرف بدون ربطه بعهدة معينة — يُخصم من الإجمالى</div>
+      </div>
+    </div>
+    <div class="cust-card-body">
+      <div class="cust-cell spent" style="grid-column:1/-1"><div class="cust-cell-lbl">إجمالى المصروف بدون عهدة</div><div class="cust-cell-val" style="color:#DC2626">${[unlinkedUSD>0?fmt(unlinkedUSD)+' $':null,unlinkedLYD>0?fmt(unlinkedLYD)+' د.ل':null,unlinkedEGP>0?fmt(unlinkedEGP)+' ج.م':null].filter(Boolean).join(' / ')||'—'}</div></div>
+    </div>
+  </div>`:''}
 </div>`:''}
 
 ${filteredTransfers.length>0?`
