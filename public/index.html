@@ -8056,7 +8056,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               ?h("div",{style:{padding:"18px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد عهد")
               :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
                   h("thead",null,h("tr",null,
-                    h("th",null,"#"),h("th",{className:"l"},"التاريخ"),h("th",{className:"l"},"الوصف"),h("th",{className:"l"},"المصدر"),h("th",{className:"l"},"المسؤول"),h("th",{className:"l"},"المحافظة"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)")
+                    h("th",null,"#"),h("th",{className:"l"},"التاريخ"),h("th",{className:"l"},"الوصف"),h("th",{className:"l"},"المصدر"),h("th",{className:"l"},"المسؤول"),h("th",{className:"l"},"المحافظة"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),h("th",null,"المبلغ (ج.م)")
                   )),
                   h("tbody",null,
                     filteredCustody.map((c,i)=>{
@@ -8069,13 +8069,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                         h("td",{className:"l",style:{fontSize:11}},eng?.name||"—"),
                         h("td",{className:"l",style:{fontSize:11}},c.prov?c.prov.replace('محافظة ',''):"—"),
                         h("td",{style:{color:"#34D399",fontWeight:700}},(+c.usd||0).toFixed(2)),
-                        h("td",{style:{color:"var(--gold)",fontWeight:700}},(+c.lyd||0).toFixed(2))
+                        h("td",{style:{color:"var(--gold)",fontWeight:700}},(+c.lyd||0).toFixed(2)),
+                        h("td",{style:{color:"#a78bfa",fontWeight:700}},(+c.egp||0).toFixed(2))
                       );
                     }),
                     h("tr",{className:"sub-row"},
                       h("td",{colSpan:6,className:"l"},"الإجمالى"),
                       h("td",{style:{color:"#34D399",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.usd||0),0).toFixed(2)+" $"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.lyd||0),0).toFixed(2)+" د.ل")
+                      h("td",{style:{color:"var(--gold)",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.lyd||0),0).toFixed(2)+" د.ل"),
+                      h("td",{style:{color:"#a78bfa",fontWeight:800}},filteredCustody.reduce((a,c)=>a+(+c.egp||0),0).toFixed(2)+" ج.م")
                     )
                   )
                 ))
