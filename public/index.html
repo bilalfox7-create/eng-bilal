@@ -5117,7 +5117,10 @@ function App(){
     const toAmt=+trfForm[tc]||(fromAmt*(+trfForm.rate||0));
     if(toAmt<=0){msg("المبلغ المُحوَّل إليه غير صالح","err");return;}
     const nt=[...transfers];
-    /* Save with explicit fromCurrency/toCurrency + per-currency amounts. Legacy USD/LYD kept for backward compat reads. */
+    /* Save with explicit fromCurrency/toCurrency + per-currency amounts.
+       Normalize stored rate to "to per from" (toAmt/fromAmt) so legacy readers
+       always see a consistent rate regardless of UI input direction. */
+    const canonicalRate=fromAmt>0?+(toAmt/fromAmt).toFixed(4):+trfForm.rate;
     const item={
       id:trfForm.id||null,
       fromCustodyId:trfForm.fromCustodyId,
@@ -5125,7 +5128,7 @@ function App(){
       fromCurrency:fc,toCurrency:tc,
       [fc]:fromAmt,
       [tc]:toAmt,
-      rate:+trfForm.rate,
+      rate:canonicalRate,
       date:trfForm.date,
       note:trfForm.note
     };
@@ -6592,6 +6595,18 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         const fromAmt=trfForm[fc]||'';
         const toAmt=trfForm[tc]||'';
         const rate=trfForm.rate||'';
+        /* rateDir = 'to_per_from' (default): rate × from = to.
+                  = 'from_per_to': from ÷ rate = to. Useful for EGP→LYD where user thinks
+                    "6.6 ج.م = 1 د.ل" (i.e. ج.م per د.ل). */
+        const rateDir=trfForm.rateDir||'to_per_from';
+        const isInverted=rateDir==='from_per_to';
+        const rateLblParts=isInverted?[CUR_SYM[fc],'لكل',CUR_SYM[tc]]:[CUR_SYM[tc],'لكل',CUR_SYM[fc]];
+        const calcTo=(fa,r,dir)=>{
+          const _fa=+fa||0,_r=+r||0;
+          if(!_fa||!_r)return '';
+          if(dir==='from_per_to')return(_fa/_r).toFixed(2);
+          return(_fa*_r).toFixed(2);
+        };
         return h("div",{className:"modal",style:{width:520}},
           h("div",{className:"modal-hdr"},
             h("h3",null,trfForm.id?"تعديل تحويل":"تحويل عملة — "+CUR_LBL[fc]+" → "+CUR_LBL[tc]),
@@ -6638,25 +6653,46 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:fromAmt,
                   onChange:ev=>{
                     const fa=ev.target.value;
-                    const ta=rate?(+fa*(+rate)).toFixed(2):"";
+                    const ta=calcTo(fa,rate,rateDir);
                     setTrfForm(f=>({...f,[fc]:fa,[tc]:ta}));
                   }})
               ),
               h("div",{className:"fld",style:{margin:0}},
-                h("label",null,"سعر التحويل ("+CUR_SYM[tc]+" لكل "+CUR_SYM[fc]+") *"),
-                h("input",{type:"number",min:0,step:"0.0001",placeholder:"مثال: 5.50",value:rate,
+                h("label",{style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}},
+                  h("span",null,"سعر التحويل ("+rateLblParts.join(' ')+") *"),
+                  h("button",{
+                    type:"button",
+                    title:"اقلب اتجاه السعر",
+                    onClick:()=>{
+                      const newDir=isInverted?'to_per_from':'from_per_to';
+                      /* When flipping, invert the rate value so calculation stays consistent */
+                      const newRate=rate&&+rate>0?(1/(+rate)).toFixed(4):rate;
+                      setTrfForm(f=>({...f,rateDir:newDir,rate:newRate}));
+                    },
+                    style:{padding:"2px 8px",fontSize:11,fontWeight:800,fontFamily:"inherit",cursor:"pointer",border:"1px solid var(--gold)",borderRadius:6,background:"var(--gold2)",color:"var(--gold)"}
+                  },"↔ اقلب")
+                ),
+                h("input",{type:"number",min:0,step:"0.0001",placeholder:isInverted?"مثال: 6.6":"مثال: 5.50",value:rate,
                   onChange:ev=>{
                     const r=ev.target.value;
-                    const ta=fromAmt?(+fromAmt*(+r)).toFixed(2):"";
+                    const ta=calcTo(fromAmt,r,rateDir);
                     setTrfForm(f=>({...f,rate:r,[tc]:ta}));
                   }})
               )
             ),
             h("div",{className:"fld",style:{background:"var(--gold2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--gold2)"}},
-              h("label",{style:{color:"var(--gold)"}},"المبلغ المُحوّل ("+CUR_SYM[tc]+") — محسوب تلقائياً"),
+              h("label",{style:{color:"var(--gold)"}},"المبلغ المُحوّل ("+CUR_SYM[tc]+") — اضبط يدوياً لو لازم"),
               h("input",{type:"number",min:0,step:"0.01",placeholder:"يُحسب تلقائياً أو أدخله يدوياً",
                 value:toAmt,style:{color:"var(--gold)",fontWeight:700},
-                onChange:ev=>setTrfForm(f=>({...f,[tc]:ev.target.value}))})
+                onChange:ev=>{
+                  const ta=ev.target.value;
+                  /* Auto-update rate to match what user typed (rate = ta/fa or fa/ta depending on dir) */
+                  let newRate=rate;
+                  if(fromAmt&&+fromAmt>0&&ta&&+ta>0){
+                    newRate=rateDir==='from_per_to'?(+fromAmt/+ta).toFixed(4):(+ta/+fromAmt).toFixed(4);
+                  }
+                  setTrfForm(f=>({...f,[tc]:ta,rate:newRate}));
+                }})
             ),
             h("div",{className:"g2"},
               h("div",{className:"fld",style:{margin:0}},h("label",null,"التاريخ"),h("input",{type:"date",value:trfForm.date,onChange:ev=>setTrfForm(f=>({...f,date:ev.target.value}))})),
