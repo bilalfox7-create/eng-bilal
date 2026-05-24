@@ -8,7 +8,7 @@
 <title>إدارة مشروعات ليبيا</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1223,17 +1223,20 @@ html.dark .oc-proj-head{color:#94a3b8}
 html.dark .oc-proj-item{background:#1e293b;border-color:#334155;color:#f1f5f9}
 .oc-proj-dot{width:8px;height:8px;border-radius:50%;background:var(--cc,#3b82f6);flex-shrink:0}
 /* ── Org Chart V2 ── */
-.oc-page-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px;padding:18px 20px;background:linear-gradient(135deg,#1A365D,#2C5282);border-radius:14px;color:#fff;box-shadow:0 4px 16px rgba(26,54,93,.25)}
-.oc-page-title{font-size:22px;font-weight:900;letter-spacing:-.3px;margin-bottom:2px}
-.oc-page-sub{font-size:12px;opacity:.85;font-weight:600}
-.oc-stats-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);padding:8px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);font-size:12px;font-weight:700;backdrop-filter:blur(6px)}
-.oc-stats-pill strong{font-size:14px;font-weight:900;margin-left:3px}
-.oc-stats-sep{opacity:.5}
-.oc-root-dark{background:#1A365D;color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:18px 26px;text-align:center;min-width:240px;box-shadow:0 8px 30px rgba(26,54,93,.35)}
-.oc-root-dark-av{width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin:0 auto 10px;border:1.5px solid rgba(255,255,255,.25)}
-.oc-root-dark-name{font-size:17px;font-weight:900}
-.oc-root-dark-role{font-size:11px;opacity:.85;margin-top:4px;font-weight:600}
-.oc-root-dark-badge{display:inline-block;margin-top:10px;background:rgba(255,255,255,.15);color:#fff;font-size:10px;font-weight:800;padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2)}
+.oc-page-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px;padding:20px 24px;background:linear-gradient(135deg,#0A0E1A 0%,#0F2659 50%,#1A2238 100%);border-radius:16px;color:#F5E6C5;box-shadow:0 8px 30px rgba(10,14,26,.4),inset 0 0 0 1px rgba(212,165,56,.20);position:relative;overflow:hidden}
+.oc-page-hdr::before{content:'';position:absolute;top:0;right:0;width:120px;height:4px;background:linear-gradient(90deg,transparent,#D4A538);border-radius:0 16px 0 0}
+.oc-page-hdr::after{content:'';position:absolute;bottom:0;left:0;width:120px;height:4px;background:linear-gradient(90deg,#D4A538,transparent);border-radius:0 0 0 16px}
+.oc-page-title{font-size:24px;font-weight:900;letter-spacing:-.3px;margin-bottom:4px;color:#F5E6C5}
+.oc-page-sub{font-family:'Cormorant Garamond',serif;font-size:14px;color:#D4A538;font-style:italic;font-weight:500;letter-spacing:.5px}
+.oc-stats-pill{display:inline-flex;align-items:center;gap:10px;background:rgba(212,165,56,.10);padding:10px 16px;border-radius:100px;border:1px solid rgba(212,165,56,.30);font-size:12px;font-weight:700;backdrop-filter:blur(6px);color:#F5E6C5}
+.oc-stats-pill strong{font-size:15px;font-weight:900;margin-left:3px;color:#D4A538;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px}
+.oc-stats-sep{opacity:.5;color:#D4A538}
+.oc-root-dark{background:linear-gradient(135deg,#0A0E1A,#0F2659);color:#F5E6C5;border:2px solid #D4A538;border-radius:18px;padding:22px 30px;text-align:center;min-width:260px;box-shadow:0 10px 36px rgba(10,14,26,.50),0 0 0 6px rgba(212,165,56,.08);position:relative}
+.oc-root-dark::before{content:'DIRECTOR';position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#D4A538;color:#0A0E1A;font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:3px;padding:3px 14px;border-radius:100px;font-weight:700}
+.oc-root-dark-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#D4A538,#F5E6C5);color:#0A0E1A;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;margin:6px auto 12px;border:2px solid rgba(245,230,197,.30);box-shadow:0 4px 12px rgba(212,165,56,.30)}
+.oc-root-dark-name{font-size:19px;font-weight:900;color:#F5E6C5;letter-spacing:-.2px}
+.oc-root-dark-role{font-family:'Cormorant Garamond',serif;font-size:13px;color:#D4A538;margin-top:6px;font-style:italic;letter-spacing:.4px}
+.oc-root-dark-badge{display:inline-block;margin-top:12px;background:rgba(212,165,56,.10);color:#D4A538;font-family:'Bebas Neue',sans-serif;font-size:11px;font-weight:400;padding:5px 14px;border-radius:100px;border:1px solid rgba(212,165,56,.30);letter-spacing:1.5px}
 .oc-city-v2{background:var(--bg);border:1px solid var(--bdr);border-radius:14px;width:240px;flex-shrink:0;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;display:flex;flex-direction:column}
 .oc-city-v2:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,.14)}
 .oc-city-v2-head{padding:14px 16px 12px;background:linear-gradient(180deg,rgba(0,0,0,.02),transparent)}
@@ -2156,7 +2159,7 @@ function OcOrgChart(props){
         h('span',{className:'oc-stats-item'},h('strong',null,activeCities.length),' محافظات'),
         h('span',{className:'oc-stats-sep'},'·'),
         h('span',{className:'oc-stats-item'},h('strong',null,totalProj),' مشروع'),
-        h('button',{className:'oc-btn green',style:{marginRight:8},onClick:function(){doPrint('all');}},svgPrint,' طباعة')
+        h('button',{className:'oc-btn green',style:{marginRight:8},onClick:function(){if(props.onMainPrint){props.onMainPrint();}else{doPrint('all');}}},svgPrint,' طباعة')
       )
     ),
     h('div',{className:'oc-view'},
@@ -10808,7 +10811,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
 
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
-        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,onPrintReady:fn=>{orgPrintRef.current=fn;}})
+        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,onPrintReady:fn=>{orgPrintRef.current=fn;},onMainPrint:()=>printOrgPDF('print')})
       ),
 
       /* ── ENGINEER PROFILE MODAL ────────────────────────── */
