@@ -5107,7 +5107,7 @@ function App(){
     await saveExpData({custody,items:expItems.filter(e=>e.id!==id),transfers});msg("تم الحذف");
   };
   const submitTransfer=async()=>{
-    if(!trfForm.fromCustodyId){msg("اختر عهدة المصدر","err");return;}
+    /* fromCustodyId is now optional — empty means "transfer from aggregate balance" */
     const fc=trfForm.fromCurrency||'usd';
     const tc=trfForm.toCurrency||'lyd';
     if(fc===tc){msg("اختر عملتين مختلفتين","err");return;}
@@ -6615,9 +6615,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           h("div",{className:"modal-body"},
             h("div",{className:"g2"},
               h("div",{className:"fld",style:{margin:0}},
-                h("label",null,"من عهدة *"),
+                h("label",null,"من عهدة — اختياري"),
                 h("select",{value:trfForm.fromCustodyId,onChange:ev=>setTrfForm(f=>({...f,fromCustodyId:ev.target.value}))},
-                  h("option",{value:""},"— اختر عهدة —"),
+                  h("option",{value:""},"— من الإجمالى (بدون ربط) —"),
                   custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd?" ("+c.usd+"$)":"")+(c.lyd?" ("+c.lyd+" د.ل)":"")+(c.egp?" ("+c.egp+" ج.م)":"")))
                 )
               ),
@@ -6625,7 +6625,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("label",null,"إلى عهدة — اختياري"),
                 h("select",{value:trfForm.toCustodyId,onChange:ev=>setTrfForm(f=>({...f,toCustodyId:ev.target.value}))},
                   h("option",{value:""},"— رصيد حر (بدون ربط) —"),
-                  custody.filter(c=>c.id!==trfForm.fromCustodyId).map(c=>h("option",{key:c.id,value:c.id},c.desc))
+                  custody.filter(c=>!trfForm.fromCustodyId||c.id!==trfForm.fromCustodyId).map(c=>h("option",{key:c.id,value:c.id},c.desc))
                 )
               )
             ),
