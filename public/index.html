@@ -6375,63 +6375,346 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   };
 
   /* ── Org/Provinces PDF (org structure + per-province stats) ── */
+  /* ══════════════════════════════════════════════════════════════
+     Annual-Report style Org Chart PDF (cover + hierarchy SVG + donuts + city pages)
+     ════════════════════════════════════════════════════════════════ */
   const printOrgPDF=(mode='print')=>{
     const od=orgData||{director:{name:'—',title:'مدير المشروعات'},cities:[]};
-    const dirName=od.director?.name||'—';
-    const dirTitle=od.director?.title||'مدير المشروعات';
+    const dirName=od.director?.name||'ضياء الدين محمود';
+    const dirTitle=od.director?.title||'مدير مشروعات ليبيا';
+    const company=cfg.company||od.company||'شركة الرائد للاستشارات الهندسية';
     const _M=cfg.month||(now.getMonth()+1),_Y=cfg.year||now.getFullYear();
-    const cityBlocks=(od.cities||[]).map(city=>{
-      const totalEngs=(city.managers?.length||0)+(city.team?.length||0);
-      const provName='محافظة '+city.name;
-      const engs=data[provName]||data[city.name]||[];
-      const liveCount=engs.length;
-      const projects=city.projects||[];
-      const mgrRows=(city.managers||[]).map(m=>`<tr><td style="font-weight:700">${m.name}</td><td style="font-size:10px;color:#64748B">${m.role||'—'}</td><td><span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">مدير</span></td></tr>`).join('');
-      const teamRows=(city.team||[]).map(m=>`<tr><td>${m.name}</td><td style="font-size:10px;color:#64748B">${m.role||'—'}</td><td><span style="background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">فريق</span></td></tr>`).join('');
-      const projHtml=projects.length?`<div style="margin-top:8px;padding:10px;background:#F8FAFC;border-radius:6px;border:1px solid #E2E8F0"><div style="font-size:11px;font-weight:800;color:#475569;margin-bottom:6px">📋 المشاريع (${projects.length})</div>${projects.map(p=>`<div style="font-size:10px;padding:3px 0;color:#334155">• ${p.name||p}</div>`).join('')}</div>`:'';
-      /* ── Transferred-OUT: engineers who LEFT this prov this month ── */
-      const transferredOut=[];
-      Object.values(data||{}).forEach(provEngsList=>(provEngsList||[]).forEach(e=>{
-        const ts=getTransfers(e);
-        if(!ts.length)return;
-        const last=ts[ts.length-1];
-        const lastDate=new Date(last.date+'T12:00');
-        if(last.from===provName&&e.prov!==provName&&lastDate.getFullYear()===_Y&&lastDate.getMonth()+1===_M){
-          transferredOut.push({name:e.name,spec:e.spec||'مهندس',date:last.date,to:last.to});
-        }
-      }));
-      /* ── Transferred-IN: engineers who CAME to this prov this month (latest transfer.to===provName) ── */
-      const transferredIn=(engs||[]).filter(e=>{
-        const ts=getTransfers(e);
-        if(!ts.length)return false;
-        const last=ts[ts.length-1];
-        const lastDate=new Date(last.date+'T12:00');
-        return last.to===provName&&lastDate.getFullYear()===_Y&&lastDate.getMonth()+1===_M;
-      }).map(e=>{const ts=getTransfers(e);const last=ts[ts.length-1];return{name:e.name,spec:e.spec||'مهندس',date:last.date,from:last.from};});
-      const transferOutBlock=transferredOut.length>0?`<div style="margin-top:10px;padding:10px 14px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px"><div style="font-size:11px;font-weight:800;color:#6D28D9;margin-bottom:6px">🔄 المهندسون المنقولون من هذه المحافظة هذا الشهر (${transferredOut.length})</div>${transferredOut.map(t=>`<div style="font-size:10px;color:#475569;padding:3px 0"><strong style="color:#1F2937">${t.name}</strong> · ${t.spec} · <span style="color:#6D28D9">${t.date}</span> → <strong style="color:#059669">${t.to.replace('محافظة ','')}</strong></div>`).join('')}</div>`:'';
-      const transferInBlock=transferredIn.length>0?`<div style="margin-top:10px;padding:10px 14px;background:#ECFDF5;border:1px solid #BBF7D0;border-radius:8px"><div style="font-size:11px;font-weight:800;color:#059669;margin-bottom:6px">🆕 المهندسون المنقولون إلى هذه المحافظة هذا الشهر (${transferredIn.length})</div>${transferredIn.map(t=>`<div style="font-size:10px;color:#475569;padding:3px 0"><strong style="color:#1F2937">${t.name}</strong> · ${t.spec} · <span style="color:#059669">${t.date}</span> ← <strong style="color:#6D28D9">${t.from.replace('محافظة ','')}</strong></div>`).join('')}</div>`:'';
-      return `<div class="section" style="border:1.5px solid #E2E8F0;border-radius:10px;padding:14px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${city.color||'#3B82F6'}">
-          <div>
-            <div style="font-size:16px;font-weight:900;color:${city.color||'#3B82F6'}">📍 ${city.name}</div>
-            <div style="font-size:11px;color:#64748B;margin-top:2px">${liveCount} مهندس · ${(city.managers||[]).length} مدير · ${(city.team||[]).length} فني · ${projects.length} مشروع</div>
+    const monthLabel=MONTHS[_M-1]+' '+_Y;
+    /* Logo handling: use uploaded logo data-URL if set, else fall back to 'R' monogram */
+    const logoSrc=logo||'';
+    const logoCoverHtml=logoSrc
+      ? `<div style="width:130px;height:130px;border-radius:50%;background:#FFF;border:3px solid #D4A538;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 0 6px rgba(212,165,56,.10),0 20px 60px rgba(0,0,0,.50);overflow:hidden"><img src="${logoSrc}" style="max-width:90%;max-height:90%;object-fit:contain"/></div>`
+      : `<div style="width:130px;height:130px;border-radius:50%;background:radial-gradient(circle at center,rgba(245,230,197,.10),transparent 70%),linear-gradient(135deg,#0F2659,#0A0E1A);border:3px solid #D4A538;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 0 6px rgba(212,165,56,.10),0 20px 60px rgba(0,0,0,.50);font-family:'Cormorant Garamond',serif;font-size:78px;font-weight:600;background:linear-gradient(135deg,#D4A538,#F5E6C5);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1">R</div>`;
+    const logoHdrHtml=logoSrc
+      ? `<div style="width:42px;height:42px;border-radius:50%;background:#FFF;border:1.5px solid #D4A538;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${logoSrc}" style="max-width:85%;max-height:85%;object-fit:contain"/></div>`
+      : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0F2659,#0A0E1A);border:1.5px solid #D4A538;display:flex;align-items:center;justify-content:center;color:#D4A538;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;line-height:1">R</div>`;
+    /* Map CITY_CFG to live data so report uses real numbers */
+    const CITY_META={
+      derna:   {accent:'#3B82F6',soft:'#DBEAFE',deep:'#1E40AF',gradFrom:'#1E40AF',gradTo:'#3B82F6',officeLabel:'OFFICE I'},
+      bayda:   {accent:'#8B5CF6',soft:'#EDE9FE',deep:'#5B21B6',gradFrom:'#5B21B6',gradTo:'#8B5CF6',officeLabel:'HEADQUARTERS · المكتب الرئيسى'},
+      benghazi:{accent:'#F59E0B',soft:'#FEF3C7',deep:'#92400E',gradFrom:'#92400E',gradTo:'#F59E0B',officeLabel:'OFFICE III'},
+      tabrouk: {accent:'#10B981',soft:'#DCFCE7',deep:'#166534',gradFrom:'#166534',gradTo:'#10B981',officeLabel:'OFFICE IV'},
+    };
+    const initial=(name)=>(name||'?').trim().split(' ').filter(Boolean).slice(0,1).map(w=>w[0]).join('');
+    /* Build the cities data we'll use for everything */
+    const cities=(CITY_CFG||[]).map(cfgC=>{
+      const meta=CITY_META[cfgC.id]||CITY_META.derna;
+      const provName=cfgC.prov;
+      const cityOrg=(od.cities||[]).find(c=>c.id===cfgC.id)||{managers:[],team:[],projects:[]};
+      /* Live engineers list (only the ones still in this prov, not departed) */
+      const engs=(data[provName]||[]).filter(e=>!isDepartedBeforeMonth(e,_Y,_M)&&e.name!==dirName);
+      const mgrEng=engs.find(e=>e.spec&&e.spec.includes('مدير'));
+      const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
+      const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
+      const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
+      const projects=(cityOrg.projects||PROJ_DATA[cfgC.id]||[]).map(p=>typeof p==='string'?p:(p?.name||''));
+      const team=engs.filter(e=>e.id!==mgrEng?.id||!mgrEng);
+      return {id:cfgC.id,name:cfgC.name,prov:provName,meta,engs,mgrName,mgrRole,projects,team};
+    });
+    const totalEngs=cities.reduce((a,c)=>a+c.engs.length,0);
+    const totalProjs=cities.reduce((a,c)=>a+c.projects.length,0);
+    const activeProvs=cities.filter(c=>c.engs.length>0).length;
+    /* Donut helper — share = part/total. ringPath length = 2π × 32 ≈ 201 */
+    const donutSvg=(count,total,color,softColor,labelArabic)=>{
+      const pct=total>0?Math.round(count/total*100):0;
+      const dashOffset=Math.max(0,Math.round(201-(pct/100)*201));
+      return `<div class="donut-card" style="padding:10px 10px">
+        <div class="donut-card-name" style="margin-bottom:6px;font-size:12px"><span class="donut-card-dot" style="background:${color}"></span> ${labelArabic}</div>
+        <svg width="76" height="76" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="${softColor}" stroke-width="10"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="201" stroke-dashoffset="${dashOffset}" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+          <text x="40" y="38" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="18" fill="${color}">${String(count).padStart(2,'0')}</text>
+          <text x="40" y="54" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="11" fill="#475569" letter-spacing="1">${pct}%</text>
+        </svg>
+        <div class="donut-card-sub">${count} · ${pct}٪</div>
+      </div>`;
+    };
+    /* Hierarchy SVG — director + 4 city boxes */
+    const treeSvgHtml=()=>{
+      const cityBoxes=cities.slice(0,4).map((c,i)=>{
+        const x=[60,310,570,820][i];
+        const cx=x+110;
+        return `<g>
+          <rect x="${x}" y="200" width="220" height="100" fill="#FFFFFF" stroke="${c.meta.accent}" stroke-width="2"/>
+          <rect x="${x}" y="200" width="220" height="22" fill="${c.meta.accent}"/>
+          <text x="${cx}" y="215" text-anchor="middle" fill="#FFFFFF" font-family="'Bebas Neue',sans-serif" font-size="11" letter-spacing="3">${c.id.toUpperCase()} · ${c.name}</text>
+          <text x="${cx}" y="245" text-anchor="middle" fill="${c.meta.deep}" font-family="Cairo,sans-serif" font-size="14" font-weight="800">${c.mgrName}</text>
+          <text x="${cx}" y="262" text-anchor="middle" fill="#475569" font-family="Cairo,sans-serif" font-size="10" font-weight="600">${c.mgrRole}</text>
+          <text x="${cx}" y="285" text-anchor="middle" fill="${c.meta.accent}" font-family="'Bebas Neue',sans-serif" font-size="22" letter-spacing="1">${c.engs.length} ENG · ${c.projects.length} PROJ</text>
+        </g>
+        <line x1="${cx}" y1="160" x2="${cx}" y2="200" stroke="#B8860B" stroke-width="2"/>
+        <line x1="${cx}" y1="300" x2="${cx}" y2="330" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <g>
+          <rect x="${x}" y="330" width="220" height="56" fill="#F5F1E8" stroke="${c.meta.accent}" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="${cx}" y="354" text-anchor="middle" fill="${c.meta.deep}" font-family="Cairo,sans-serif" font-size="12" font-weight="700">الفريق الهندسى</text>
+          <text x="${cx}" y="372" text-anchor="middle" fill="#475569" font-family="Cairo,sans-serif" font-size="10" font-weight="600">${c.team.length} مهندس</text>
+        </g>`;
+      }).join('');
+      return `<svg viewBox="0 0 1100 460" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="dirGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0F2659"/><stop offset="1" stop-color="#1E40AF"/></linearGradient>
+          <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".15"/></filter>
+        </defs>
+        <g filter="url(#softShadow)">
+          <rect x="430" y="20" width="240" height="86" fill="url(#dirGrad)" stroke="#D4A538" stroke-width="2"/>
+          <text x="550" y="44" text-anchor="middle" fill="#D4A538" font-family="'Bebas Neue',sans-serif" font-size="11" letter-spacing="4">DIRECTOR · المدير العام</text>
+          <text x="550" y="72" text-anchor="middle" fill="#F5E6C5" font-family="Cairo,sans-serif" font-size="18" font-weight="800">${dirName}</text>
+          <text x="550" y="92" text-anchor="middle" fill="rgba(245,230,197,.7)" font-family="Cairo,sans-serif" font-size="10" font-weight="600">${dirTitle}</text>
+        </g>
+        <line x1="550" y1="106" x2="550" y2="160" stroke="#B8860B" stroke-width="2"/>
+        <circle cx="550" cy="160" r="5" fill="#B8860B"/>
+        <line x1="120" y1="160" x2="980" y2="160" stroke="#B8860B" stroke-width="2"/>
+        ${cityBoxes}
+      </svg>`;
+    };
+    /* Build city detail page for one city */
+    const cityPage=(c,idx,pageNum)=>{
+      const m=c.meta;
+      const teamGridCols=c.team.length>9?4:3;
+      const projCols=c.projects.length>10?2:1;
+      const teamHtml=c.team.map((e,i)=>`<div class="team-card-lux"><span class="team-card-lux-num">${String(i+1).padStart(2,'0')}</span><div class="team-card-lux-avatar">${initial(e.name)}</div><div class="team-card-lux-info"><div class="team-card-lux-name">${e.name}</div><div class="team-card-lux-role">${e.spec||'مهندس'}</div></div></div>`).join('');
+      const projHtml=c.projects.map((p,i)=>`<div class="proj-item-lux ${c.id}"><span class="proj-item-num">${String(i+1).padStart(2,'0')}</span> ${p}</div>`).join('');
+      return `<div class="page">
+        <div class="page-hdr">
+          <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>محافظة ${c.name}</h1><div class="sub">${c.name} Office · ${c.engs.length} Engineers · ${c.projects.length} Projects</div></div></div>
+          <div class="page-hdr-r"><div><span class="pg">${String(pageNum).padStart(2,'0')}</span><span class="pg-total"> / ${4+cities.filter(x=>x.engs.length>0).length}</span></div><div class="date">${monthLabel}</div></div>
+        </div>
+        <div class="city-hero ${c.id}">
+          <div class="city-hero-num">${String(idx+1).padStart(2,'0')}</div>
+          <div class="city-hero-body">
+            <div class="city-hero-label">${m.officeLabel}</div>
+            <div class="city-hero-name">محافظة ${c.name}</div>
+            <div class="city-hero-sub">${c.engs.length} مهندس · ${c.projects.length} مشروع</div>
+          </div>
+          <div class="city-hero-stats">
+            <div class="city-hero-stat"><div class="city-hero-stat-val">${String(c.engs.length).padStart(2,'0')}</div><div class="city-hero-stat-lbl">Engineers</div></div>
+            <div class="city-hero-stat"><div class="city-hero-stat-val">${String(c.projects.length).padStart(2,'0')}</div><div class="city-hero-stat-lbl">Projects</div></div>
           </div>
         </div>
-        ${(mgrRows+teamRows)?`<table style="font-size:10.5px"><thead><tr><th>الاسم</th><th>الدور</th><th style="width:80px;text-align:center">المستوى</th></tr></thead><tbody>${mgrRows}${teamRows}</tbody></table>`:'<div style="padding:14px;text-align:center;color:#94A3B8;font-size:11px">لا توجد بيانات</div>'}
-        ${projHtml}
-        ${transferInBlock}
-        ${transferOutBlock}
+        <div class="city-content">
+          <div class="team-section">
+            <div class="team-section-hdr"><div class="team-section-title">Project Manager &amp; Team</div><div class="team-section-count">${String(c.engs.length).padStart(2,'0')} MEMBERS</div></div>
+            <div class="mgr-spotlight ${c.id}">
+              <div class="mgr-avatar-lux">${initial(c.mgrName)}</div>
+              <div class="mgr-spotlight-info"><div class="mgr-spotlight-label">PROJECT MANAGER</div><div class="mgr-spotlight-name">${c.mgrName}</div><div class="mgr-spotlight-role">${c.mgrRole}</div></div>
+            </div>
+            <div class="team-grid-lux" style="grid-template-columns:repeat(${teamGridCols},1fr)">${teamHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px">لا يوجد فريق مسجّل</div>'}</div>
+          </div>
+          <div class="proj-section">
+            <div class="team-section-hdr"><div class="team-section-title">Projects Portfolio</div><div class="team-section-count">${String(c.projects.length).padStart(2,'0')} PROJECTS</div></div>
+            <div class="proj-grid" style="${projCols===2?'display:grid;grid-template-columns:1fr 1fr;gap:5px':''}">${projHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px">لا توجد مشاريع مسجّلة</div>'}</div>
+          </div>
+        </div>
+        <div class="footer-strip"><span>${m.officeLabel} · ${c.name.toUpperCase()}</span><span class="brand">© ${company} · ${_Y}</span></div>
       </div>`;
-    }).join('');
-    const totalDirector=`<div style="background:linear-gradient(135deg,#1E3A8A,#3730A3);color:#fff;padding:16px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
-      <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900">👤</div>
-      <div>
-        <div style="font-size:18px;font-weight:900">${dirName}</div>
-        <div style="font-size:12px;opacity:.85;margin-top:3px">${dirTitle}</div>
-        <div style="font-size:10px;opacity:.7;margin-top:5px">${od.company||cfg.company||'شركة الرائد للاستشارات الهندسية'}</div>
+    };
+    /* Now build the full HTML */
+    const css=`*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important}
+    body{font-family:'Cairo','Segoe UI',sans-serif;direction:rtl;color:#1A1A1A;background:#0A0E1A;min-height:100vh;padding:0;-webkit-font-smoothing:antialiased}
+    .print-bar{position:fixed;top:14px;left:14px;z-index:99}
+    .print-btn{padding:11px 24px;font-family:inherit;font-size:13px;font-weight:800;border:none;border-radius:12px;cursor:pointer;color:#0A0E1A;background:linear-gradient(135deg,#D4A538,#F5E6C5);box-shadow:0 8px 24px rgba(184,134,11,.4)}
+    .paper{width:297mm;margin:0 auto;background:#FAFAF7}
+    .page{width:297mm;height:210mm;padding:14mm 16mm;position:relative;page-break-after:always;overflow:hidden;background:#FAFAF7}
+    .page:last-child{page-break-after:auto}
+    .cover{background:radial-gradient(circle at 80% 20%,rgba(212,165,56,.18),transparent 50%),radial-gradient(circle at 20% 80%,rgba(15,38,89,.20),transparent 50%),linear-gradient(135deg,#0A0E1A 0%,#1A2238 60%,#0F2659 100%);padding:0;color:#F5E6C5}
+    .cover-inner{position:absolute;inset:14mm 16mm;display:flex;flex-direction:column;border:2px solid rgba(212,165,56,.30);padding:18mm 22mm}
+    .cover-corner-ornament{position:absolute;width:60px;height:60px;border:2px solid #D4A538}
+    .cover-corner-ornament.tr{top:-2px;right:-2px;border-bottom:none;border-left:none}
+    .cover-corner-ornament.bl{bottom:-2px;left:-2px;border-top:none;border-right:none}
+    .cover-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:#D4A538;letter-spacing:5px}
+    .cover-line{flex:1;height:1px;background:linear-gradient(90deg,transparent,#D4A538,transparent);margin:0 18px}
+    .cover-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 0}
+    .cover-subtitle{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#D4A538;letter-spacing:14px;margin-bottom:14px}
+    .cover-company-ar{font-size:42px;font-weight:800;color:#F5E6C5;letter-spacing:-1px;margin-bottom:4px;line-height:1.1}
+    .cover-company-en{font-family:'Cormorant Garamond',serif;font-size:18px;color:#D4A538;font-style:italic;font-weight:500;letter-spacing:2px}
+    .cover-divider-elegant{margin:32px 0 22px;display:flex;align-items:center;justify-content:center;gap:14px}
+    .cover-divider-elegant .seg{width:90px;height:1px;background:#D4A538}
+    .cover-divider-elegant .diamond{width:10px;height:10px;background:#D4A538;transform:rotate(45deg);box-shadow:0 0 0 3px rgba(212,165,56,.15)}
+    .cover-title{font-size:58px;font-weight:900;color:#F5E6C5;letter-spacing:-1.5px;line-height:1;margin-bottom:14px}
+    .cover-title-en{font-family:'Cormorant Garamond',serif;font-size:22px;color:#D4A538;font-style:italic;font-weight:500;letter-spacing:6px;text-transform:uppercase}
+    .cover-tagline{margin-top:24px;font-size:13px;color:rgba(245,230,197,.7);max-width:520px;line-height:1.9;font-weight:500}
+    .cover-bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;padding-top:22px;border-top:1px solid rgba(212,165,56,.30)}
+    .cover-meta-block{text-align:center;font-size:11px;color:rgba(245,230,197,.6)}
+    .cover-meta-block:first-child{text-align:right}
+    .cover-meta-block:last-child{text-align:left}
+    .cover-meta-block .label{font-family:'Bebas Neue',sans-serif;font-weight:400;color:#D4A538;letter-spacing:3px;margin-bottom:6px;font-size:11px}
+    .cover-meta-block .val{color:#F5E6C5;font-weight:700;font-size:14px;letter-spacing:.3px}
+    .page-hdr{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:12px;margin-bottom:18px;border-bottom:2px solid #0A0E1A;position:relative}
+    .page-hdr::after{content:"";position:absolute;bottom:-2px;right:0;width:140px;height:4px;background:#D4A538}
+    .page-hdr-l{display:flex;align-items:center;gap:14px}
+    .page-hdr-titles h1{font-size:19px;font-weight:900;color:#0A0E1A;letter-spacing:-.3px;line-height:1.1}
+    .page-hdr-titles .sub{font-size:10px;color:#7B7B7B;font-weight:600;margin-top:2px;letter-spacing:.5px}
+    .page-hdr-r{text-align:left;font-size:10px;color:#7B7B7B}
+    .page-hdr-r .pg{font-family:'Bebas Neue',sans-serif;font-size:24px;color:#B8860B;letter-spacing:2px;line-height:1}
+    .page-hdr-r .pg-total{color:#7B7B7B;font-size:14px}
+    .page-hdr-r .date{margin-top:2px;font-weight:600;letter-spacing:.3px}
+    .tree-page-intro{margin-bottom:14px;padding:14px 18px;background:linear-gradient(90deg,#FAFAF7,#F5F1E8 50%,#FAFAF7);border-right:4px solid #B8860B;border-left:4px solid #B8860B}
+    .tree-page-intro h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:#0A0E1A;font-style:italic;letter-spacing:.3px}
+    .tree-page-intro p{font-size:11.5px;color:#3D3D3D;margin-top:4px;line-height:1.7;font-weight:500}
+    .tree-svg-wrap{display:flex;align-items:center;justify-content:center;padding:14px 0 8px}
+    .tree-svg-wrap svg{width:100%;height:auto;max-height:115mm}
+    .tree-leg{display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;font-weight:600;color:#7B7B7B;padding-top:10px;border-top:1px solid #E8E0CC}
+    .tree-leg-item{display:flex;align-items:center;gap:6px}
+    .tree-leg-dot{width:10px;height:10px;border-radius:50%}
+    .stats-mega-bar{display:grid;gap:10px;margin-bottom:10px}
+    .mega-stat{background:linear-gradient(180deg,#FFFFFF,#FAFAF7);border:1.5px solid #E8E0CC;padding:12px 16px;position:relative;overflow:hidden}
+    .mega-stat::before{content:"";position:absolute;top:0;right:0;bottom:0;width:4px}
+    .mega-stat.blue::before{background:#3B82F6}.mega-stat.purple::before{background:#8B5CF6}.mega-stat.amber::before{background:#F59E0B}.mega-stat.green::before{background:#10B981}
+    .mega-stat-num{font-family:'Bebas Neue',sans-serif;font-size:46px;font-weight:400;color:#0A0E1A;line-height:1;margin-bottom:4px;letter-spacing:.5px}
+    .mega-stat-lbl{font-size:11px;color:#7B7B7B;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+    .mega-stat-icon{position:absolute;left:10px;top:10px;font-size:24px;opacity:.20}
+    .dist-chart{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:14px 16px;margin-bottom:10px}
+    .dist-chart h3{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#0A0E1A;font-style:italic;margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline}
+    .dist-chart h3 .sub{font-family:'Cairo';font-size:10px;color:#7B7B7B;font-weight:600;font-style:normal;letter-spacing:.5px}
+    .donut-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .donut-card{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:10px;text-align:center}
+    .donut-card-name{font-size:12px;font-weight:900;color:#0A0E1A;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+    .donut-card-dot{width:8px;height:8px;border-radius:50%}
+    .donut-card-sub{font-size:10px;color:#7B7B7B;font-weight:600;margin-top:6px;letter-spacing:.3px}
+    .city-hero{display:flex;align-items:stretch;gap:0;margin-bottom:16px;border:1.5px solid #0A0E1A;background:#FFFFFF}
+    .city-hero-num{width:100px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:78px;line-height:1;letter-spacing:1px;color:#FFFFFF}
+    .city-hero.derna .city-hero-num{background:linear-gradient(135deg,#1E40AF,#3B82F6)}
+    .city-hero.bayda .city-hero-num{background:linear-gradient(135deg,#5B21B6,#8B5CF6)}
+    .city-hero.benghazi .city-hero-num{background:linear-gradient(135deg,#92400E,#F59E0B)}
+    .city-hero.tabrouk .city-hero-num{background:linear-gradient(135deg,#166534,#10B981)}
+    .city-hero-body{flex:1;padding:14px 22px;display:flex;flex-direction:column;justify-content:center}
+    .city-hero-label{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:5px;color:#B8860B;margin-bottom:4px}
+    .city-hero-name{font-size:28px;font-weight:900;color:#0A0E1A;letter-spacing:-.5px;line-height:1.1}
+    .city-hero-sub{font-size:11.5px;color:#7B7B7B;font-weight:600;margin-top:4px;letter-spacing:.3px}
+    .city-hero-stats{display:flex;align-items:center;gap:18px;padding:14px 22px;border-right:1px solid #E8E0CC}
+    .city-hero-stat{text-align:center}
+    .city-hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;color:#0A0E1A;line-height:1}
+    .city-hero-stat-lbl{font-size:9.5px;color:#7B7B7B;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-top:3px}
+    .city-content{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+    .team-section,.proj-section{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:14px 16px}
+    .team-section-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #E8E0CC}
+    .team-section-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#0A0E1A;font-style:italic;letter-spacing:.3px}
+    .team-section-count{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#B8860B;letter-spacing:1px}
+    .mgr-spotlight{background:linear-gradient(135deg,#FAFAF7,#FFFFFF);border:2px solid;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px}
+    .mgr-spotlight.derna{border-color:#3B82F6}.mgr-spotlight.bayda{border-color:#8B5CF6}.mgr-spotlight.benghazi{border-color:#F59E0B}.mgr-spotlight.tabrouk{border-color:#10B981}
+    .mgr-avatar-lux{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#fff;flex-shrink:0;border:3px solid #fff}
+    .mgr-spotlight.derna .mgr-avatar-lux{background:#3B82F6;box-shadow:0 0 0 1.5px #3B82F6}
+    .mgr-spotlight.bayda .mgr-avatar-lux{background:#8B5CF6;box-shadow:0 0 0 1.5px #8B5CF6}
+    .mgr-spotlight.benghazi .mgr-avatar-lux{background:#F59E0B;box-shadow:0 0 0 1.5px #F59E0B}
+    .mgr-spotlight.tabrouk .mgr-avatar-lux{background:#10B981;box-shadow:0 0 0 1.5px #10B981}
+    .mgr-spotlight-info{flex:1;min-width:0}
+    .mgr-spotlight-label{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:3px;color:#B8860B}
+    .mgr-spotlight-name{font-size:16px;font-weight:900;color:#0A0E1A;margin-top:2px;line-height:1.2}
+    .mgr-spotlight-role{font-size:11px;color:#7B7B7B;font-weight:600;margin-top:2px}
+    .team-grid-lux{display:grid;gap:8px}
+    .team-card-lux{background:#FAFAF7;border:1px solid #E8E0CC;padding:8px 10px;display:flex;align-items:center;gap:8px}
+    .team-card-lux-num{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#7B7B7B;width:18px;text-align:center;letter-spacing:.5px}
+    .team-card-lux-avatar{width:30px;height:30px;border-radius:50%;background:#F5F1E8;color:#0A0E1A;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:600;flex-shrink:0;border:1px solid #D4C5A8}
+    .team-card-lux-info{flex:1;min-width:0}
+    .team-card-lux-name{font-size:11px;font-weight:800;color:#0A0E1A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+    .team-card-lux-role{font-size:9.5px;color:#7B7B7B;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+    .proj-grid{display:flex;flex-direction:column;gap:6px}
+    .proj-item-lux{display:flex;align-items:center;gap:8px;font-size:10.5px;color:#0A0E1A;background:#FAFAF7;padding:7px 10px;border-right:3px solid;font-weight:600;line-height:1.3}
+    .proj-item-lux.derna{border-color:#3B82F6}.proj-item-lux.bayda{border-color:#8B5CF6}.proj-item-lux.benghazi{border-color:#F59E0B}.proj-item-lux.tabrouk{border-color:#10B981}
+    .proj-item-num{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#B8860B;width:18px;text-align:center;letter-spacing:.5px}
+    .thanks-block{background:linear-gradient(135deg,#0A0E1A,#0F2659);color:#F5E6C5;padding:24px 30px;margin-bottom:18px;position:relative}
+    .thanks-block::before,.thanks-block::after{content:"";position:absolute;width:30px;height:30px;border:2px solid #D4A538}
+    .thanks-block::before{top:8px;right:8px;border-bottom:none;border-left:none}
+    .thanks-block::after{bottom:8px;left:8px;border-top:none;border-right:none}
+    .thanks-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;font-style:italic;color:#F5E6C5;margin-bottom:8px}
+    .thanks-text{font-size:12px;color:rgba(245,230,197,.85);line-height:1.9;font-weight:500;max-width:600px}
+    .sig-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:auto;padding-top:18px}
+    .sig-box{text-align:center}
+    .sig-box-name{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#B8860B;letter-spacing:4px;margin-bottom:48px}
+    .sig-line{height:1.5px;background:#0A0E1A;margin-bottom:6px}
+    .sig-role{font-size:10px;color:#7B7B7B;font-weight:600}
+    .footer-strip{margin-top:18px;padding-top:12px;border-top:1px solid #E8E0CC;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7B7B7B;font-weight:600}
+    .footer-strip .brand{font-family:'Cormorant Garamond',serif;background:linear-gradient(135deg,#B8860B,#D4A538);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:600;letter-spacing:.5px;font-style:italic;font-size:11px}
+    @page{size:A4 landscape;margin:0 !important}
+    @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-section,.proj-section,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.city-content,.tree-svg-wrap,.thanks-block,.sig-row{break-inside:avoid !important;page-break-inside:avoid !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
+    const visibleCities=cities.filter(c=>c.engs.length>0||c.projects.length>0);
+    const totalPages=4+visibleCities.length;
+    const cityPagesHtml=visibleCities.map((c,i)=>cityPage(c,i,3+i)).join('');
+    /* Closing page with appendix for any city with 0 engineers + signatures */
+    const emptyCities=cities.filter(c=>c.engs.length===0&&c.projects.length===0);
+    const signatureBlock=`<div class="page sig-page" style="display:flex;flex-direction:column">
+      <div class="page-hdr">
+        <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>التواقيع والاعتمادات</h1><div class="sub">Signatures &amp; Acknowledgements</div></div></div>
+        <div class="page-hdr-r"><div><span class="pg">${String(totalPages).padStart(2,'0')}</span><span class="pg-total"> / ${totalPages}</span></div><div class="date">${monthLabel}</div></div>
       </div>
+      <div class="thanks-block">
+        <div class="thanks-title">A Note from the Director</div>
+        <div class="thanks-text">هذا الهيكل التنظيمى يُعبّر عن جهد متراكم وتنظيم دقيق لإدارة مشاريع ${company} فى ليبيا. كل مهندس فى هذا التقرير يُمثّل جزءاً من رؤية أكبر — تقديم خدمات استشارية هندسية بأعلى مستوى من الجودة والاحترافية. شكراً لكل عضو فى الفريق على إخلاصه وعمله المتواصل.</div>
+      </div>
+      <div class="sig-row">
+        <div class="sig-box"><div class="sig-box-name">PREPARED BY</div><div class="sig-line"></div><div class="sig-role">المُعِد · إدارة المشروعات</div></div>
+        <div class="sig-box"><div class="sig-box-name">REVIEWED BY</div><div class="sig-line"></div><div class="sig-role">المُراجع · إدارة الجودة</div></div>
+        <div class="sig-box"><div class="sig-box-name">APPROVED BY</div><div class="sig-line"></div><div class="sig-role">المُعتمِد · المدير العام</div></div>
+      </div>
+      <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
     </div>`;
-    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الهيكل التنظيمي</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الهيكل التنظيمي والمحافظات','إحصائيات كل محافظة (مهندسين، مشاريع، فِرَق)')}${totalDirector}${cityBlocks||'<div class="empty">لا توجد بيانات تنظيمية</div>'}</body></html>`;
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
+    <title>الهيكل التنظيمى — ${company}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>${css}</style></head><body>
+    <div class="print-bar"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>
+    <div class="paper">
+      <!-- COVER -->
+      <div class="page cover">
+        <div class="cover-inner">
+          <div class="cover-corner-ornament tr"></div><div class="cover-corner-ornament bl"></div>
+          <div class="cover-top"><span>ANNUAL · STRUCTURE</span><span class="cover-line"></span><span>${_Y}</span></div>
+          <div class="cover-mid">
+            ${logoCoverHtml}
+            <div class="cover-subtitle">EL · RAED</div>
+            <div class="cover-company-ar">${company}</div>
+            <div class="cover-company-en">Engineering Consultancy</div>
+            <div class="cover-divider-elegant"><span class="seg"></span><span class="diamond"></span><span class="seg"></span></div>
+            <div class="cover-title">الهيكل التنظيمى</div>
+            <div class="cover-title-en">Organizational Structure</div>
+            <div class="cover-tagline">تقرير تفصيلى لهيكل إدارة مشروعات ليبيا<br>${activeProvs} محافظات · ${totalEngs} مهندس · ${totalProjs} مشروع</div>
+          </div>
+          <div class="cover-bottom">
+            <div class="cover-meta-block"><div class="label">DATE · التاريخ</div><div class="val">${monthLabel}</div></div>
+            <div class="cover-meta-block"><div class="label">PREPARED FOR · مُعَدّ لـ</div><div class="val">المدير العام</div></div>
+            <div class="cover-meta-block"><div class="label">VOLUME · إصدار</div><div class="val">${_Y}</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- HIERARCHY -->
+      <div class="page">
+        <div class="page-hdr">
+          <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>المخطط الهرمى التنظيمى</h1><div class="sub">Organizational Hierarchy · Direction &amp; Authority Flow</div></div></div>
+          <div class="page-hdr-r"><div><span class="pg">01</span><span class="pg-total"> / ${totalPages}</span></div><div class="date">${monthLabel}</div></div>
+        </div>
+        <div class="tree-page-intro"><h2>Direction &amp; Authority</h2><p>المدير العام يُشرف مباشرة على ${activeProvs} محافظات نشطة، كل منها يديرها مسؤول مشروع وفريق هندسى متكامل.</p></div>
+        <div class="tree-svg-wrap">${treeSvgHtml()}</div>
+        <div class="tree-leg">${cities.map(c=>`<div class="tree-leg-item"><span class="tree-leg-dot" style="background:${c.meta.accent}"></span> ${c.name}</div>`).join('')}</div>
+      </div>
+      <!-- STATS -->
+      <div class="page">
+        <div class="page-hdr">
+          <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>الإحصائيات والتوزيع</h1><div class="sub">Statistics · Distribution Overview</div></div></div>
+          <div class="page-hdr-r"><div><span class="pg">02</span><span class="pg-total"> / ${totalPages}</span></div><div class="date">${monthLabel}</div></div>
+        </div>
+        <div class="stats-mega-bar" style="grid-template-columns:repeat(3,1fr)">
+          <div class="mega-stat blue"><div class="mega-stat-icon">👥</div><div class="mega-stat-num">${String(totalEngs).padStart(2,'0')}</div><div class="mega-stat-lbl">Engineers · مهندس</div></div>
+          <div class="mega-stat purple"><div class="mega-stat-icon">🏛️</div><div class="mega-stat-num">${String(activeProvs).padStart(2,'0')}</div><div class="mega-stat-lbl">Provinces · محافظات</div></div>
+          <div class="mega-stat amber"><div class="mega-stat-icon">📋</div><div class="mega-stat-num">${String(totalProjs).padStart(2,'0')}</div><div class="mega-stat-lbl">Projects · مشاريع</div></div>
+        </div>
+        <div class="dist-chart">
+          <h3>نسبة المهندسين لكل محافظة <span class="sub">Engineers Share per Province · ${totalEngs} Total</span></h3>
+          <div class="donut-row">${cities.map(c=>donutSvg(c.engs.length,totalEngs,c.meta.accent,c.meta.soft,c.name)).join('')}</div>
+        </div>
+        <div class="dist-chart">
+          <h3>نسبة المشاريع لكل محافظة <span class="sub">Projects Share per Province · ${totalProjs} Total</span></h3>
+          <div class="donut-row">${cities.map(c=>donutSvg(c.projects.length,totalProjs,c.meta.accent,c.meta.soft,c.name)).join('')}</div>
+        </div>
+        <div class="footer-strip"><span>الإحصائيات صادرة من نظام إدارة مشروعات ليبيا · ${monthLabel}</span><span class="brand">© ${company} · ${_Y}</span></div>
+      </div>
+      ${cityPagesHtml}
+      ${signatureBlock}
+    </div></body></html>`;
     _openPdfWin(html,mode);
   };
 
