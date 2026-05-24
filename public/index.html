@@ -5729,27 +5729,46 @@ ${provRows.length>1?`
     const returnedThis=leaves.filter(l=>l.status==='approved'&&inMonth(l.returnDate));
     const today2=new Date();today2.setHours(12,0,0,0);
     const todayStr=`${today2.getFullYear()}-${String(today2.getMonth()+1).padStart(2,'0')}-${String(today2.getDate()).padStart(2,'0')}`;
-    /* Build "on leave now" union from both data sources */
+    /* Build "on leave now" union from both data sources, preserving full row data */
     const _onLeaveNowReq=leaves.filter(l=>{
       if(l.status!=='approved'||!l.travelDate)return false;
       const t=new Date(l.travelDate+'T12:00'),r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
       return t<=today2&&(!r||today2<=r);
     });
-    /* From attendance-based egyptLeaves: scan all engineers across all months for active leaves */
-    const _onLeaveNowAtt=new Set();
+    /* From attendance-based egyptLeaves: scan all engineers across all months for active leaves.
+       Produces row objects with the same shape the table downstream expects. */
+    const _onLeaveNowAtt=[];
+    const _seenAttIds=new Set();
     Object.values(months).forEach(m=>{
       if(!m?.data)return;
-      Object.values(m.data).forEach(provEngs=>(provEngs||[]).forEach(e=>{
+      Object.entries(m.data).forEach(([prov,provEngs])=>(provEngs||[]).forEach(e=>{
+        if(_seenAttIds.has(e.id))return;
         (e.egyptLeaves||[]).forEach(l=>{
+          if(_seenAttIds.has(e.id))return;
           if(l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr)){
-            _onLeaveNowAtt.add(e.id);
+            _seenAttIds.add(e.id);
+            /* Days count: how many days from departure up to today (or returnDate) */
+            const dep=new Date(l.departureDate+'T12:00');
+            const ret=l.returnDate?new Date(l.returnDate+'T12:00'):today2;
+            const days=Math.max(1,Math.round((ret-dep)/(1000*60*60*24)));
+            _onLeaveNowAtt.push({
+              id:'att-'+e.id,
+              engineerId:e.id,
+              engineerName:e.name||'—',
+              prov,
+              travelDate:l.departureDate,
+              returnDate:l.returnDate||null,
+              durationDays:days,
+              status:'approved'
+            });
           }
         });
       }));
     });
-    /* Final onLeaveNow count = unique engineers in either source */
-    const _onLeaveNowReqEngIds=new Set(_onLeaveNowReq.map(l=>l.engineerId||l.id));
-    const onLeaveNow=Array.from(new Set([..._onLeaveNowReqEngIds,..._onLeaveNowAtt])).map(id=>({id}));
+    /* Final onLeaveNow = union: leave-requests + attendance-based egypt leaves
+       (skip att rows whose engineerId is already covered by a request) */
+    const _reqEngIds=new Set(_onLeaveNowReq.map(l=>l.engineerId));
+    const onLeaveNow=[..._onLeaveNowReq,..._onLeaveNowAtt.filter(r=>!_reqEngIds.has(r.engineerId))];
     const logoSrc=logo||'';
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>التقرير الشهري الشامل — ${monthLabel}</title>
