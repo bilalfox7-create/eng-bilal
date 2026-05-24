@@ -5241,23 +5241,44 @@ function App(){
   /* ── Export filtered expenses to Excel ───────────────── */
   const exportExpExcel=()=>{
     const wb=XLSX.utils.book_new();
-    // Custody sheet
+    // Custody sheet — 3 currencies
     const custSheet=XLSX.utils.json_to_sheet(filteredCustody.map((c,i)=>({
       '#':i+1,'الوصف':c.desc,'المصدر':c.source||'—','المسؤول':allEngineers.find(e=>e.id===c.responsibleId)?.name||'—',
       'المحافظة':c.prov?c.prov.replace('محافظة ',''):'—',
-      'المبلغ ($)':+c.usd||0,'المبلغ (د.ل)':+c.lyd||0,
+      'المبلغ ($)':+c.usd||0,'المبلغ (د.ل)':+c.lyd||0,'المبلغ (ج.م)':+c.egp||0,
       'التاريخ':c.date||'—','ملاحظة':c.note||'—'
     })));
     XLSX.utils.book_append_sheet(wb,custSheet,'العهدة');
-    // Expenses sheet
+    // Expenses sheet — 3 currencies
     const expSheet=XLSX.utils.json_to_sheet(filteredExpItems.map((e,i)=>({
       '#':i+1,'النوع':e.type,'الوصف':e.desc,'التصنيف':e.category||'—',
       'المحافظة':e.prov?e.prov.replace('محافظة ',''):'—',
-      'المبلغ ($)':+e.usd||0,'المبلغ (د.ل)':+e.lyd||0,
+      'المبلغ ($)':+e.usd||0,'المبلغ (د.ل)':+e.lyd||0,'المبلغ (ج.م)':+e.egp||0,
       'من عهدة':custody.find(c=>c.id===e.custodyId)?.desc||'—',
       'التاريخ':e.date||'—','ملاحظة':e.note||'—'
     })));
     XLSX.utils.book_append_sheet(wb,expSheet,'المصروفات');
+    // Transfers sheet
+    if(filteredTransfers.length){
+      const SYM={usd:'$',lyd:'د.ل',egp:'ج.م'};
+      const trfSheet=XLSX.utils.json_to_sheet(filteredTransfers.map((t,i)=>{
+        const fc=(t.fromCurrency||'usd').toLowerCase();
+        const tc=(t.toCurrency||'lyd').toLowerCase();
+        const fa=+t[fc]||+t.usd||0;
+        const ta=+t[tc]||+t.lyd||0;
+        return{
+          '#':i+1,
+          'التاريخ':t.date||'—',
+          'من عهدة':custody.find(c=>c.id===t.fromCustodyId)?.desc||'—',
+          'إلى عهدة':custody.find(c=>c.id===t.toCustodyId)?.desc||'رصيد حر',
+          'من عملة':SYM[fc],'المبلغ المُحوَّل':fa,
+          'سعر التحويل':+t.rate||0,
+          'إلى عملة':SYM[tc],'المبلغ المُستلم':ta,
+          'ملاحظة':t.note||'—'
+        };
+      }));
+      XLSX.utils.book_append_sheet(wb,trfSheet,'التحويلات');
+    }
     XLSX.writeFile(wb,`المصروفات_${new Date().toISOString().slice(0,10)}.xlsx`);
     msg('تم تصدير Excel ✓');
   };
@@ -5283,20 +5304,24 @@ function App(){
     // Aggregates
     const totalCustUSD=filteredCustody.reduce((a,c)=>a+(+c.usd||0),0);
     const totalCustLYD=filteredCustody.reduce((a,c)=>a+(+c.lyd||0),0);
+    const totalCustEGP=filteredCustody.reduce((a,c)=>a+(+c.egp||0),0);
     const totalExpUSD=filteredExpItems.reduce((a,e)=>a+(+e.usd||0),0);
     const totalExpLYD=filteredExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
+    const totalExpEGP=filteredExpItems.reduce((a,e)=>a+(+e.egp||0),0);
     const msrf=filteredExpItems.filter(e=>e.type==='مصروف');
     const rents=filteredExpItems.filter(e=>e.type==='إيجار');
     const totalMsrfUSD=msrf.reduce((a,e)=>a+(+e.usd||0),0);
     const totalMsrfLYD=msrf.reduce((a,e)=>a+(+e.lyd||0),0);
+    const totalMsrfEGP=msrf.reduce((a,e)=>a+(+e.egp||0),0);
     const totalRentUSD=rents.reduce((a,e)=>a+(+e.usd||0),0);
     const totalRentLYD=rents.reduce((a,e)=>a+(+e.lyd||0),0);
+    const totalRentEGP=rents.reduce((a,e)=>a+(+e.egp||0),0);
     // Group expenses by category
     const byCat={};
     msrf.forEach(e=>{
       const k=e.category||'بدون تصنيف';
-      if(!byCat[k])byCat[k]={count:0,usd:0,lyd:0};
-      byCat[k].count++;byCat[k].usd+=+e.usd||0;byCat[k].lyd+=+e.lyd||0;
+      if(!byCat[k])byCat[k]={count:0,usd:0,lyd:0,egp:0};
+      byCat[k].count++;byCat[k].usd+=+e.usd||0;byCat[k].lyd+=+e.lyd||0;byCat[k].egp+=+e.egp||0;
     });
     /* استخدم سعر صرف الدينار (من آخر تحويل) بدل cfg.egp (سعر الجنيه المصرى)
        — كان السبب فى ترتيب غلط للتصنيفات. */
@@ -5306,17 +5331,33 @@ function App(){
     const byProv={};
     filteredExpItems.forEach(e=>{
       const k=e.prov||'بدون محافظة';
-      if(!byProv[k])byProv[k]={count:0,usd:0,lyd:0};
-      byProv[k].count++;byProv[k].usd+=+e.usd||0;byProv[k].lyd+=+e.lyd||0;
+      if(!byProv[k])byProv[k]={count:0,usd:0,lyd:0,egp:0};
+      byProv[k].count++;byProv[k].usd+=+e.usd||0;byProv[k].lyd+=+e.lyd||0;byProv[k].egp+=+e.egp||0;
     });
     const provRows=Object.entries(byProv);
-    // Custody cards summary (current month only since deduction is month-based)
+    // Custody cards summary (current month only since deduction is month-based) — multi-currency aware
     const custodyDetails=filteredCustody.map(c=>{
-      const dedUSD=aggExpItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.usd||0),0);
-      const dedLYD=aggExpItems.filter(e=>e.custodyId===c.id).reduce((a,e)=>a+(+e.lyd||0),0);
-      const trfOut=aggTransfers.filter(t=>t.fromCustodyId===c.id).reduce((a,t)=>a+(+t.usd||0),0);
-      const trfIn=aggTransfers.filter(t=>t.toCustodyId===c.id).reduce((a,t)=>a+(+t.lyd||0),0);
-      return{...c,dedUSD,dedLYD,trfOut,trfIn,remUSD:(+c.usd||0)-dedUSD-trfOut,remLYD:(+c.lyd||0)-dedLYD+trfIn};
+      const items=aggExpItems.filter(e=>e.custodyId===c.id);
+      const dedUSD=items.reduce((a,e)=>a+(+e.usd||0),0);
+      const dedLYD=items.reduce((a,e)=>a+(+e.lyd||0),0);
+      const dedEGP=items.reduce((a,e)=>a+(+e.egp||0),0);
+      let trfOutUSD=0,trfOutLYD=0,trfOutEGP=0,trfInUSD=0,trfInLYD=0,trfInEGP=0;
+      aggTransfers.forEach(t=>{
+        const fc=(t.fromCurrency||'usd').toLowerCase();
+        const tc=(t.toCurrency||'lyd').toLowerCase();
+        const fa=+(t[fc]||t.usd||0)||0;
+        const ta=+(t[tc]||t.lyd||0)||0;
+        if(t.fromCustodyId===c.id){
+          if(fc==='usd')trfOutUSD+=fa;else if(fc==='lyd')trfOutLYD+=fa;else if(fc==='egp')trfOutEGP+=fa;
+        }
+        if(t.toCustodyId===c.id){
+          if(tc==='usd')trfInUSD+=ta;else if(tc==='lyd')trfInLYD+=ta;else if(tc==='egp')trfInEGP+=ta;
+        }
+      });
+      return{...c,dedUSD,dedLYD,dedEGP,
+        remUSD:(+c.usd||0)+trfInUSD-dedUSD-trfOutUSD,
+        remLYD:(+c.lyd||0)+trfInLYD-dedLYD-trfOutLYD,
+        remEGP:(+c.egp||0)+trfInEGP-dedEGP-trfOutEGP};
     });
     // All transfers (filtered by date if filter applied)
     const filteredTransfers=aggTransfers.filter(t=>{
@@ -5324,8 +5365,17 @@ function App(){
       if(filt.dateTo&&t.date&&t.date>filt.dateTo)return false;
       return true;
     });
-    const totalTrfUSD=filteredTransfers.reduce((a,t)=>a+(+t.usd||0),0);
-    const totalTrfLYD=filteredTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
+    let totalTrfFromUSD=0,totalTrfFromLYD=0,totalTrfFromEGP=0,totalTrfToUSD=0,totalTrfToLYD=0,totalTrfToEGP=0;
+    filteredTransfers.forEach(t=>{
+      const fc=(t.fromCurrency||'usd').toLowerCase();
+      const tc=(t.toCurrency||'lyd').toLowerCase();
+      const fa=+(t[fc]||t.usd||0)||0;
+      const ta=+(t[tc]||t.lyd||0)||0;
+      if(fc==='usd')totalTrfFromUSD+=fa;else if(fc==='lyd')totalTrfFromLYD+=fa;else if(fc==='egp')totalTrfFromEGP+=fa;
+      if(tc==='usd')totalTrfToUSD+=ta;else if(tc==='lyd')totalTrfToLYD+=ta;else if(tc==='egp')totalTrfToEGP+=ta;
+    });
+    /* Legacy aliases (kept for any old references) */
+    const totalTrfUSD=totalTrfFromUSD, totalTrfLYD=totalTrfToLYD;
     // Get engineer name lookup
     const engById=id=>(allEngineers.find(e=>e.id===id))?.name||'—';
 
@@ -5423,10 +5473,10 @@ tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
 <div class="filter-bar">🔍 <b>الفلاتر المطبقة:</b> ${filterTxt}</div>
 
 <div class="kpi-grid">
-  <div class="kpi green"><div class="kpi-lbl">📥 إجمالى العهد الواردة</div><div class="kpi-val">${fmt(aggBalance.receivedUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.receivedLYD)} د.ل</div></div>
-  <div class="kpi red"><div class="kpi-lbl">📤 إجمالى المصروفات</div><div class="kpi-val">${fmt(aggBalance.spentUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.spentLYD)} د.ل</div></div>
-  <div class="kpi gold"><div class="kpi-lbl">🔄 التحويلات</div><div class="kpi-val">${fmt(totalTrfUSD)} $</div><div class="kpi-val-sm">→ ${fmt(totalTrfLYD)} د.ل</div></div>
-  <div class="kpi ${aggBalance.criticalUSD?'red':aggBalance.lowUSD?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.balanceLYD)} د.ل</div></div>
+  <div class="kpi green"><div class="kpi-lbl">📥 إجمالى العهد الواردة</div><div class="kpi-val">${fmt(aggBalance.receivedUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.receivedLYD)} د.ل${(aggBalance.receivedEGP||0)>0?' · '+fmt(aggBalance.receivedEGP)+' ج.م':''}</div></div>
+  <div class="kpi red"><div class="kpi-lbl">📤 إجمالى المصروفات</div><div class="kpi-val">${fmt(aggBalance.spentUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.spentLYD)} د.ل${(aggBalance.spentEGP||0)>0?' · '+fmt(aggBalance.spentEGP)+' ج.م':''}</div></div>
+  <div class="kpi gold"><div class="kpi-lbl">🔄 التحويلات</div><div class="kpi-val">${[totalTrfFromUSD>0?fmt(totalTrfFromUSD)+'$':null,totalTrfFromLYD>0?fmt(totalTrfFromLYD)+' د.ل':null,totalTrfFromEGP>0?fmt(totalTrfFromEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</div><div class="kpi-val-sm">→ ${[totalTrfToUSD>0?fmt(totalTrfToUSD)+'$':null,totalTrfToLYD>0?fmt(totalTrfToLYD)+' د.ل':null,totalTrfToEGP>0?fmt(totalTrfToEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</div></div>
+  <div class="kpi ${aggBalance.criticalUSD?'red':aggBalance.lowUSD?'gold':'blue'}"><div class="kpi-lbl">💼 الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-val-sm">${fmt(aggBalance.balanceLYD)} د.ل${(aggBalance.balanceEGP||0)>0?' · '+fmt(aggBalance.balanceEGP)+' ج.م':''}</div></div>
 </div>
 
 <div style="margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
@@ -5461,7 +5511,7 @@ ${filteredCustody.length>0?`
 <div class="section">
   <h2 class="purple">🏦 سجل العهد الواردة <span class="badge">${filteredCustody.length}</span></h2>
   <table>
-    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>المصدر</th><th>المسؤول</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>ملاحظة</th></tr></thead>
+    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>المصدر</th><th>المسؤول</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th><th>ملاحظة</th></tr></thead>
     <tbody>${filteredCustody.map((c,i)=>`<tr>
       <td style="color:#9CA3AF">${i+1}</td>
       <td style="font-size:10px;color:#6B7280">${c.date||'—'}</td>
@@ -5471,15 +5521,24 @@ ${filteredCustody.length>0?`
       <td style="font-size:10px">${(c.prov||'').replace('محافظة ','')||'—'}</td>
       <td style="color:#047857;font-weight:700">${fmt(c.usd)}</td>
       <td style="color:#92400E;font-weight:700">${fmt(c.lyd)}</td>
+      <td style="color:#6D28D9;font-weight:700">${fmt(c.egp||0)}</td>
       <td style="font-size:10px;color:#6B7280">${c.note||'—'}</td>
     </tr>`).join('')}</tbody>
-    <tfoot><tr><td colspan="6">الإجمالى</td><td style="color:#047857">${fmt(totalCustUSD)} $</td><td style="color:#92400E">${fmt(totalCustLYD)} د.ل</td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="6">الإجمالى</td><td style="color:#047857">${fmt(totalCustUSD)} $</td><td style="color:#92400E">${fmt(totalCustLYD)} د.ل</td><td style="color:#6D28D9">${fmt(totalCustEGP)} ج.م</td><td></td></tr></tfoot>
   </table>
 </div>
 
 <div class="section">
   <h2 class="purple">💼 تفاصيل العهد <span class="badge">${custodyDetails.length}</span></h2>
-  ${custodyDetails.map(c=>`<div class="cust-card">
+  ${custodyDetails.map(c=>{
+    const fmtRow=(usd,lyd,egp)=>{
+      const parts=[];
+      if(usd!==0)parts.push(fmt(usd)+' $');
+      if(lyd!==0)parts.push(fmt(lyd)+' د.ل');
+      if(egp!==0)parts.push(fmt(egp)+' ج.م');
+      return parts.length?parts.join(' / '):'—';
+    };
+    return `<div class="cust-card">
     <div class="cust-card-hdr">
       <div>
         <div class="cust-card-name">${c.desc}</div>
@@ -5487,34 +5546,40 @@ ${filteredCustody.length>0?`
       </div>
     </div>
     <div class="cust-card-body">
-      <div class="cust-cell recv"><div class="cust-cell-lbl">العهدة الأصلية</div><div class="cust-cell-val">${fmt(c.usd)} $ / ${fmt(c.lyd)} د.ل</div></div>
-      <div class="cust-cell spent"><div class="cust-cell-lbl">المصروف</div><div class="cust-cell-val">${fmt(c.dedUSD)} $ / ${fmt(c.dedLYD)} د.ل</div></div>
-      <div class="cust-cell trf"><div class="cust-cell-lbl">التحويلات</div><div class="cust-cell-val">-${fmt(c.trfOut)} $ / +${fmt(c.trfIn)} د.ل</div></div>
-      <div class="cust-cell rem"><div class="cust-cell-lbl">المتبقى</div><div class="cust-cell-val">${fmt(c.remUSD)} $ / ${fmt(c.remLYD)} د.ل</div></div>
+      <div class="cust-cell recv"><div class="cust-cell-lbl">العهدة الأصلية</div><div class="cust-cell-val">${fmtRow(+c.usd||0,+c.lyd||0,+c.egp||0)}</div></div>
+      <div class="cust-cell spent"><div class="cust-cell-lbl">المصروف</div><div class="cust-cell-val">${fmtRow(c.dedUSD,c.dedLYD,c.dedEGP)}</div></div>
+      <div class="cust-cell rem"><div class="cust-cell-lbl">المتبقى</div><div class="cust-cell-val">${fmtRow(c.remUSD,c.remLYD,c.remEGP)}</div></div>
     </div>
-  </div>`).join('')}
+  </div>`;
+  }).join('')}
 </div>`:''}
 
 ${filteredTransfers.length>0?`
 <div class="section">
   <h2 class="gold">🔄 تحويلات العملة <span class="badge">${filteredTransfers.length}</span></h2>
   <table>
-    <thead><tr><th>#</th><th>التاريخ</th><th>من عهدة</th><th>إلى عهدة</th><th>المبلغ ($)</th><th>سعر الصرف</th><th>المبلغ (د.ل)</th><th>ملاحظة</th></tr></thead>
+    <thead><tr><th>#</th><th>التاريخ</th><th>من عهدة</th><th>إلى عهدة</th><th>من (المبلغ)</th><th>سعر الصرف</th><th>إلى (المبلغ)</th><th>ملاحظة</th></tr></thead>
     <tbody>${filteredTransfers.map((t,i)=>{
-      const fc=aggCustody.find(c=>c.id===t.fromCustodyId)?.desc||'—';
-      const tc=aggCustody.find(c=>c.id===t.toCustodyId)?.desc||'<span style="color:#9CA3AF;font-style:italic">رصيد حر</span>';
+      const SYM={usd:'$',lyd:'د.ل',egp:'ج.م'};
+      const COL={usd:'#1D4ED8',lyd:'#92400E',egp:'#6D28D9'};
+      const fc=(t.fromCurrency||'usd').toLowerCase();
+      const tc=(t.toCurrency||'lyd').toLowerCase();
+      const fa=+t[fc]||+t.usd||0;
+      const ta=+t[tc]||+t.lyd||0;
+      const fCust=aggCustody.find(c=>c.id===t.fromCustodyId)?.desc||'—';
+      const tCust=aggCustody.find(c=>c.id===t.toCustodyId)?.desc||'<span style="color:#9CA3AF;font-style:italic">رصيد حر</span>';
       return `<tr>
         <td style="color:#9CA3AF">${i+1}</td>
         <td style="font-size:10px;color:#6B7280">${t.date||'—'}</td>
-        <td><span class="tag tag-blue">${fc}</span></td>
-        <td>${tc}</td>
-        <td style="color:#1D4ED8;font-weight:700">${fmt(t.usd)}</td>
-        <td style="color:#6B7280">${t.rate||'—'} د.ل/$</td>
-        <td style="color:#92400E;font-weight:700">${fmt(t.lyd)}</td>
+        <td><span class="tag tag-blue">${fCust}</span></td>
+        <td>${tCust}</td>
+        <td style="color:${COL[fc]};font-weight:700">${fmt(fa)} ${SYM[fc]}</td>
+        <td style="color:#6B7280">${t.rate||'—'} ${SYM[tc]}/${SYM[fc]}</td>
+        <td style="color:${COL[tc]};font-weight:700">${fmt(ta)} ${SYM[tc]}</td>
         <td style="font-size:10px;color:#6B7280">${t.note||'—'}</td>
       </tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><td colspan="4">الإجمالى</td><td style="color:#1D4ED8">${fmt(totalTrfUSD)} $</td><td></td><td style="color:#92400E">${fmt(totalTrfLYD)} د.ل</td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="4">الإجمالى</td><td style="color:#1D4ED8">${[totalTrfFromUSD>0?fmt(totalTrfFromUSD)+'$':null,totalTrfFromLYD>0?fmt(totalTrfFromLYD)+' د.ل':null,totalTrfFromEGP>0?fmt(totalTrfFromEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</td><td></td><td style="color:#92400E">${[totalTrfToUSD>0?fmt(totalTrfToUSD)+'$':null,totalTrfToLYD>0?fmt(totalTrfToLYD)+' د.ل':null,totalTrfToEGP>0?fmt(totalTrfToEGP)+' ج.م':null].filter(Boolean).join(' · ')||'—'}</td><td></td></tr></tfoot>
   </table>
 </div>`:''}
 
@@ -5522,7 +5587,7 @@ ${msrf.length>0?`
 <div class="section">
   <h2 class="blue">💸 المصروفات <span class="badge">${msrf.length}</span></h2>
   <table>
-    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>التصنيف</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>من عهدة</th><th>ملاحظة</th></tr></thead>
+    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>التصنيف</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th><th>من عهدة</th><th>ملاحظة</th></tr></thead>
     <tbody>${msrf.map((e,i)=>{
       const cust=aggCustody.find(c=>c.id===e.custodyId);
       return `<tr>
@@ -5533,23 +5598,25 @@ ${msrf.length>0?`
         <td style="font-size:10px">${(e.prov||'').replace('محافظة ','')||'—'}</td>
         <td style="color:#1D4ED8;font-weight:700">${fmt(e.usd)}</td>
         <td style="color:#92400E;font-weight:700">${fmt(e.lyd)}</td>
+        <td style="color:#6D28D9;font-weight:700">${fmt(e.egp||0)}</td>
         <td style="font-size:10px">${cust?cust.desc:'—'}</td>
         <td style="font-size:10px;color:#6B7280">${e.note||'—'}</td>
       </tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><td colspan="5">الإجمالى</td><td style="color:#1D4ED8">${fmt(totalMsrfUSD)} $</td><td style="color:#92400E">${fmt(totalMsrfLYD)} د.ل</td><td colspan="2"></td></tr></tfoot>
+    <tfoot><tr><td colspan="5">الإجمالى</td><td style="color:#1D4ED8">${fmt(totalMsrfUSD)} $</td><td style="color:#92400E">${fmt(totalMsrfLYD)} د.ل</td><td style="color:#6D28D9">${fmt(totalMsrfEGP)} ج.م</td><td colspan="2"></td></tr></tfoot>
   </table>
 </div>
 
 <div class="section">
   <h2 class="blue">📊 المصروفات حسب التصنيف</h2>
   <table>
-    <thead><tr><th>التصنيف</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th></tr></thead>
+    <thead><tr><th>التصنيف</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th></tr></thead>
     <tbody>${catRows.map(([k,v])=>`<tr>
       <td><span class="tag tag-blue">${k}</span></td>
       <td>${v.count}</td>
       <td style="color:#1D4ED8;font-weight:700">${fmt(v.usd)}</td>
       <td style="color:#92400E;font-weight:700">${fmt(v.lyd)}</td>
+      <td style="color:#6D28D9;font-weight:700">${fmt(v.egp||0)}</td>
     </tr>`).join('')}</tbody>
   </table>
 </div>`:''}
@@ -5558,7 +5625,7 @@ ${rents.length>0?`
 <div class="section">
   <h2 class="green">🏠 الإيجارات <span class="badge">${rents.length}</span></h2>
   <table>
-    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>ملاحظة</th></tr></thead>
+    <thead><tr><th>#</th><th>التاريخ</th><th>الوصف</th><th>المحافظة</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th><th>ملاحظة</th></tr></thead>
     <tbody>${rents.map((e,i)=>`<tr>
       <td style="color:#9CA3AF">${i+1}</td>
       <td style="font-size:10px;color:#6B7280">${e.date||'—'}</td>
@@ -5566,9 +5633,10 @@ ${rents.length>0?`
       <td style="font-size:10px">${(e.prov||'').replace('محافظة ','')||'—'}</td>
       <td style="color:#1D4ED8;font-weight:700">${fmt(e.usd)}</td>
       <td style="color:#92400E;font-weight:700">${fmt(e.lyd)}</td>
+      <td style="color:#6D28D9;font-weight:700">${fmt(e.egp||0)}</td>
       <td style="font-size:10px;color:#6B7280">${e.note||'—'}</td>
     </tr>`).join('')}</tbody>
-    <tfoot><tr><td colspan="4">الإجمالى</td><td style="color:#1D4ED8">${fmt(totalRentUSD)} $</td><td style="color:#92400E">${fmt(totalRentLYD)} د.ل</td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="4">الإجمالى</td><td style="color:#1D4ED8">${fmt(totalRentUSD)} $</td><td style="color:#92400E">${fmt(totalRentLYD)} د.ل</td><td style="color:#6D28D9">${fmt(totalRentEGP)} ج.م</td><td></td></tr></tfoot>
   </table>
 </div>`:''}
 
@@ -5576,12 +5644,13 @@ ${provRows.length>1?`
 <div class="section">
   <h2>🗺 المصروفات حسب المحافظة</h2>
   <table>
-    <thead><tr><th>المحافظة</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th></tr></thead>
+    <thead><tr><th>المحافظة</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th></tr></thead>
     <tbody>${provRows.map(([k,v])=>`<tr>
       <td>${k.replace('محافظة ','')}</td>
       <td>${v.count}</td>
       <td style="color:#1D4ED8;font-weight:700">${fmt(v.usd)}</td>
       <td style="color:#92400E;font-weight:700">${fmt(v.lyd)}</td>
+      <td style="color:#6D28D9;font-weight:700">${fmt(v.egp||0)}</td>
     </tr>`).join('')}</tbody>
   </table>
 </div>`:''}
@@ -5654,8 +5723,8 @@ ${provRows.length>1?`
     const expByCat={};
     monthExpItems.filter(e=>e.type==='مصروف').forEach(e=>{
       const cat=e.category||'بدون تصنيف';
-      if(!expByCat[cat])expByCat[cat]={usd:0,lyd:0,count:0};
-      expByCat[cat].usd+=+e.usd||0;expByCat[cat].lyd+=+e.lyd||0;expByCat[cat].count++;
+      if(!expByCat[cat])expByCat[cat]={usd:0,lyd:0,egp:0,count:0};
+      expByCat[cat].usd+=+e.usd||0;expByCat[cat].lyd+=+e.lyd||0;expByCat[cat].egp+=+e.egp||0;expByCat[cat].count++;
     });
     // Rents this month
     const rents=monthRents||[];
@@ -5724,7 +5793,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <div class="kpi blue"><div class="kpi-lbl">إجمالى المهندسين</div><div class="kpi-val">${fmtN(totalEngs)}</div><div class="kpi-sub">في ${PROVS.length} محافظات</div></div>
   <div class="kpi green"><div class="kpi-lbl">النص الأول مدفوع</div><div class="kpi-val">${fmtN(paid1Engs)}/${fmtN(totalEngs)}</div><div class="kpi-sub">${fmt(paid1USD)} $</div></div>
   <div class="kpi green"><div class="kpi-lbl">النص التاني مدفوع</div><div class="kpi-val">${fmtN(paid2Engs)}/${fmtN(totalEngs)}</div><div class="kpi-sub">${fmt(paid2USD)} $</div></div>
-  <div class="kpi ${aggBalance.critical?'red':aggBalance.low?'gold':'blue'}"><div class="kpi-lbl">الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-sub">${fmt(aggBalance.balanceLYD)} د.ل · ${aggBalance.remPct}% متبقى</div></div>
+  <div class="kpi ${aggBalance.critical?'red':aggBalance.low?'gold':'blue'}"><div class="kpi-lbl">الرصيد المتبقى</div><div class="kpi-val">${fmt(aggBalance.balanceUSD)} $</div><div class="kpi-sub">${fmt(aggBalance.balanceLYD)} د.ل${(aggBalance.balanceEGP||0)>0?' · '+fmt(aggBalance.balanceEGP)+' ج.م':''} · ${aggBalance.remPct}% متبقى</div></div>
 </div>
 
 <div class="section">
@@ -5764,11 +5833,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
 <div class="section">
   <h2>💸 المصروفات حسب التصنيف — ${monthLabel}</h2>
   ${Object.keys(expByCat).length>0?`<table>
-    <thead><tr><th>التصنيف</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th></tr></thead>
+    <thead><tr><th>التصنيف</th><th>عدد البنود</th><th>المبلغ ($)</th><th>المبلغ (د.ل)</th><th>المبلغ (ج.م)</th></tr></thead>
     <tbody>
-      ${Object.entries(expByCat).map(([cat,v])=>`<tr><td>${cat}</td><td>${v.count}</td><td>${fmt(v.usd)}</td><td>${fmt(v.lyd)}</td></tr>`).join('')}
+      ${Object.entries(expByCat).map(([cat,v])=>`<tr><td>${cat}</td><td>${v.count}</td><td>${fmt(v.usd)}</td><td>${fmt(v.lyd)}</td><td>${fmt(v.egp||0)}</td></tr>`).join('')}
     </tbody>
-    <tfoot><tr><td>الإجمالى</td><td>${monthExpItems.filter(e=>e.type==='مصروف').length}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.usd||0),0))}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.lyd||0),0))}</td></tr></tfoot>
+    <tfoot><tr><td>الإجمالى</td><td>${monthExpItems.filter(e=>e.type==='مصروف').length}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.usd||0),0))}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.lyd||0),0))}</td><td>${fmt(monthExpItems.filter(e=>e.type==='مصروف').reduce((a,e)=>a+(+e.egp||0),0))}</td></tr></tfoot>
   </table>`:'<div class="empty">لا توجد مصروفات مسجلة لهذا الشهر</div>'}
 </div>
 
@@ -6084,7 +6153,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     const hrNote=`<div style="margin-top:14px;padding:12px 16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10px;color:#78350F"><strong style="color:#B45309">⚠️ ملاحظة:</strong> يخضع للخصم بناءً على ساعات التأخير (يحدد بواسطة HR فى مصر).</div>`;
     const legend=`<div style="margin-top:10px;padding:8px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
   <span style="font-size:10px;font-weight:800;color:#475569;margin-left:6px">📖 دليل الرموز:</span>
-  ${[['P','حضور','#D1FAE5','#059669'],['EG','لم يصل من مصر','#DBEAFE','#2563EB'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['A','غياب','#FEE2E2','#DC2626'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700"><span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:${bg};color:${col};border:1px solid ${col};text-align:center;line-height:16px;font-size:9px;font-weight:900">${s}</span>${l}</span>`).join('')}
+  ${[['P','حضور','#D1FAE5','#059669'],['EG','فى مصر','#DBEAFE','#2563EB'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['A','غياب','#FEE2E2','#DC2626'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700"><span style="display:inline-block;width:18px;height:18px;border-radius:3px;background:${bg};color:${col};border:1px solid ${col};text-align:center;line-height:16px;font-size:9px;font-weight:900">${s}</span>${l}</span>`).join('')}
   <span style="font-size:9.5px;color:#94A3B8;margin-right:auto">🔴 الجمعة عطلة أسبوعية</span>
 </div>`;
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير الحضور — ${monthLabel}</title><style>${_pdfShellCss()}@page{size:A4 landscape;margin:8mm}body{padding:14px;font-size:10px}table{font-size:10px}th,td{padding:4px 6px}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير الحضور والانصراف','تفصيل أيام الحضور والغياب لكل مهندس · '+monthLabel)}${summary}${provBlocks||'<div class="empty">لا توجد بيانات حضور</div>'}${legend}${totalLateDays>0?hrNote:''}</body></html>`;
@@ -6108,21 +6177,39 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     const monthLabel=isAll?'كل الشهور':(useM?.cfg?MONTHS[(useM.cfg.month||1)-1]+' '+useM.cfg.year:useKey);
     const totC_USD=cust.reduce((a,c)=>a+(+c.usd||0),0);
     const totC_LYD=cust.reduce((a,c)=>a+(+c.lyd||0),0);
+    const totC_EGP=cust.reduce((a,c)=>a+(+c.egp||0),0);
     const totI_USD=items.reduce((a,e)=>a+(+e.usd||0),0);
     const totI_LYD=items.reduce((a,e)=>a+(+e.lyd||0),0);
-    const totT_USD=trfs.reduce((a,t)=>a+(+t.usd||0),0);
-    const totT_LYD=trfs.reduce((a,t)=>a+(+t.lyd||0),0);
-    const balUSD=totC_USD-totI_USD-totT_USD;
-    const balLYD=totC_LYD+totT_LYD-totI_LYD;
+    const totI_EGP=items.reduce((a,e)=>a+(+e.egp||0),0);
+    let totTFromUSD=0,totTFromLYD=0,totTFromEGP=0,totTToUSD=0,totTToLYD=0,totTToEGP=0;
+    trfs.forEach(t=>{
+      const fc=(t.fromCurrency||'usd').toLowerCase();
+      const tc=(t.toCurrency||'lyd').toLowerCase();
+      const fa=+t[fc]||+t.usd||0;
+      const ta=+t[tc]||+t.lyd||0;
+      if(fc==='usd')totTFromUSD+=fa;else if(fc==='lyd')totTFromLYD+=fa;else if(fc==='egp')totTFromEGP+=fa;
+      if(tc==='usd')totTToUSD+=ta;else if(tc==='lyd')totTToLYD+=ta;else if(tc==='egp')totTToEGP+=ta;
+    });
+    const balUSD=totC_USD+totTToUSD-totI_USD-totTFromUSD;
+    const balLYD=totC_LYD+totTToLYD-totI_LYD-totTFromLYD;
+    const balEGP=totC_EGP+totTToEGP-totI_EGP-totTFromEGP;
+    const fmtCurrencies=(usd,lyd,egp,smallSize)=>{
+      const parts=[];
+      if(usd>0)parts.push(`<div style="font-size:14px;font-weight:900;color:#059669">${fmt(usd)} $</div>`);
+      if(lyd>0)parts.push(`<div style="font-size:${smallSize||14}px;font-weight:${smallSize?800:900};color:#15803D">${fmtN(lyd)} د.ل</div>`);
+      if(egp>0)parts.push(`<div style="font-size:${smallSize||14}px;font-weight:${smallSize?800:900};color:#6D28D9">${fmtN(egp)} ج.م</div>`);
+      return parts.join('')||'<div style="font-size:11px;color:#9CA3AF">—</div>';
+    };
     const summary=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-      <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:9px;color:#065F46;font-weight:800;margin-bottom:4px">العهد المستلمة</div><div style="font-size:14px;font-weight:900;color:#059669">${fmt(totC_USD)} $</div><div style="font-size:11px;font-weight:800;color:#15803D">${fmtN(totC_LYD)} د.ل</div></div>
-      <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:9px;color:#991B1B;font-weight:800;margin-bottom:4px">المصروفات</div><div style="font-size:14px;font-weight:900;color:#DC2626">${fmt(totI_USD)} $</div><div style="font-size:11px;font-weight:800;color:#B91C1C">${fmtN(totI_LYD)} د.ل</div></div>
-      <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:9px;color:#78350F;font-weight:800;margin-bottom:4px">التحويلات ($→د.ل)</div><div style="font-size:14px;font-weight:900;color:#D97706">${fmt(totT_USD)} $</div><div style="font-size:11px;font-weight:800;color:#92400E">${fmtN(totT_LYD)} د.ل</div></div>
-      <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:9px;color:#1E40AF;font-weight:800;margin-bottom:4px">الرصيد المتبقى</div><div style="font-size:14px;font-weight:900;color:${balUSD<0?'#DC2626':'#2563EB'}">${fmt(balUSD)} $</div><div style="font-size:11px;font-weight:800;color:${balLYD<0?'#DC2626':'#1E40AF'}">${fmtN(balLYD)} د.ل</div></div>
+      <div style="padding:10px;border:2px solid #34D399;background:#ECFDF5;border-radius:8px;text-align:center"><div style="font-size:9px;color:#065F46;font-weight:800;margin-bottom:4px">العهد المستلمة</div>${fmtCurrencies(totC_USD,totC_LYD,totC_EGP,11)}</div>
+      <div style="padding:10px;border:2px solid #F87171;background:#FEF2F2;border-radius:8px;text-align:center"><div style="font-size:9px;color:#991B1B;font-weight:800;margin-bottom:4px">المصروفات</div>${fmtCurrencies(totI_USD,totI_LYD,totI_EGP,11)}</div>
+      <div style="padding:10px;border:2px solid #FCD34D;background:#FFFBEB;border-radius:8px;text-align:center"><div style="font-size:9px;color:#78350F;font-weight:800;margin-bottom:4px">التحويلات</div><div style="font-size:10px;color:#92400E">من: ${[totTFromUSD>0?fmt(totTFromUSD)+'$':null,totTFromLYD>0?fmtN(totTFromLYD)+'د.ل':null,totTFromEGP>0?fmtN(totTFromEGP)+'ج.م':null].filter(Boolean).join(' · ')||'—'}</div><div style="font-size:10px;color:#92400E;margin-top:2px">إلى: ${[totTToUSD>0?fmt(totTToUSD)+'$':null,totTToLYD>0?fmtN(totTToLYD)+'د.ل':null,totTToEGP>0?fmtN(totTToEGP)+'ج.م':null].filter(Boolean).join(' · ')||'—'}</div></div>
+      <div style="padding:10px;border:2px solid #60A5FA;background:#EFF6FF;border-radius:8px;text-align:center"><div style="font-size:9px;color:#1E40AF;font-weight:800;margin-bottom:4px">الرصيد المتبقى</div><div style="font-size:14px;font-weight:900;color:${balUSD<0?'#DC2626':'#2563EB'}">${fmt(balUSD)} $</div><div style="font-size:11px;font-weight:800;color:${balLYD<0?'#DC2626':'#1E40AF'}">${fmtN(balLYD)} د.ل</div>${(balEGP!==0)?`<div style="font-size:11px;font-weight:800;color:${balEGP<0?'#DC2626':'#6D28D9'}">${fmtN(balEGP)} ج.م</div>`:''}</div>
     </div>`;
-    const sCust=cust.length?`<div class="section"><div class="section-title">💰 العهد المستلمة (${cust.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th>المصدر</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th><th>ملاحظات</th></tr></thead><tbody>${cust.map(c=>`<tr><td>${c.date||'—'}</td><td>${(c.prov||'').replace('محافظة ','')}</td><td>${c.responsible||'—'}</td><td>${c.source||'—'}</td><td style="text-align:center;font-weight:700;color:#059669">${fmt(c.usd||0)}</td><td style="text-align:center;font-weight:700;color:#15803D">${fmtN(c.lyd||0)}</td><td style="font-size:10px;color:#64748B">${c.notes||''}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="4">الإجمالى</td><td style="text-align:center;color:#059669">${fmt(totC_USD)} $</td><td style="text-align:center;color:#15803D">${fmtN(totC_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
-    const sItems=items.length?`<div class="section"><div class="section-title">💸 المصروفات والإيجارات (${items.length})</div><table><thead><tr><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>الوصف</th><th>المحافظة</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th></tr></thead><tbody>${items.map(e=>`<tr><td>${e.date||'—'}</td><td><span style="background:${e.type==='إيجار'?'#FEF3C7':'#FEE2E2'};color:${e.type==='إيجار'?'#92400E':'#991B1B'};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${e.type||'—'}</span></td><td>${e.category||'—'}</td><td>${e.desc||'—'}</td><td>${(e.prov||'').replace('محافظة ','')}</td><td style="text-align:center;font-weight:700;color:#DC2626">${fmt(e.usd||0)}</td><td style="text-align:center;font-weight:700;color:#B91C1C">${fmtN(e.lyd||0)}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="5">الإجمالى</td><td style="text-align:center;color:#DC2626">${fmt(totI_USD)} $</td><td style="text-align:center;color:#B91C1C">${fmtN(totI_LYD)} د.ل</td></tr></tbody></table></div>`:'';
-    const sTrfs=trfs.length?`<div class="section"><div class="section-title">🔄 التحويلات (${trfs.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th style="text-align:center">من ($)</th><th style="text-align:center">إلى (د.ل)</th><th style="text-align:center">السعر</th></tr></thead><tbody>${trfs.map(t=>`<tr><td>${t.date||'—'}</td><td>${(t.prov||'').replace('محافظة ','')}</td><td>${t.responsible||'—'}</td><td style="text-align:center;font-weight:700;color:#D97706">${fmt(t.usd||0)}</td><td style="text-align:center;font-weight:700;color:#92400E">${fmtN(t.lyd||0)}</td><td style="text-align:center;font-size:10px;color:#64748B">${t.usd>0?(t.lyd/t.usd).toFixed(2):'—'}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="3">الإجمالى</td><td style="text-align:center;color:#D97706">${fmt(totT_USD)} $</td><td style="text-align:center;color:#92400E">${fmtN(totT_LYD)} د.ل</td><td></td></tr></tbody></table></div>`:'';
+    const sCust=cust.length?`<div class="section"><div class="section-title">💰 العهد المستلمة (${cust.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th>المصدر</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th><th style="text-align:center">ج.م</th><th>ملاحظات</th></tr></thead><tbody>${cust.map(c=>`<tr><td>${c.date||'—'}</td><td>${(c.prov||'').replace('محافظة ','')}</td><td>${c.responsible||'—'}</td><td>${c.source||'—'}</td><td style="text-align:center;font-weight:700;color:#059669">${fmt(c.usd||0)}</td><td style="text-align:center;font-weight:700;color:#15803D">${fmtN(c.lyd||0)}</td><td style="text-align:center;font-weight:700;color:#6D28D9">${fmtN(c.egp||0)}</td><td style="font-size:10px;color:#64748B">${c.notes||''}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="4">الإجمالى</td><td style="text-align:center;color:#059669">${fmt(totC_USD)} $</td><td style="text-align:center;color:#15803D">${fmtN(totC_LYD)} د.ل</td><td style="text-align:center;color:#6D28D9">${fmtN(totC_EGP)} ج.م</td><td></td></tr></tbody></table></div>`:'';
+    const sItems=items.length?`<div class="section"><div class="section-title">💸 المصروفات والإيجارات (${items.length})</div><table><thead><tr><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>الوصف</th><th>المحافظة</th><th style="text-align:center">$</th><th style="text-align:center">د.ل</th><th style="text-align:center">ج.م</th></tr></thead><tbody>${items.map(e=>`<tr><td>${e.date||'—'}</td><td><span style="background:${e.type==='إيجار'?'#FEF3C7':'#FEE2E2'};color:${e.type==='إيجار'?'#92400E':'#991B1B'};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${e.type||'—'}</span></td><td>${e.category||'—'}</td><td>${e.desc||'—'}</td><td>${(e.prov||'').replace('محافظة ','')}</td><td style="text-align:center;font-weight:700;color:#DC2626">${fmt(e.usd||0)}</td><td style="text-align:center;font-weight:700;color:#B91C1C">${fmtN(e.lyd||0)}</td><td style="text-align:center;font-weight:700;color:#6D28D9">${fmtN(e.egp||0)}</td></tr>`).join('')}<tr style="background:#F8FAFC;font-weight:900"><td colspan="5">الإجمالى</td><td style="text-align:center;color:#DC2626">${fmt(totI_USD)} $</td><td style="text-align:center;color:#B91C1C">${fmtN(totI_LYD)} د.ل</td><td style="text-align:center;color:#6D28D9">${fmtN(totI_EGP)} ج.م</td></tr></tbody></table></div>`:'';
+    const SYM2={usd:'$',lyd:'د.ل',egp:'ج.م'};
+    const sTrfs=trfs.length?`<div class="section"><div class="section-title">🔄 التحويلات (${trfs.length})</div><table><thead><tr><th>التاريخ</th><th>المحافظة</th><th>المسؤول</th><th style="text-align:center">من</th><th style="text-align:center">إلى</th><th style="text-align:center">السعر</th></tr></thead><tbody>${trfs.map(t=>{const fc=(t.fromCurrency||'usd').toLowerCase();const tc=(t.toCurrency||'lyd').toLowerCase();const fa=+t[fc]||+t.usd||0;const ta=+t[tc]||+t.lyd||0;return `<tr><td>${t.date||'—'}</td><td>${(t.prov||'').replace('محافظة ','')}</td><td>${t.responsible||'—'}</td><td style="text-align:center;font-weight:700;color:#D97706">${fmt(fa)} ${SYM2[fc]}</td><td style="text-align:center;font-weight:700;color:#92400E">${fmtN(ta)} ${SYM2[tc]}</td><td style="text-align:center;font-size:10px;color:#64748B">${t.rate||(fa>0?(ta/fa).toFixed(4):'—')} ${SYM2[tc]}/${SYM2[fc]}</td></tr>`}).join('')}</tbody></table></div>`:'';
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>تقرير المصروفات — ${monthLabel}</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml('تقرير العهدة والمصروفات','العهد + الإيجارات + التحويلات + الرصيد المتبقى · '+monthLabel)}${summary}${sCust||'<div class="empty">لا توجد عهد مسجلة</div>'}${sItems}${sTrfs}</body></html>`;
     _openPdfWin(html,mode);
   };
