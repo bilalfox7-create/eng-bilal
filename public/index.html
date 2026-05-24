@@ -4006,7 +4006,7 @@ function App(){
      renders correctly, but they're excluded from ATT_CYCLE so new entries
      can't pick them through the popup. */
   const ATT_CYCLE=[null,'P','EG','A','SL','TXR','H'];
-  const ATT_LABEL={P:'حاضر',EG:'لم يصل',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)',TXR:'متأخر'};
+  const ATT_LABEL={P:'حاضر',EG:'فى مصر',A:'غائب',AL:'إجازة',SL:'مرضية',EL:'طارئة',H:'عطلة',EGL:'إجازة (مصر)',TXR:'متأخر'};
   const ATT_SHORT={P:'ح',EG:'م',A:'غ',AL:'س',SL:'مر',EL:'ط',H:'ع',EGL:'م',TXR:'⚠'};
   const ATT_COL={P:'#10B981',EG:'#3B82F6',A:'#EF4444',AL:'#FCD34D',SL:'#FB923C',EL:'#A78BFA',H:'#94A3B8',EGL:'#EA580C',TXR:'#F59E0B'};
   const ATT_BG={P:'rgba(16,185,129,.2)',EG:'rgba(59,130,246,.18)',A:'rgba(239,68,68,.15)',AL:'rgba(252,211,77,.15)',SL:'rgba(249,115,22,.15)',EL:'rgba(167,139,250,.15)',H:'rgba(148,163,184,.1)',EGL:'rgba(234,88,12,.18)',TXR:'rgba(245,158,11,.18)'};
@@ -8992,7 +8992,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
   <tbody>${rows}</tbody>
 </table>
 <div class="legend">
-  ${[['P','حضور','#D1FAE5','#059669'],['EG','لم يصل من مصر','#DBEAFE','#2563EB'],['A','غياب','#FEE2E2','#DC2626'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
+  ${[['P','حضور','#D1FAE5','#059669'],['EG','فى مصر','#DBEAFE','#2563EB'],['A','غياب','#FEE2E2','#DC2626'],['SL','إجازة مرضية','#FEF3C7','#D97706'],['م','إجازة (مصر)','#FFEDD5','#C2410C'],['H','عطلة رسمية','#F1F5F9','#64748B'],['⚠','متأخر','#FEF3C7','#B45309']].map(([s,l,bg,col])=>`<span class="leg"><span class="leg-box" style="background:${bg};color:${col};border-color:${col}">${s}</span>${l}</span>`).join('')}
   <span class="leg" style="color:#94A3B8">🔴 الجمعة عطلة أسبوعية</span>
 </div>
 <div class="footer">
@@ -9216,7 +9216,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
   <span style="font-size:10px;font-weight:800;color:#475569;margin-left:6px">📖 دليل الرموز:</span>
   ${[
     ['P','حضور','#D1FAE5','#059669'],
-    ['EG','لم يصل من مصر','#DBEAFE','#2563EB'],
+    ['EG','فى مصر','#DBEAFE','#2563EB'],
     ['م','إجازة (مصر)','#FFEDD5','#C2410C'],
     ['A','غياب','#FEE2E2','#DC2626'],
     ['SL','إجازة مرضية','#FEF3C7','#D97706'],
