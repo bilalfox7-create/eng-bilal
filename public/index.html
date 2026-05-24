@@ -6784,50 +6784,6 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
           )
         );
       })(),
-      /* ── Permanent-departure modal (نقل لمصر نهائياً) ── */
-      permaDepartForm&&(()=>{
-        const today=new Date(),pad=n=>String(n).padStart(2,'0');
-        const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-        const dep=permaDepartForm.departedAt;
-        const isEdit=!!dep;
-        return h("div",{className:"overlay",onClick:()=>setPermaDepartForm(null)},
-          h("div",{className:"modal",style:{width:480},onClick:e=>e.stopPropagation()},
-            h("div",{className:"modal-hdr"},
-              h("h3",null,isEdit?"📤 تعديل المغادرة النهائية":"📤 نقل المهندس لمصر نهائياً"),
-              h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setPermaDepartForm(null)},h(Ic,{n:"del",sz:12}))
-            ),
-            h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
-              h("div",{className:"fld"},
-                h("label",null,"المهندس"),
-                h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(220,38,38,.10)",border:"1px solid rgba(220,38,38,.25)",fontSize:13,fontWeight:700,color:"#fca5a5"}},"📍 "+permaDepartForm.engName)
-              ),
-              h("div",{className:"fld"},
-                h("label",null,"آخر يوم فى ليبيا *"),
-                h("input",{type:"date",value:dep||todayStr,onChange:ev=>setPermaDepartForm(f=>({...f,departedAt:ev.target.value}))})
-              ),
-              h("div",{className:"info amber",style:{fontSize:11,lineHeight:1.8}},h(Ic,{n:"warn",sz:14}),
-                h("div",null,
-                  h("div",{style:{fontWeight:800,marginBottom:3}},"⚠️ بعد المغادرة، المهندس:"),
-                  "• مايظهرش فى شيت الحضور للشهور التالية",h("br",null),
-                  "• مايظهرش فى كشف الإعاشة للشهور التالية",h("br",null),
-                  "• مايظهرش فى الـ PDFs / Excel / التقارير",h("br",null),
-                  "• ",h("strong",{style:{color:"#34d399"}},"الشهور القديمة (قبل المغادرة) تفضل ظاهرة بسجله")
-                )
-              ),
-              dep&&h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"التاريخ الحالى: ",h("strong",null,dep),". تقدر تعدله أو تلغى المغادرة لإرجاع المهندس.")
-            ),
-            h("div",{className:"modal-ftr"},
-              h("button",{className:"btn",onClick:()=>setPermaDepartForm(null)},"إلغاء"),
-              isEdit&&h("button",{className:"btn",style:{background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff",border:"none",fontWeight:800,padding:"8px 14px"},onClick:()=>{if(confirm("إلغاء المغادرة النهائية وإعادة المهندس؟"))setPermaDeparture(permaDepartForm.engId,'');}},"↩️ إلغاء المغادرة"),
-              h("button",{className:"btn",style:{background:"linear-gradient(135deg,#dc2626,#b91c1c)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",boxShadow:"0 6px 18px rgba(220,38,38,.4)"},onClick:()=>{
-                const d=permaDepartForm.departedAt||todayStr;
-                if(!d){msg('اختر تاريخ','err');return;}
-                if(confirm(`تأكيد: المهندس ${permaDepartForm.engName} غادر نهائياً بتاريخ ${d}؟`))setPermaDeparture(permaDepartForm.engId,d);
-              }},isEdit?"💾 حفظ التعديل":"📤 تأكيد المغادرة")
-            )
-          )
-        );
-      })(),
       modal==="import-prev"&&importPrev&&h("div",{className:"modal",style:{width:420}},
         h("div",{className:"modal-hdr"},h("h3",null,"تأكيد الاستيراد"),h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setImportPrev(null);}},h(Ic,{n:"del",sz:12}))),
         h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:10}},
@@ -6841,6 +6797,51 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         )
       )
     ),
+
+    /* ── PERMANENT-DEPARTURE MODAL (نقل لمصر نهائياً) ─── */
+    permaDepartForm&&(()=>{
+      const today=new Date(),pad=n=>String(n).padStart(2,'0');
+      const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      const dep=permaDepartForm.departedAt;
+      const isEdit=!!dep;
+      return h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setPermaDepartForm(null);}},
+        h("div",{className:"modal",style:{width:480}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,isEdit?"📤 تعديل المغادرة النهائية":"📤 نقل المهندس لمصر نهائياً"),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setPermaDepartForm(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+            h("div",{className:"fld"},
+              h("label",null,"المهندس"),
+              h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(220,38,38,.10)",border:"1px solid rgba(220,38,38,.25)",fontSize:13,fontWeight:700,color:"#fca5a5"}},"📍 "+permaDepartForm.engName)
+            ),
+            h("div",{className:"fld"},
+              h("label",null,"آخر يوم فى ليبيا *"),
+              h("input",{type:"date",value:dep||todayStr,onChange:ev=>setPermaDepartForm(f=>({...f,departedAt:ev.target.value}))})
+            ),
+            h("div",{className:"info amber",style:{fontSize:11,lineHeight:1.8}},h(Ic,{n:"warn",sz:14}),
+              h("div",null,
+                h("div",{style:{fontWeight:800,marginBottom:3}},"⚠️ بعد المغادرة، المهندس:"),
+                "• مايظهرش فى شيت الحضور للشهور التالية",h("br",null),
+                "• مايظهرش فى كشف الإعاشة للشهور التالية",h("br",null),
+                "• مايظهرش فى الـ PDFs / Excel / التقارير",h("br",null),
+                "• ",h("strong",{style:{color:"#34d399"}},"الشهور القديمة (قبل المغادرة) تفضل ظاهرة بسجله")
+              )
+            ),
+            dep&&h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"التاريخ الحالى: ",h("strong",null,dep),". تقدر تعدله أو تلغى المغادرة لإرجاع المهندس.")
+          ),
+          h("div",{className:"modal-ftr"},
+            h("button",{className:"btn",onClick:()=>setPermaDepartForm(null)},"إلغاء"),
+            isEdit&&h("button",{className:"btn",style:{background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff",border:"none",fontWeight:800,padding:"8px 14px"},onClick:()=>{if(confirm("إلغاء المغادرة النهائية وإعادة المهندس؟"))setPermaDeparture(permaDepartForm.engId,'');}},"↩️ إلغاء المغادرة"),
+            h("button",{className:"btn",style:{background:"linear-gradient(135deg,#dc2626,#b91c1c)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",boxShadow:"0 6px 18px rgba(220,38,38,.4)"},onClick:()=>{
+              const d=permaDepartForm.departedAt||todayStr;
+              if(!d){msg('اختر تاريخ','err');return;}
+              if(confirm(`تأكيد: المهندس ${permaDepartForm.engName} غادر نهائياً بتاريخ ${d}؟`))setPermaDeparture(permaDepartForm.engId,d);
+            }},isEdit?"💾 حفظ التعديل":"📤 تأكيد المغادرة")
+          )
+        )
+      );
+    })(),
 
     /* ── UNDO TRANSFER CONFIRM MODAL ──────────────────── */
     undoConfirm&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setUndoConfirm(null);}},
