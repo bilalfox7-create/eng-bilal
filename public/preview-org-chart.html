@@ -740,7 +740,7 @@ body{
       <div class="page-hdr-crest">R</div>
       <div class="page-hdr-titles">
         <h1>الإحصائيات والأداء</h1>
-        <div class="sub">Statistics · Distribution · Attendance Performance</div>
+        <div class="sub">Statistics · Distribution · Specializations Overview</div>
       </div>
     </div>
     <div class="page-hdr-r">
@@ -749,7 +749,7 @@ body{
     </div>
   </div>
 
-  <div class="stats-mega-bar">
+  <div class="stats-mega-bar" style="grid-template-columns:repeat(3,1fr)">
     <div class="mega-stat blue">
       <div class="mega-stat-icon">👥</div>
       <div class="mega-stat-num">37</div>
@@ -764,11 +764,6 @@ body{
       <div class="mega-stat-icon">📋</div>
       <div class="mega-stat-num">29</div>
       <div class="mega-stat-lbl">Projects · مشاريع</div>
-    </div>
-    <div class="mega-stat green">
-      <div class="mega-stat-icon">📊</div>
-      <div class="mega-stat-num">92<span style="font-size:30px;color:#10B981">%</span></div>
-      <div class="mega-stat-lbl">Attendance · الحضور</div>
     </div>
   </div>
 
@@ -820,46 +815,26 @@ body{
     </div>
   </div>
 
-  <div class="donut-row">
-    <!-- Derna donut -->
-    <div class="donut-card">
-      <div class="donut-card-name"><span class="donut-card-dot" style="background:#3B82F6"></span> درنة</div>
-      <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#EEF2FF" stroke-width="10"/>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#3B82F6" stroke-width="10" stroke-dasharray="201" stroke-dashoffset="10" stroke-linecap="round" transform="rotate(-90 40 40)"/>
-        <text x="40" y="44" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="20" fill="#3B82F6">95%</text>
-      </svg>
-      <div class="donut-card-sub">٩٥٪ متوسط الحضور</div>
-    </div>
-    <!-- Bayda -->
-    <div class="donut-card">
-      <div class="donut-card-name"><span class="donut-card-dot" style="background:#8B5CF6"></span> البيضاء</div>
-      <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#F3F0FF" stroke-width="10"/>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#8B5CF6" stroke-width="10" stroke-dasharray="201" stroke-dashoffset="16" stroke-linecap="round" transform="rotate(-90 40 40)"/>
-        <text x="40" y="44" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="20" fill="#8B5CF6">92%</text>
-      </svg>
-      <div class="donut-card-sub">٩٢٪ متوسط الحضور</div>
-    </div>
-    <!-- Benghazi -->
-    <div class="donut-card">
-      <div class="donut-card-name"><span class="donut-card-dot" style="background:#F59E0B"></span> بنغازى</div>
-      <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#FEF8E7" stroke-width="10"/>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#F59E0B" stroke-width="10" stroke-dasharray="201" stroke-dashoffset="24" stroke-linecap="round" transform="rotate(-90 40 40)"/>
-        <text x="40" y="44" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="20" fill="#F59E0B">88%</text>
-      </svg>
-      <div class="donut-card-sub">٨٨٪ متوسط الحضور</div>
-    </div>
-    <!-- Tabrouk -->
-    <div class="donut-card">
-      <div class="donut-card-name"><span class="donut-card-dot" style="background:#10B981"></span> طبرق</div>
-      <svg class="donut-svg" width="80" height="80" viewBox="0 0 80 80">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#ECFDF5" stroke-width="10"/>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#10B981" stroke-width="10" stroke-dasharray="201" stroke-dashoffset="8" stroke-linecap="round" transform="rotate(-90 40 40)"/>
-        <text x="40" y="44" text-anchor="middle" font-family="'Bebas Neue',sans-serif" font-size="20" fill="#10B981">96%</text>
-      </svg>
-      <div class="donut-card-sub">٩٦٪ متوسط الحضور</div>
+  <!-- Specializations breakdown -->
+  <div class="dist-chart" style="margin-top:14px">
+    <h3>التخصصات الهندسية <span class="sub">Engineering Specializations · Distribution</span></h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div style="background:#FAFAF7;border:1px solid var(--line-soft);padding:12px;text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#3B82F6;line-height:1">12</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:4px">مهندسى طرق ومدنى</div>
+      </div>
+      <div style="background:#FAFAF7;border:1px solid var(--line-soft);padding:12px;text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#8B5CF6;line-height:1">09</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:4px">مهندسى ومساحى مساحة</div>
+      </div>
+      <div style="background:#FAFAF7;border:1px solid var(--line-soft);padding:12px;text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#F59E0B;line-height:1">07</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:4px">ضبط جودة ومكتب فنى</div>
+      </div>
+      <div style="background:#FAFAF7;border:1px solid var(--line-soft);padding:12px;text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#10B981;line-height:1">09</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;margin-top:4px">تخصصات أخرى</div>
+      </div>
     </div>
   </div>
 
@@ -897,7 +872,6 @@ body{
     <div class="city-hero-stats">
       <div class="city-hero-stat"><div class="city-hero-stat-val">10</div><div class="city-hero-stat-lbl">Engineers</div></div>
       <div class="city-hero-stat"><div class="city-hero-stat-val">06</div><div class="city-hero-stat-lbl">Projects</div></div>
-      <div class="city-hero-stat"><div class="city-hero-stat-val">95<span style="font-size:18px">%</span></div><div class="city-hero-stat-lbl">Attendance</div></div>
     </div>
   </div>
 
@@ -978,11 +952,10 @@ body{
     <div class="city-hero-stats">
       <div class="city-hero-stat"><div class="city-hero-stat-val">18</div><div class="city-hero-stat-lbl">Engineers</div></div>
       <div class="city-hero-stat"><div class="city-hero-stat-val">16</div><div class="city-hero-stat-lbl">Projects</div></div>
-      <div class="city-hero-stat"><div class="city-hero-stat-val">92<span style="font-size:18px">%</span></div><div class="city-hero-stat-lbl">Attendance</div></div>
     </div>
   </div>
 
-  <div class="city-content" style="grid-template-columns:1.4fr 1fr">
+  <div class="city-content" style="grid-template-columns:1.3fr 1fr">
     <div class="team-section">
       <div class="team-section-hdr">
         <div class="team-section-title">Project Manager & Team</div>
@@ -1017,7 +990,7 @@ body{
         <div class="team-section-title">Projects Portfolio</div>
         <div class="team-section-count">16 PROJECTS</div>
       </div>
-      <div class="proj-grid">
+      <div class="proj-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
         <div class="proj-item-lux bayda"><span class="proj-item-num">01</span> محطة معالجة الصرف الصحى</div>
         <div class="proj-item-lux bayda"><span class="proj-item-num">02</span> طرق سطحية ٨ كم</div>
         <div class="proj-item-lux bayda"><span class="proj-item-num">03</span> طريق البيضاء ماسة ٧.٢ كم</div>
@@ -1069,7 +1042,7 @@ body{
         <div class="appendix-card-num" style="color:#F59E0B">03</div>
         <div style="flex:1">
           <div class="appendix-card-title">محافظة بنغازى</div>
-          <div class="appendix-card-desc">٧ مهندس · ٤ مشاريع · ٨٨٪ حضور</div>
+          <div class="appendix-card-desc">٧ مهندس · ٤ مشاريع · المكتب الفرعى للمنطقة الوسطى</div>
         </div>
       </div>
       <div class="mgr-spotlight benghazi" style="margin-bottom:10px">
@@ -1096,7 +1069,7 @@ body{
         <div class="appendix-card-num" style="color:#10B981">04</div>
         <div style="flex:1">
           <div class="appendix-card-title">محافظة طبرق</div>
-          <div class="appendix-card-desc">٣ مهندس · ٣ مشاريع · ٩٦٪ حضور</div>
+          <div class="appendix-card-desc">٣ مهندس · ٣ مشاريع · مكتب أقصى الشرق</div>
         </div>
       </div>
       <div class="mgr-spotlight tabrouk" style="margin-bottom:10px">
