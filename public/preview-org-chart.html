@@ -6,7 +6,13 @@
 <title>الهيكل التنظيمى — شركة الرائد للاستشارات الهندسية</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*{
+  box-sizing:border-box;margin:0;padding:0;
+  /* CRITICAL: force browsers to print background colors/gradients */
+  -webkit-print-color-adjust:exact !important;
+  print-color-adjust:exact !important;
+  color-adjust:exact !important;
+}
 :root{
   --ink:#0A0E1A;
   --ink-soft:#1A2238;
@@ -459,14 +465,69 @@ body{
 }
 
 /* ───── PRINT ───── */
-@page{size:A4 landscape;margin:0}
+@page{
+  size:A4 landscape;
+  margin:0 !important;
+}
 @media print{
-  body{background:#FFFFFF;padding:0}
-  .paper{box-shadow:none}
-  .print-bar{display:none}
-  .page{break-after:page}
-  .city-hero,.team-section,.proj-section{break-inside:avoid}
-  .team-card-lux{break-inside:avoid}
+  html,body{
+    background:#FFFFFF !important;
+    padding:0 !important;
+    margin:0 !important;
+    width:297mm;
+  }
+  .paper{
+    box-shadow:none !important;
+    width:297mm !important;
+    margin:0 !important;
+  }
+  .print-bar{display:none !important}
+  .page{
+    width:297mm !important;
+    height:210mm !important;
+    max-height:210mm !important;
+    page-break-after:always !important;
+    page-break-inside:avoid !important;
+    break-after:page !important;
+    overflow:hidden !important;
+    margin:0 !important;
+    position:relative;
+  }
+  .page:last-child{
+    page-break-after:auto !important;
+    break-after:auto !important;
+  }
+  /* All visual cards/sections never split across pages */
+  .city-hero,
+  .team-section,
+  .proj-section,
+  .team-card-lux,
+  .mgr-spotlight,
+  .appendix-card,
+  .donut-card,
+  .mega-stat,
+  .dist-chart,
+  .stats-mega-bar,
+  .donut-row,
+  .city-content,
+  .tree-svg-wrap,
+  .thanks-block,
+  .sig-row{
+    break-inside:avoid !important;
+    page-break-inside:avoid !important;
+  }
+  /* Cover should fill the page edge-to-edge */
+  .cover{
+    width:297mm !important;
+    height:210mm !important;
+    padding:0 !important;
+  }
+  /* Make sure SVG in hierarchy tree scales to page */
+  .tree-svg-wrap svg{
+    width:100% !important;
+    height:auto !important;
+    max-height:115mm !important;
+  }
 }
 </style>
 </head>
