@@ -2270,6 +2270,9 @@ function App(){
   const [egyptTransferForm,setEgyptTransferForm]=useState({engId:'',date:'',notes:''});
   /* Egypt leave/return modal — type='depart' for departure, type='return' for return */
   const [egyptLeaveForm,setEgyptLeaveForm]=useState({engId:'',type:'depart',date:'',notes:''});
+  /* Permanent-departure modal: engineer leaves Libya for good (e.g. moves to Egypt projects).
+     form = { engId, engName, departedAt: 'YYYY-MM-DD' or '' to clear } */
+  const [permaDepartForm,setPermaDepartForm]=useState(null);
   /* Debounce flag for transfer button (2s lock after each submit) */
   const [transferring,setTransferring]=useState(false);
   const transferringRef=useRef(false);
@@ -2733,6 +2736,29 @@ function App(){
     return n;
   };
 
+  /* ── Permanent departure to Egypt ──────────────────────
+     `eng.departedAt` = "YYYY-MM-DD" = the LAST day the engineer was in Libya
+     (after this date they moved permanently to Egypt projects).
+     - Months strictly BEFORE departure → engineer fully visible (history preserved)
+     - The departure month itself → engineer visible with days truncated at depDay
+     - Months AFTER departure → engineer hidden from all UI (att, eng, PDFs, Excel) */
+  const getDepartureDate=e=>e?.departedAt||null;
+  const isDepartedBeforeMonth=(eng,year,month)=>{
+    const d=eng?.departedAt;
+    if(!d)return false;
+    const monthStartStr=`${year}-${String(month).padStart(2,'0')}-01`;
+    return d<monthStartStr;
+  };
+  /* If departure day falls inside (year, month), returns the day (1-31), else null */
+  const getDepartureDayInMonth=(eng,year,month)=>{
+    const d=eng?.departedAt;
+    if(!d)return null;
+    const parts=d.split('-');
+    const y=+parts[0],mo=+parts[1],da=+parts[2];
+    if(y===year&&mo===month)return da;
+    return null;
+  };
+
   /* d1/d2 split helpers — split count proportionally over [start..end] day range */
   const splitDaysCountForProvInRange=(eng,prov,year,month,startDay,endDay,currentProv)=>{
     let inProv=0,total=0;
@@ -2758,12 +2784,18 @@ function App(){
     const half2Len=dim-15;
     const provs=Array.isArray(PROVS)?PROVS:[];
     provs.forEach(p=>(monthData?.[p]||[]).forEach(eng=>{
+      /* Permanent-departure filter: hide engineer entirely from months strictly after departure */
+      if(isDepartedBeforeMonth(eng,year,month))return;
+      const depDay=getDepartureDayInMonth(eng,year,month);
       const segs=engSegmentsInMonth(eng,year,month,p);
       const seg=segs.find(s=>s.prov===prov);
       if(!seg)return;
-      const daysSet=new Set(seg.days);
-      const inH1=seg.days.filter(d=>d<=15).length;
-      const inH2=seg.days.filter(d=>d>15).length;
+      /* If departure is within this month, trim days at the departure day */
+      const daysList=depDay!==null?seg.days.filter(d=>d<=depDay):seg.days;
+      if(daysList.length===0)return;
+      const daysSet=new Set(daysList);
+      const inH1=daysList.filter(d=>d<=15).length;
+      const inH2=daysList.filter(d=>d>15).length;
       const d1Ratio=inH1/15;
       const d2Ratio=half2Len?inH2/half2Len:0;
       const d1Split=Math.round((+eng.d1||0)*d1Ratio);
@@ -2773,19 +2805,23 @@ function App(){
         ...eng,
         currentProv:p,
         daysInProvSet:daysSet,
-        daysInProv:seg.days,
-        firstDay:seg.first,
-        lastDay:seg.last,
+        daysInProv:daysList,
+        firstDay:daysList[0],
+        lastDay:daysList[daysList.length-1],
         inH1,inH2,d1Ratio,d2Ratio,
         d1Split,d2Split,
         hasTransfer:(eng.transfers||[]).length>0,
+        hasDeparture:depDay!==null,
+        departureDay:depDay,
         isReadOnlyHere,
-        splitInfo:isReadOnlyHere?{currentProv:p,days:seg.days}:null
+        splitInfo:isReadOnlyHere?{currentProv:p,days:daysList}:null
       });
     }));
     return out;
   };
   const totals=useMemo(()=>PROVS.map(p=>(data[p]||[]).reduce((a,e)=>{
+    /* Skip engineers who departed before the viewed month — they shouldn't appear at all */
+    if(isDepartedBeforeMonth(e,cfg.year,cfg.month))return a;
     const inc=getIncomingExtra(e.id,p);
     const c=calc(e,cfg.rate,cfg.egp,inc);
     return{p,n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};
@@ -2793,7 +2829,7 @@ function App(){
   const G=useMemo(()=>totals.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0}),[totals]);
   const maxT=useMemo(()=>Math.max(...totals.map(t=>t.tot),1),[totals]);
   const sortedKeys=useMemo(()=>Object.keys(months).filter(k=>k!=='leaves').sort(),[months]);
-  const allE=useMemo(()=>PROVS.flatMap(p=>(data[p]||[]).map(e=>({...e,prov:p}))),[data]);
+  const allE=useMemo(()=>PROVS.flatMap(p=>(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month)).map(e=>({...e,prov:p}))),[data,cfg.year,cfg.month]);
   const leaveEngs=useMemo(()=>{
     const seen=new Set();const res={};
     PROVS.forEach(p=>res[p]=[]);
@@ -3504,6 +3540,10 @@ function App(){
     if(engRec.arrivalDate&&departureDate<engRec.arrivalDate){
       msg('تاريخ النزول لا يمكن أن يكون قبل تاريخ القدوم','err');return;
     }
+    /* Block if engineer already permanently departed before this leave date */
+    if(engRec.departedAt&&departureDate>engRec.departedAt){
+      msg('المهندس غادر نهائياً بتاريخ '+engRec.departedAt+' — لا يمكن تسجيل إجازة بعد المغادرة النهائية','err');return;
+    }
     /* Reject if engineer already has an active (open) leave */
     const active=getActiveEgyptLeave(engRec);
     if(active){
@@ -4135,6 +4175,86 @@ function App(){
     if(status==='active')delete ns[engId];else ns[engId]=status;
     await saveLeaves(leaves,ns);
   };
+
+  /* ── Permanent departure (نقل لمصر نهائياً) ─────────────
+     Sets `departedAt` on the engineer across ALL months (cross-month propagation
+     so the filter works consistently regardless of which month is viewed).
+     If departedAt is in the departure month, auto-marks EG attendance for days
+     after departure in that month + clears any EG marks before departure.
+     Pass departedAt='' or null to CLEAR the departure (undo). */
+  const setPermaDeparture=(engId,departedAt)=>{
+    if(lockGuard())return;
+    if(!isAdmin&&!isProvince){msg('غير مصرح','err');return;}
+    const isClear=!departedAt;
+    /* Build cross-month updates */
+    const propUpdates={};
+    const allKeys=Object.keys(months).filter(k=>k!=='leaves');
+    allKeys.forEach(key=>{
+      const m=months[key];
+      if(!m?.data)return;
+      const[yStr,mStr]=key.split('-');
+      const Y=+yStr,M=+mStr;
+      const dim=new Date(Y,M,0).getDate();
+      let mutated=false;
+      const newData={...m.data};
+      Object.keys(newData).forEach(p=>{
+        const list=newData[p]||[];
+        const idx=list.findIndex(e=>e.id===engId);
+        if(idx<0)return;
+        const cur=list[idx];
+        if(isClear){
+          if(cur.departedAt){
+            const newList=[...list];
+            const{departedAt:_,...rest}=cur;
+            newList[idx]=rest;
+            newData[p]=newList;
+            mutated=true;
+          }
+        }else{
+          if(cur.departedAt!==departedAt){
+            const newList=[...list];
+            newList[idx]={...cur,departedAt};
+            newData[p]=newList;
+            mutated=true;
+          }
+        }
+      });
+      /* Auto-EG attendance handling: only the departure month is affected */
+      let newAtt=m.attendance||{};
+      const depParts=isClear?null:departedAt.split('-').map(Number);
+      const isDepartureMonth=!isClear&&depParts&&depParts[0]===Y&&depParts[1]===M;
+      if(isDepartureMonth||isClear){
+        const ea={...(newAtt[engId]||{})};
+        let attChanged=false;
+        if(isClear){
+          /* On clear, only remove auto-flagged EG cells (those we may have set). We can't
+             distinguish auto vs manual perfectly, so we leave attendance untouched. The
+             admin can manually adjust. */
+        }else{
+          const depDay=depParts[2];
+          for(let d=depDay+1;d<=dim;d++){
+            if(!ea[d]||ea[d].s!=='EG'){ea[d]={s:'EG'};attChanged=true;}
+          }
+        }
+        if(attChanged){
+          newAtt={...newAtt,[engId]:ea};
+          mutated=true;
+        }
+      }
+      if(mutated){
+        propUpdates[key]={...m,data:newData,attendance:newAtt,savedAt:null};
+      }
+    });
+    if(Object.keys(propUpdates).length===0){
+      msg(isClear?'لا يوجد تاريخ مغادرة للحذف':'لا تغيير','err');
+      return;
+    }
+    setMonths(prev=>({...prev,...propUpdates}));
+    Object.entries(propUpdates).forEach(([k,v])=>queueSave(k,v));
+    logActivity(isClear?'إلغاء المغادرة النهائية':'نقل لمصر نهائياً',`المهندس · ${departedAt||'—'}`);
+    msg(isClear?'تم إلغاء المغادرة النهائية ✓':'تم تسجيل المغادرة النهائية ✓');
+    setPermaDepartForm(null);
+  };
   const postponeLeave=(reqId,newDate,reason)=>{
     fetch('/api/leaves/'+reqId,{method:'PATCH',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({postpone:{newDate,reason}})})
@@ -4460,13 +4580,14 @@ function App(){
     let n=1;
     PROVS.forEach((p,pi)=>{
       rows.push(["◆ "+p]);
-      (data[p]||[]).forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+e.extra||0,+c.tot.toFixed(2),+c.egp.toFixed(2)]);});
+      /* Skip engineers who departed before this month — they aren't in Libya anymore */
+      const provEngs=(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month));
+      provEngs.forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+e.extra||0,+c.tot.toFixed(2),+c.egp.toFixed(2)]);});
       const T=totals[pi];
-      /* Sum oldDays for the province totals row */
-      const Told=(data[p]||[]).reduce((s,e)=>s+(+e.extra||0),0);
+      const Told=provEngs.reduce((s,e)=>s+(+e.extra||0),0);
       rows.push(["","","","إجمالى "+p,"",+T.a1.toFixed(2),"",+T.a2.toFixed(2),Told,+T.tot.toFixed(2),+T.egp.toFixed(2)]);rows.push([]);
     });
-    const Gold=PROVS.reduce((s,p)=>s+(data[p]||[]).reduce((s2,e)=>s2+(+e.extra||0),0),0);
+    const Gold=PROVS.reduce((s,p)=>s+(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month)).reduce((s2,e)=>s2+(+e.extra||0),0),0);
     rows.push(["","","","الإجمالى الكلى","",+G.a1.toFixed(2),"",+G.a2.toFixed(2),Gold,+G.tot.toFixed(2),+G.egp.toFixed(2)]);
     const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:4},{wch:28},{wch:22},{wch:20},{wch:9},{wch:16},{wch:9},{wch:16},{wch:11},{wch:14},{wch:18}];
     XLSX.utils.book_append_sheet(wb,ws,"الإعاشات");XLSX.writeFile(wb,`اعاشات_${mn}_${cfg.year}.xlsx`);msg("تم تصدير Excel ✓");
@@ -4550,7 +4671,7 @@ function App(){
       const list=_engsByProv[p]||[];
       const dr=(+_cfg.rate||300)/30;
       return list.reduce((a,e)=>{
-        const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+        const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
         const d1=isSplit?e.d1Split:(+e.d1||0);
         const d2=isSplit?e.d2Split:(+e.d2||0);
         const oldD=isSplit?0:(+e.extra||0);
@@ -4568,7 +4689,7 @@ function App(){
       if(engs.length===0)return'';
       const dim=new Date(_Y,_M,0).getDate();
       const rows=engs.map((e,i)=>{
-        const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<dim);
+        const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<dim);
         const effD1=isSplit?e.d1Split:(+e.d1||0);
         const effD2=isSplit?e.d2Split:(+e.d2||0);
         const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},_cfg.rate,_cfg.egp);
@@ -4667,11 +4788,11 @@ function App(){
 
     /* totalDays should sum the EFFECTIVE d1/d2 each engineer contributes to each prov (so split engineers double-counted correctly) */
     const totalDays1=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
-      const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+      const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
       return a+(isSplit?e.d1Split:(+e.d1||0));
     },0),0);
     const totalDays2=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
-      const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+      const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
     /* halfMode-aware grand totals (include manual oldDays) */
@@ -5451,11 +5572,12 @@ ${provRows.length>1?`
     const M=_cfg.month||(now.getMonth()+1),Y=_cfg.year||now.getFullYear();
     const monthLabel=MONTHS[M-1]+' '+Y;
     const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
-    // KPIs
-    const totalEngs=PROVS.reduce((a,p)=>a+(_data[p]||[]).length,0);
+    // KPIs — filter engineers who departed before this month (they aren't in Libya anymore)
+    const totalEngs=PROVS.reduce((a,p)=>a+(_data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,Y,M)).length,0);
     const monthRate=+_cfg.rate||300;
     let paid1Engs=0,paid2Engs=0,paid1USD=0,paid2USD=0,unpaid1USD=0,unpaid2USD=0,oldDaysSum=0,oldDaysUSD=0;
     PROVS.forEach(p=>{(_data[p]||[]).forEach(e=>{
+      if(isDepartedBeforeMonth(e,Y,M))return;
       const dr=monthRate/30;
       const a1=(+e.d1||0)*dr,a2=(+e.d2||0)*dr;
       const oldD=+e.extra||0;
@@ -5565,7 +5687,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
-        const engs=_data[p]||[];
+        const engs=(_data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,Y,M));
         const p1=engs.filter(e=>isP1(e)).length;
         const p2=engs.filter(e=>isP2(e)).length;
         const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0)+(+e.extra||0))/30*monthRate),0);
@@ -6659,6 +6781,50 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 else recordEgyptLeave(engRec.id,date,egyptLeaveForm.notes);
               }
             },transferring?"⏳ جارٍ التسجيل...":(isReturn?"🟢 تأكيد العودة":"✈️ تأكيد النزول"))
+          )
+        );
+      })(),
+      /* ── Permanent-departure modal (نقل لمصر نهائياً) ── */
+      permaDepartForm&&(()=>{
+        const today=new Date(),pad=n=>String(n).padStart(2,'0');
+        const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+        const dep=permaDepartForm.departedAt;
+        const isEdit=!!dep;
+        return h("div",{className:"overlay",onClick:()=>setPermaDepartForm(null)},
+          h("div",{className:"modal",style:{width:480},onClick:e=>e.stopPropagation()},
+            h("div",{className:"modal-hdr"},
+              h("h3",null,isEdit?"📤 تعديل المغادرة النهائية":"📤 نقل المهندس لمصر نهائياً"),
+              h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setPermaDepartForm(null)},h(Ic,{n:"del",sz:12}))
+            ),
+            h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+              h("div",{className:"fld"},
+                h("label",null,"المهندس"),
+                h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(220,38,38,.10)",border:"1px solid rgba(220,38,38,.25)",fontSize:13,fontWeight:700,color:"#fca5a5"}},"📍 "+permaDepartForm.engName)
+              ),
+              h("div",{className:"fld"},
+                h("label",null,"آخر يوم فى ليبيا *"),
+                h("input",{type:"date",value:dep||todayStr,onChange:ev=>setPermaDepartForm(f=>({...f,departedAt:ev.target.value}))})
+              ),
+              h("div",{className:"info amber",style:{fontSize:11,lineHeight:1.8}},h(Ic,{n:"warn",sz:14}),
+                h("div",null,
+                  h("div",{style:{fontWeight:800,marginBottom:3}},"⚠️ بعد المغادرة، المهندس:"),
+                  "• مايظهرش فى شيت الحضور للشهور التالية",h("br",null),
+                  "• مايظهرش فى كشف الإعاشة للشهور التالية",h("br",null),
+                  "• مايظهرش فى الـ PDFs / Excel / التقارير",h("br",null),
+                  "• ",h("strong",{style:{color:"#34d399"}},"الشهور القديمة (قبل المغادرة) تفضل ظاهرة بسجله")
+                )
+              ),
+              dep&&h("div",{className:"info blue",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"التاريخ الحالى: ",h("strong",null,dep),". تقدر تعدله أو تلغى المغادرة لإرجاع المهندس.")
+            ),
+            h("div",{className:"modal-ftr"},
+              h("button",{className:"btn",onClick:()=>setPermaDepartForm(null)},"إلغاء"),
+              isEdit&&h("button",{className:"btn",style:{background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff",border:"none",fontWeight:800,padding:"8px 14px"},onClick:()=>{if(confirm("إلغاء المغادرة النهائية وإعادة المهندس؟"))setPermaDeparture(permaDepartForm.engId,'');}},"↩️ إلغاء المغادرة"),
+              h("button",{className:"btn",style:{background:"linear-gradient(135deg,#dc2626,#b91c1c)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",boxShadow:"0 6px 18px rgba(220,38,38,.4)"},onClick:()=>{
+                const d=permaDepartForm.departedAt||todayStr;
+                if(!d){msg('اختر تاريخ','err');return;}
+                if(confirm(`تأكيد: المهندس ${permaDepartForm.engName} غادر نهائياً بتاريخ ${d}؟`))setPermaDeparture(permaDepartForm.engId,d);
+              }},isEdit?"💾 حفظ التعديل":"📤 تأكيد المغادرة")
+            )
           )
         );
       })(),
@@ -7954,7 +8120,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             const d=today.getDate();
             /* Engineers missing days in active half(s) */
             const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
-            const allEngs=provsScope.flatMap(p=>(data[p]||[]).map(e=>({...e,prov:p})));
+            /* Smart banner counts: exclude engineers who departed before this viewed month */
+            const allEngs=provsScope.flatMap(p=>(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month)).map(e=>({...e,prov:p})));
             const showH1=halfView!==2, showH2=halfView!==1;
             const needD1=allEngs.filter(e=>(+e.d1||0)===0).length;
             const needD2=allEngs.filter(e=>(+e.d2||0)===0).length;
@@ -8122,7 +8289,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("tbody",null,
                   engs.map((e,i)=>{
                     /* For split engineers, use the d1Split/d2Split portions to calc instead of raw d1/d2 */
-                    const isSplit=e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
+                    const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
                     const effD1=isSplit?e.d1Split:(+e.d1||0);
                     const effD2=isSplit?e.d2Split:(+e.d2||0);
                     const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},cfg.rate,cfg.egp);
@@ -8152,6 +8319,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           isSplit&&h("span",{className:"mini-icon tenure",title:`فى ${prov.replace('محافظة ','')} من يوم ${e.firstDay} إلى ${e.lastDay} (${e.daysInProv.length} يوم)`},"📅"),
                           e.isReadOnlyHere&&h("span",{className:"mini-icon readonly",title:`البيانات تُدار من ${e.currentProv.replace('محافظة ','')} — للقراءة فقط هنا`},"🔒"),
                           showTransferIc&&h("span",{className:"mini-icon transfer",title:`نُقل من ${lastTransfer.from.replace('محافظة ','')} بتاريخ ${lastTransfer.date}`},"🔄"),
+                          e.hasDeparture&&h("span",{className:"mini-icon",style:{background:"rgba(220,38,38,.15)",color:"#f87171",border:"1px solid rgba(220,38,38,.4)"},title:`غادر إلى مصر نهائياً بتاريخ ${e.departedAt}`},"📤"),
                           showTransferIc&&canUndoTransfer&&h("button",{
                             title:"تراجع عن النقل",
                             onClick:(ev)=>{ev.stopPropagation();setUndoConfirm({eng:e,transfer:lastTransfer});},
@@ -9163,7 +9331,9 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                                     style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.10))",border:"1px solid rgba(139,92,246,.35)",color:"#a78bfa",fontWeight:800,whiteSpace:"nowrap"}
                                   },"🔄 ",eng.firstDay,"–",eng.lastDay),
                                   /* Egypt-leave indicator (cross-month lookup) */
-                                  (()=>{const ac=findActiveLeave(eng.id);if(!ac)return null;return h("span",{title:`فى إجازة منذ ${ac.departureDate}`,style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(234,88,12,.20),rgba(234,88,12,.06))",border:"1px solid rgba(234,88,12,.40)",color:"#fb923c",fontWeight:800,whiteSpace:"nowrap"}},"🇪🇬 إجازة منذ ",ac.departureDate);})()
+                                  (()=>{const ac=findActiveLeave(eng.id);if(!ac)return null;return h("span",{title:`فى إجازة منذ ${ac.departureDate}`,style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(234,88,12,.20),rgba(234,88,12,.06))",border:"1px solid rgba(234,88,12,.40)",color:"#fb923c",fontWeight:800,whiteSpace:"nowrap"}},"🇪🇬 إجازة منذ ",ac.departureDate);})(),
+                                  /* Permanent-departure indicator: shown if engineer's departure date is in this viewed month */
+                                  eng.hasDeparture&&h("span",{title:`غادر إلى مصر نهائياً بتاريخ ${eng.departedAt} — مايظهرش فى الشهور التالية`,style:{fontSize:9,padding:"2px 7px",borderRadius:100,background:"linear-gradient(135deg,rgba(220,38,38,.20),rgba(220,38,38,.06))",border:"1px solid rgba(220,38,38,.40)",color:"#f87171",fontWeight:800,whiteSpace:"nowrap"}},"📤 غادر يوم ",eng.departureDay)
                                 ),
                                 h("div",{className:"att-td-spec"},eng.spec),
                                 todayD&&h("div",{className:"att-qbtns"},
@@ -9210,6 +9380,24 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                                         style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(234,88,12,.4)",background:"linear-gradient(135deg,rgba(234,88,12,.18),rgba(234,88,12,.04))",color:"#fb923c",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
                                       },"✈️ تسجيل نزول")
                                     );
+                                  })(),
+                                  /* Permanent-departure (نقل لمصر نهائياً) — admin/province only */
+                                  (isAdmin||(isProvince&&attProv===userProv))&&(()=>{
+                                    const dep=eng.departedAt;
+                                    if(dep){
+                                      return h("button",{
+                                        key:'perma',
+                                        title:`غادر نهائياً بتاريخ ${dep} — اضغط لتعديل/إلغاء`,
+                                        onClick:e=>{e.stopPropagation();setPermaDepartForm({engId:eng.id,engName:eng.name,departedAt:dep});},
+                                        style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(220,38,38,.5)",background:"linear-gradient(135deg,rgba(220,38,38,.20),rgba(220,38,38,.06))",color:"#f87171",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                      },"📤 غادر ",dep);
+                                    }
+                                    return h("button",{
+                                      key:'perma',
+                                      title:"نقل المهندس لمصر نهائياً — يختفي من الشهور التالية",
+                                      onClick:e=>{e.stopPropagation();setPermaDepartForm({engId:eng.id,engName:eng.name,departedAt:''});},
+                                      style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(220,38,38,.35)",background:"linear-gradient(135deg,rgba(220,38,38,.10),rgba(220,38,38,.03))",color:"#fca5a5",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                    },"📤 نقل لمصر نهائياً");
                                   })(),
                                   attHovEng===eng.id&&h("span",{className:"att-kb-tip"},"ح=حاضر · غ=غائب · ا=إجازة")
                                 )
@@ -10058,10 +10246,13 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
         h("div",{className:"modal ep-modal",onClick:e=>e.stopPropagation()},
           h("div",{className:"modal-hdr"},
             h("div",{style:{display:"flex",flexDirection:"column",gap:2}},
-              h("h3",null,engProfile.eng.name),
+              h("h3",null,engProfile.eng.name,
+                engProfile.eng.departedAt&&h("span",{title:`غادر إلى مصر نهائياً بتاريخ ${engProfile.eng.departedAt}`,style:{fontSize:11,padding:"3px 10px",borderRadius:100,background:"linear-gradient(135deg,rgba(220,38,38,.20),rgba(220,38,38,.06))",border:"1px solid rgba(220,38,38,.40)",color:"#f87171",fontWeight:800,marginRight:10,whiteSpace:"nowrap"}},"📤 غادر بتاريخ ",engProfile.eng.departedAt)
+              ),
               h("div",{style:{fontSize:11,color:"var(--sub)"}},engProfile.eng.spec||"مهندس"," · ",engProfile.prov)
             ),
             h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+              (isAdmin||isProvince)&&h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px",background:engProfile.eng.departedAt?"rgba(16,185,129,.15)":"rgba(220,38,38,.10)",border:engProfile.eng.departedAt?"1px solid rgba(16,185,129,.4)":"1px solid rgba(220,38,38,.35)",color:engProfile.eng.departedAt?"#34d399":"#fca5a5"},onClick:()=>setPermaDepartForm({engId:engProfile.eng.id,engName:engProfile.eng.name,departedAt:engProfile.eng.departedAt||''})},engProfile.eng.departedAt?"↩️ إلغاء المغادرة":"📤 نقل لمصر نهائياً"),
               h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},onClick:()=>window.print()},"🖨️ طباعة"),
               h("button",{className:"btn-icon del",onClick:()=>setEngProfile(null)},h(Ic,{n:"del",sz:14}))
             )
@@ -10076,6 +10267,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
               [["الاسم",engProfile.eng.name],["التخصص",engProfile.eng.spec||"مهندس"],
                ["المحافظة",engProfile.prov],["تاريخ القدوم من مصر",engProfile.eng.arrivalDate||"—"],
                ["تاريخ الإضافة",engProfile.eng.addedAt||"—"],
+               ["تاريخ المغادرة النهائية",engProfile.eng.departedAt||"—"],
                ["المعرّف",engProfile.eng.id||"—"]
               ].map(([lbl,val])=>h("div",{key:lbl,className:"ep-field"},
                 h("div",{className:"ep-lbl"},lbl),h("div",{className:"ep-val"},val)
