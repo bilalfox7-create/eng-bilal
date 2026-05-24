@@ -2261,9 +2261,9 @@ function App(){
   const isProvince=useMemo(()=>user?.role==='province',[user]);
   const isHR=useMemo(()=>user?.role==='hr',[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
-  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});
-  const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});
-  const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});
+  const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});
+  const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:""});
+  const [trfForm,setTrfForm]=useState({id:null,fromCustodyId:"",toCustodyId:"",fromCurrency:"usd",toCurrency:"lyd",usd:"",rate:"",lyd:"",egp:"",date:"",note:""});
   /* Engineer transfer modal: select engineer + target province + date */
   const [engTransferForm,setEngTransferForm]=useState({engId:'',toProv:'',date:''});
   /* Egypt transfer modal: select engineer + date + notes */
@@ -2904,12 +2904,16 @@ function App(){
   const expTotals=useMemo(()=>({
     itemsUSD:expItems.reduce((a,e)=>a+(+e.usd||0),0),
     itemsLYD:expItems.reduce((a,e)=>a+(+e.lyd||0),0),
+    itemsEGP:expItems.reduce((a,e)=>a+(+e.egp||0),0),
     rentUSD:expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.usd||0),0),
     rentLYD:expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.lyd||0),0),
+    rentEGP:expItems.filter(e=>e.type==="إيجار").reduce((a,e)=>a+(+e.egp||0),0),
     msrfUSD:expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.usd||0),0),
     msrfLYD:expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.lyd||0),0),
+    msrfEGP:expItems.filter(e=>e.type==="مصروف").reduce((a,e)=>a+(+e.egp||0),0),
     custTotalUSD:custody.reduce((a,c)=>a+(+c.usd||0),0),
     custTotalLYD:custody.reduce((a,c)=>a+(+c.lyd||0),0),
+    custTotalEGP:custody.reduce((a,c)=>a+(+c.egp||0),0),
   }),[expItems,custody]);
 
   /* ── Aggregate finance across all months ───────────── */
@@ -2943,19 +2947,38 @@ function App(){
   const aggBalance=useMemo(()=>{
     const custodyUSD=aggCustody.reduce((a,c)=>a+(+c.usd||0),0);
     const custodyLYD=aggCustody.reduce((a,c)=>a+(+c.lyd||0),0);
+    const custodyEGP=aggCustody.reduce((a,c)=>a+(+c.egp||0),0);
     const itemsUSD=aggExpItems.reduce((a,e)=>a+(+e.usd||0),0);
     const itemsLYD=aggExpItems.reduce((a,e)=>a+(+e.lyd||0),0);
-    const trfUSDout=aggTransfers.reduce((a,t)=>a+(+t.usd||0),0);
-    const trfLYDin =aggTransfers.reduce((a,t)=>a+(+t.lyd||0),0);
+    const itemsEGP=aggExpItems.reduce((a,e)=>a+(+e.egp||0),0);
+    /* Transfer flow tracking — each transfer has fromCurrency and toCurrency.
+       Old transfers without fromCurrency are treated as USD→LYD (legacy). */
+    let trfUSDout=0,trfLYDout=0,trfEGPout=0;
+    let trfUSDin=0, trfLYDin=0, trfEGPin=0;
+    aggTransfers.forEach(t=>{
+      const fromC=(t.fromCurrency||'usd').toLowerCase();
+      const toC=(t.toCurrency||'lyd').toLowerCase();
+      const fromAmt=+(t[fromC]||t.usd||0)||0;
+      const toAmt=+(t[toC]||t.lyd||0)||0;
+      if(fromC==='usd')trfUSDout+=fromAmt;
+      else if(fromC==='lyd')trfLYDout+=fromAmt;
+      else if(fromC==='egp')trfEGPout+=fromAmt;
+      if(toC==='usd')trfUSDin+=toAmt;
+      else if(toC==='lyd')trfLYDin+=toAmt;
+      else if(toC==='egp')trfEGPin+=toAmt;
+    });
     /* Display metrics — include transfers in their respective sides so the math
        is visible (received - spent = balance). USD→LYD conversions count as USD
        spent and LYD received from the user's perspective. */
-    const receivedUSD=custodyUSD;
+    const receivedUSD=custodyUSD+trfUSDin;
     const receivedLYD=custodyLYD+trfLYDin;
+    const receivedEGP=custodyEGP+trfEGPin;
     const spentUSD=itemsUSD+trfUSDout;
-    const spentLYD=itemsLYD;
+    const spentLYD=itemsLYD+trfLYDout;
+    const spentEGP=itemsEGP+trfEGPout;
     const balanceUSD=receivedUSD-spentUSD;
     const balanceLYD=receivedLYD-spentLYD;
+    const balanceEGP=receivedEGP-spentEGP;
     /* ── Consumption metrics ─────────────────────────────
        per-currency pcts: تشمل التحويلات (لأن التحويل OUT من الدولار يُفرغ
        pool الدولار، والتحويل IN للدينار يُضخّم pool الدينار). بتُستخدم
@@ -2994,7 +3017,7 @@ function App(){
     const pct=pctReal;
     const remPct=100-pct;
     /* Thresholds: <50 green, 50-80 yellow, ≥80 red */
-    return {receivedUSD,receivedLYD,spentUSD,spentLYD,balanceUSD,balanceLYD,
+    return {receivedUSD,receivedLYD,receivedEGP,spentUSD,spentLYD,spentEGP,balanceUSD,balanceLYD,balanceEGP,
             pct,remPct,pctReal,pctUSD,pctLYD,
             low:pct>=50,critical:pct>=80,
             /* per-currency flags للشريطين المنفصلين */
@@ -5031,7 +5054,7 @@ function App(){
     if(!custForm.desc.trim()){msg("أدخل وصف العهدة","err");return;}
     const finalSource=custForm.source==='غيره'?(custForm.sourceOther||'غيره'):custForm.source;
     const nc=[...custody];
-    const item={...custForm,source:finalSource,usd:+custForm.usd||0,lyd:+custForm.lyd||0};
+    const item={...custForm,source:finalSource,usd:+custForm.usd||0,lyd:+custForm.lyd||0,egp:+custForm.egp||0};
     delete item.sourceOther;
     if(custForm.id){const i=nc.findIndex(c=>c.id===custForm.id);if(i>=0)nc[i]=item;}
     else nc.push({...item,id:"c"+Date.now()});
@@ -5051,35 +5074,26 @@ function App(){
   };
   const submitExp=async()=>{
     if(!expForm.desc.trim()){msg("أدخل وصف البند","err");return;}
-    const usd=+expForm.usd||0,lyd=+expForm.lyd||0;
+    const usd=+expForm.usd||0,lyd=+expForm.lyd||0,egp=+expForm.egp||0;
     // Balance warning — تحقق منطقى لكل عملة على حدة
     // (cfg.egp هو سعر الجنيه المصرى مش الدينار الليبى — كان السبب فى تحذيرات
     // غلط. هنا نتحقق عملة عملة، ولو فى تحويلات نستخدم الـ rate الفعلى للتحويل
     // عشان نعرض رصيد مكافئ موحد.)
     if(!expForm.id){
-      const lydRate=aggBalance.hasRate?aggBalance.rateLYD:0;
       const overUSD=usd>aggBalance.balanceUSD;
       const overLYD=lyd>aggBalance.balanceLYD;
-      let warn='';
-      if(overUSD&&overLYD){
-        warn=`⚠️ المبلغ أكبر من الرصيد المتبقى لكل عملة\n• الدولار: مطلوب ${usd}$ والمتبقى ${aggBalance.balanceUSD.toFixed(0)}$\n• الدينار: مطلوب ${lyd} والمتبقى ${aggBalance.balanceLYD.toFixed(0)}\n\nهل تريد المتابعة؟`;
-      }else if(overUSD){
-        warn=`⚠️ مبلغ الدولار (${usd}$) أكبر من الرصيد المتبقى (${aggBalance.balanceUSD.toFixed(0)}$)`;
-        if(lydRate>0&&aggBalance.balanceLYD/lydRate>=(usd-aggBalance.balanceUSD)){
-          warn+=`\n💡 يمكنك تحويل من رصيد الدينار (${aggBalance.balanceLYD.toFixed(0)} د.ل ≈ ${(aggBalance.balanceLYD/lydRate).toFixed(0)}$)`;
-        }
-        warn+='\n\nهل تريد المتابعة؟';
-      }else if(overLYD){
-        warn=`⚠️ مبلغ الدينار (${lyd} د.ل) أكبر من الرصيد المتبقى (${aggBalance.balanceLYD.toFixed(0)} د.ل)`;
-        if(lydRate>0&&aggBalance.balanceUSD*lydRate>=(lyd-aggBalance.balanceLYD)){
-          warn+=`\n💡 يمكنك تحويل من رصيد الدولار (${aggBalance.balanceUSD.toFixed(0)}$ ≈ ${(aggBalance.balanceUSD*lydRate).toFixed(0)} د.ل)`;
-        }
-        warn+='\n\nهل تريد المتابعة؟';
+      const overEGP=egp>(aggBalance.balanceEGP||0);
+      const issues=[];
+      if(overUSD)issues.push(`الدولار: مطلوب ${usd}$ والمتبقى ${aggBalance.balanceUSD.toFixed(0)}$`);
+      if(overLYD)issues.push(`الدينار: مطلوب ${lyd} د.ل والمتبقى ${aggBalance.balanceLYD.toFixed(0)} د.ل`);
+      if(overEGP)issues.push(`الجنيه: مطلوب ${egp} ج.م والمتبقى ${(aggBalance.balanceEGP||0).toFixed(0)} ج.م`);
+      if(issues.length){
+        const warn=`⚠️ المبلغ أكبر من الرصيد المتبقى:\n• ${issues.join('\n• ')}\n\nهل تريد المتابعة؟`;
+        if(!confirm(warn))return;
       }
-      if(warn&&!confirm(warn))return;
     }
     const ni=[...expItems];
-    const item={...expForm,usd,lyd};
+    const item={...expForm,usd,lyd,egp};
     if(expForm.id){const i=ni.findIndex(e=>e.id===expForm.id);if(i>=0)ni[i]=item;}
     else ni.push({...item,id:"x"+Date.now()});
     await saveExpData({custody,items:ni,transfers});
@@ -5091,11 +5105,27 @@ function App(){
   };
   const submitTransfer=async()=>{
     if(!trfForm.fromCustodyId){msg("اختر عهدة المصدر","err");return;}
-    if(!trfForm.usd||+trfForm.usd<=0){msg("أدخل مبلغ الدولار","err");return;}
-    if(!trfForm.rate||+trfForm.rate<=0){msg("أدخل سعر الصرف","err");return;}
-    const lyd=trfForm.lyd||((+trfForm.usd||0)*(+trfForm.rate||0)).toFixed(2);
+    const fc=trfForm.fromCurrency||'usd';
+    const tc=trfForm.toCurrency||'lyd';
+    if(fc===tc){msg("اختر عملتين مختلفتين","err");return;}
+    const fromAmt=+trfForm[fc]||0;
+    if(fromAmt<=0){msg("أدخل المبلغ المُحوَّل منه","err");return;}
+    if(!trfForm.rate||+trfForm.rate<=0){msg("أدخل سعر التحويل","err");return;}
+    const toAmt=+trfForm[tc]||(fromAmt*(+trfForm.rate||0));
+    if(toAmt<=0){msg("المبلغ المُحوَّل إليه غير صالح","err");return;}
     const nt=[...transfers];
-    const item={...trfForm,usd:+trfForm.usd,rate:+trfForm.rate,lyd:+lyd};
+    /* Save with explicit fromCurrency/toCurrency + per-currency amounts. Legacy USD/LYD kept for backward compat reads. */
+    const item={
+      id:trfForm.id||null,
+      fromCustodyId:trfForm.fromCustodyId,
+      toCustodyId:trfForm.toCustodyId,
+      fromCurrency:fc,toCurrency:tc,
+      [fc]:fromAmt,
+      [tc]:toAmt,
+      rate:+trfForm.rate,
+      date:trfForm.date,
+      note:trfForm.note
+    };
     if(trfForm.id){const i=nt.findIndex(t=>t.id===trfForm.id);if(i>=0)nt[i]=item;}
     else nt.push({...item,id:"t"+Date.now()});
     await saveExpData({custody,items:expItems,transfers:nt});
@@ -5106,11 +5136,13 @@ function App(){
     await saveExpData({custody,items:expItems,transfers:transfers.filter(t=>t.id!==id)});msg("تم الحذف");
   };
   const updCust=(id,field,val)=>{
-    const nc=custody.map(c=>c.id===id?{...c,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:c);
+    const numFields=["usd","lyd","egp"];
+    const nc=custody.map(c=>c.id===id?{...c,[field]:numFields.includes(field)?Math.max(0,+val||0):val}:c);
     saveExpData({custody:nc,items:expItems,transfers});
   };
   const updExpItem=(id,field,val)=>{
-    const ni=expItems.map(e=>e.id===id?{...e,[field]:field==="usd"||field==="lyd"?Math.max(0,+val||0):val}:e);
+    const numFields=["usd","lyd","egp"];
+    const ni=expItems.map(e=>e.id===id?{...e,[field]:numFields.includes(field)?Math.max(0,+val||0):val}:e);
     saveExpData({custody,items:ni,transfers});
   };
 
@@ -6462,64 +6494,91 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         ),
         h("div",{className:"modal-ftr"},h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),h("button",{className:"btn blue",onClick:createMonth},"فتح الشهر"))
       ),
-      modal==="trf-form"&&h("div",{className:"modal",style:{width:460}},
-        h("div",{className:"modal-hdr"},
-          h("h3",null,trfForm.id?"تعديل تحويل":"تحويل عملة — دولار ← دينار"),
-          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
-        ),
-        h("div",{className:"modal-body"},
-          h("div",{className:"g2"},
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"من عهدة (دولار) *"),
-              h("select",{value:trfForm.fromCustodyId,onChange:ev=>setTrfForm(f=>({...f,fromCustodyId:ev.target.value}))},
-                h("option",{value:""},"— اختر عهدة —"),
-                custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd?" ("+c.usd+" $)":"")+(c.lyd?" ("+c.lyd+" د.ل)":"")))
+      modal==="trf-form"&&(()=>{
+        const CUR_LBL={usd:'دولار $',lyd:'دينار د.ل',egp:'جنيه ج.م'};
+        const CUR_SYM={usd:'$',lyd:'د.ل',egp:'ج.م'};
+        const fc=trfForm.fromCurrency||'usd';
+        const tc=trfForm.toCurrency||'lyd';
+        const fromAmt=trfForm[fc]||'';
+        const toAmt=trfForm[tc]||'';
+        const rate=trfForm.rate||'';
+        return h("div",{className:"modal",style:{width:520}},
+          h("div",{className:"modal-hdr"},
+            h("h3",null,trfForm.id?"تعديل تحويل":"تحويل عملة — "+CUR_LBL[fc]+" → "+CUR_LBL[tc]),
+            h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setModal(null)},h(Ic,{n:"del",sz:12}))
+          ),
+          h("div",{className:"modal-body"},
+            h("div",{className:"g2"},
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"من عهدة *"),
+                h("select",{value:trfForm.fromCustodyId,onChange:ev=>setTrfForm(f=>({...f,fromCustodyId:ev.target.value}))},
+                  h("option",{value:""},"— اختر عهدة —"),
+                  custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd?" ("+c.usd+"$)":"")+(c.lyd?" ("+c.lyd+" د.ل)":"")+(c.egp?" ("+c.egp+" ج.م)":"")))
+                )
+              ),
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"إلى عهدة — اختياري"),
+                h("select",{value:trfForm.toCustodyId,onChange:ev=>setTrfForm(f=>({...f,toCustodyId:ev.target.value}))},
+                  h("option",{value:""},"— رصيد حر (بدون ربط) —"),
+                  custody.filter(c=>c.id!==trfForm.fromCustodyId).map(c=>h("option",{key:c.id,value:c.id},c.desc))
+                )
               )
             ),
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"إلى عهدة (دينار) — اختياري"),
-              h("select",{value:trfForm.toCustodyId,onChange:ev=>setTrfForm(f=>({...f,toCustodyId:ev.target.value}))},
-                h("option",{value:""},"— رصيد حر (بدون ربط) —"),
-                custody.filter(c=>c.id!==trfForm.fromCustodyId).map(c=>h("option",{key:c.id,value:c.id},c.desc))
+            h("div",{className:"g2"},
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"من عملة *"),
+                h("select",{value:fc,onChange:ev=>setTrfForm(f=>({...f,fromCurrency:ev.target.value}))},
+                  h("option",{value:"usd"},"دولار $"),
+                  h("option",{value:"lyd"},"دينار د.ل"),
+                  h("option",{value:"egp"},"جنيه ج.م")
+                )
+              ),
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"إلى عملة *"),
+                h("select",{value:tc,onChange:ev=>setTrfForm(f=>({...f,toCurrency:ev.target.value}))},
+                  h("option",{value:"usd"},"دولار $"),
+                  h("option",{value:"lyd"},"دينار د.ل"),
+                  h("option",{value:"egp"},"جنيه ج.م")
+                )
               )
-            )
-          ),
-          h("div",{className:"g2"},
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"المبلغ بالدولار ($) *"),
-              h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:trfForm.usd,
-                onChange:ev=>{
-                  const usd=ev.target.value;
-                  const lyd=trfForm.rate?(+usd*(+trfForm.rate)).toFixed(2):"";
-                  setTrfForm(f=>({...f,usd,lyd}));
-                }})
             ),
-            h("div",{className:"fld",style:{margin:0}},
-              h("label",null,"سعر الصرف (د.ل لكل $) *"),
-              h("input",{type:"number",min:0,step:"0.01",placeholder:"مثال: 5.50",value:trfForm.rate,
-                onChange:ev=>{
-                  const rate=ev.target.value;
-                  const lyd=trfForm.usd?(+trfForm.usd*(+rate)).toFixed(2):"";
-                  setTrfForm(f=>({...f,rate,lyd}));
-                }})
+            h("div",{className:"g2"},
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"المبلغ ("+CUR_SYM[fc]+") *"),
+                h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:fromAmt,
+                  onChange:ev=>{
+                    const fa=ev.target.value;
+                    const ta=rate?(+fa*(+rate)).toFixed(2):"";
+                    setTrfForm(f=>({...f,[fc]:fa,[tc]:ta}));
+                  }})
+              ),
+              h("div",{className:"fld",style:{margin:0}},
+                h("label",null,"سعر التحويل ("+CUR_SYM[tc]+" لكل "+CUR_SYM[fc]+") *"),
+                h("input",{type:"number",min:0,step:"0.0001",placeholder:"مثال: 5.50",value:rate,
+                  onChange:ev=>{
+                    const r=ev.target.value;
+                    const ta=fromAmt?(+fromAmt*(+r)).toFixed(2):"";
+                    setTrfForm(f=>({...f,rate:r,[tc]:ta}));
+                  }})
+              )
+            ),
+            h("div",{className:"fld",style:{background:"var(--gold2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--gold2)"}},
+              h("label",{style:{color:"var(--gold)"}},"المبلغ المُحوّل ("+CUR_SYM[tc]+") — محسوب تلقائياً"),
+              h("input",{type:"number",min:0,step:"0.01",placeholder:"يُحسب تلقائياً أو أدخله يدوياً",
+                value:toAmt,style:{color:"var(--gold)",fontWeight:700},
+                onChange:ev=>setTrfForm(f=>({...f,[tc]:ev.target.value}))})
+            ),
+            h("div",{className:"g2"},
+              h("div",{className:"fld",style:{margin:0}},h("label",null,"التاريخ"),h("input",{type:"date",value:trfForm.date,onChange:ev=>setTrfForm(f=>({...f,date:ev.target.value}))})),
+              h("div",{className:"fld",style:{margin:0}},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية",value:trfForm.note,onChange:ev=>setTrfForm(f=>({...f,note:ev.target.value}))}))
             )
           ),
-          h("div",{className:"fld",style:{background:"var(--gold2)",borderRadius:8,padding:"10px 12px",border:"1px solid var(--gold2)"}},
-            h("label",{style:{color:"var(--gold)"}},"المبلغ بالدينار الليبى (محسوب تلقائياً)"),
-            h("input",{type:"number",min:0,step:"0.01",placeholder:"يُحسب تلقائياً أو أدخله يدوياً",
-              value:trfForm.lyd,style:{color:"var(--gold)",fontWeight:700},
-              onChange:ev=>setTrfForm(f=>({...f,lyd:ev.target.value}))})
-          ),
-          h("div",{className:"g2"},
-            h("div",{className:"fld",style:{margin:0}},h("label",null,"التاريخ"),h("input",{type:"date",value:trfForm.date,onChange:ev=>setTrfForm(f=>({...f,date:ev.target.value}))})),
-            h("div",{className:"fld",style:{margin:0}},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية",value:trfForm.note,onChange:ev=>setTrfForm(f=>({...f,note:ev.target.value}))}))
+          h("div",{className:"modal-ftr"},
+            h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
+            h("button",{className:"btn blue",onClick:submitTransfer},trfForm.id?"حفظ التعديلات":"تسجيل التحويل")
           )
-        ),
-        h("div",{className:"modal-ftr"},
-          h("button",{className:"btn",onClick:()=>setModal(null)},"إلغاء"),
-          h("button",{className:"btn blue",onClick:submitTransfer},trfForm.id?"حفظ التعديلات":"تسجيل التحويل")
-        )
-      ),
+        );
+      })(),
       modal==="cust-form"&&h("div",{className:"modal",style:{width:480}},
         h("div",{className:"modal-hdr"},
           h("h3",null,custForm.id?"تعديل عهدة":"إضافة عهدة جديدة"),
@@ -6548,9 +6607,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               allEngineers.map(e=>h("option",{key:e.id,value:e.id},e.name+" — "+e.prov.replace('محافظة ','')))
             )
           ),
-          h("div",{className:"g2"},
+          h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}},
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.usd,onChange:ev=>setCustForm(f=>({...f,usd:ev.target.value}))})),
-            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.lyd,onChange:ev=>setCustForm(f=>({...f,lyd:ev.target.value}))}))
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.lyd,onChange:ev=>setCustForm(f=>({...f,lyd:ev.target.value}))})),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (ج.م)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:custForm.egp,onChange:ev=>setCustForm(f=>({...f,egp:ev.target.value}))}))
           ),
           h("div",{className:"fld"},h("label",null,"تاريخ الاستلام"),h("input",{type:"date",value:custForm.date,onChange:ev=>setCustForm(f=>({...f,date:ev.target.value}))})),
           h("div",{className:"fld"},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية",value:custForm.note,onChange:ev=>setCustForm(f=>({...f,note:ev.target.value}))}))
@@ -6581,16 +6641,17 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               )
             )
           ),
-          h("div",{className:"g2"},
+          h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}},
             h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ ($)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.usd,onChange:ev=>setExpForm(f=>({...f,usd:ev.target.value}))})),
-            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.lyd,onChange:ev=>setExpForm(f=>({...f,lyd:ev.target.value}))}))
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (د.ل)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.lyd,onChange:ev=>setExpForm(f=>({...f,lyd:ev.target.value}))})),
+            h("div",{className:"fld",style:{margin:0}},h("label",null,"المبلغ (ج.م)"),h("input",{type:"number",min:0,step:"0.01",placeholder:"0.00",value:expForm.egp,onChange:ev=>setExpForm(f=>({...f,egp:ev.target.value}))}))
           ),
           h("div",{className:"fld"},h("label",null,"التاريخ"),h("input",{type:"date",value:expForm.date,onChange:ev=>setExpForm(f=>({...f,date:ev.target.value}))})),
           expForm.type==="مصروف"&&custody.length>0&&h("div",{className:"fld"},
             h("label",null,"خصم من عهدة (اختياري)"),
             h("select",{value:expForm.custodyId,onChange:ev=>setExpForm(f=>({...f,custodyId:ev.target.value}))},
               h("option",{value:""},"— بدون ربط —"),
-              custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd>0?" ("+c.usd+" $)":"")+(c.lyd>0?" ("+c.lyd+" د.ل)":"")))
+              custody.map(c=>h("option",{key:c.id,value:c.id},c.desc+(c.usd>0?" ("+c.usd+" $)":"")+(c.lyd>0?" ("+c.lyd+" د.ل)":"")+(c.egp>0?" ("+c.egp+" ج.م)":"")))
             )
           ),
           h("div",{className:"fld"},h("label",null,"ملاحظة"),h("input",{placeholder:"تفاصيل إضافية (اختياري)",value:expForm.note,onChange:ev=>setExpForm(f=>({...f,note:ev.target.value}))})),
@@ -7200,8 +7261,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("div",{className:"qa-hdr"},"⚡ إجراءات سريعة"),
                 [
                   isAdmin&&{icon:'👤',label:'إضافة مهندس',c1:'#6366f1',c2:'#8b5cf6',action:()=>{setForm({prov:isProvince?userProv:PROVS[0],name:"",spec:"",d1:0,d2:0,extra:0,id:null,arrivalDate:""});setModal("form");}},
-                  isAdmin&&{icon:'💰',label:'إضافة عهدة',c1:'#10b981',c2:'#059669',action:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}},
-                  isAdmin&&{icon:'💸',label:'إضافة مصروف',c1:'#ec4899',c2:'#db2777',action:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}},
+                  isAdmin&&{icon:'💰',label:'إضافة عهدة',c1:'#10b981',c2:'#059669',action:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:isProvince?userProv:"",usd:"",lyd:"",egp:"",date:"",note:""});setModal("cust-form");}},
+                  isAdmin&&{icon:'💸',label:'إضافة مصروف',c1:'#ec4899',c2:'#db2777',action:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});setModal("exp-form");}},
                   (isAdmin||isProvince)&&{icon:'✈️',label:'طلب إجازة جديد',c1:'#f59e0b',c2:'#d97706',action:()=>{setPage('leaves');setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}}
                 ].filter(Boolean).map((a,i)=>h("div",{
                   key:i,
@@ -7371,8 +7432,8 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             );
           }else if(page==='expenses'){
             if(isAdmin||isProvince) btns.push(
-              {key:'ex-cust',cls:'btn',style:{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");},icon:'plus',label:'+ عهدة'},
-              {key:'ex-exp',cls:'btn',style:{background:"rgba(236,72,153,.1)",border:"1px solid rgba(236,72,153,.35)",color:"#ec4899",fontWeight:800},onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");},icon:'plus',label:'+ مصروف'},
+              {key:'ex-cust',cls:'btn',style:{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.35)",color:"#10B981",fontWeight:800},onClick:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:isProvince?userProv:"",usd:"",lyd:"",egp:"",date:"",note:""});setModal("cust-form");},icon:'plus',label:'+ عهدة'},
+              {key:'ex-exp',cls:'btn',style:{background:"rgba(236,72,153,.1)",border:"1px solid rgba(236,72,153,.35)",color:"#ec4899",fontWeight:800},onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:isProvince?userProv:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});setModal("exp-form");},icon:'plus',label:'+ مصروف'},
               {key:'ex-trf',cls:'btn',style:{background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.35)",color:"#f59e0b",fontWeight:800},onClick:()=>{setTrfForm({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");},icon:'coin',label:'+ تحويل'}
             );
           }else if(page==='org'){
@@ -7931,10 +7992,11 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
               h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
                 custody.length>0&&h("span",{style:{fontSize:12,color:"var(--purple)",fontWeight:700}},
                   "إجمالى: "+(expTotals.custTotalUSD>0?expTotals.custTotalUSD.toFixed(2)+" $ ":"")+
-                  (expTotals.custTotalLYD>0?expTotals.custTotalLYD.toFixed(2)+" د.ل":"")
+                  (expTotals.custTotalLYD>0?expTotals.custTotalLYD.toFixed(2)+" د.ل ":"")+
+                  (expTotals.custTotalEGP>0?expTotals.custTotalEGP.toFixed(2)+" ج.م":"")
                 ),
                 isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--purple)",color:"var(--purple)"},
-                  onClick:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",date:"",note:""});setModal("cust-form");}
+                  onClick:()=>{setCustForm({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:""});setModal("cust-form");}
                 },h(Ic,{n:"plus",sz:13}),"عهدة جديدة")
               )
             ),
@@ -7948,17 +8010,33 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     const deducted=expItems.filter(e=>e.custodyId===c.id);
                     const dedUSD=deducted.reduce((a,e)=>a+(+e.usd||0),0);
                     const dedLYD=deducted.reduce((a,e)=>a+(+e.lyd||0),0);
-                    // تحويلات خارجة (مصدر) وداخلة (وجهة)
-                    const trfOut=transfers.filter(t=>t.fromCustodyId===c.id).reduce((a,t)=>a+(+t.usd||0),0);
-                    const trfIn=transfers.filter(t=>t.toCustodyId===c.id).reduce((a,t)=>a+(+t.lyd||0),0);
-                    const remUSD=(+c.usd||0)-dedUSD-trfOut;
-                    const remLYD=(+c.lyd||0)-dedLYD+trfIn;
-                    /* استهلاك لكل عملة منفصل — pctUSD/pctLYD لـ pool الدولار/الدينار
-                       فى هذه العهدة فقط (وليس كل العهد). الشريطين منفصلين عشان
-                       لو الدولار خلص لكن الدينار لسه فيه (أو العكس) المستخدم يشوفها. */
-                    const pctUSD=c.usd>0?Math.max(0,Math.min(100,Math.round((dedUSD+trfOut)/c.usd*100))):0;
-                    const totalLYDpool=(+c.lyd||0)+trfIn;
-                    const pctLYD=totalLYDpool>0?Math.max(0,Math.min(100,Math.round(dedLYD/totalLYDpool*100))):0;
+                    const dedEGP=deducted.reduce((a,e)=>a+(+e.egp||0),0);
+                    // تحويلات خارجة (مصدر) وداخلة (وجهة) — multi-currency aware
+                    let trfOutUSD=0,trfOutLYD=0,trfOutEGP=0,trfInUSD=0,trfInLYD=0,trfInEGP=0;
+                    transfers.forEach(t=>{
+                      const fc=(t.fromCurrency||'usd').toLowerCase();
+                      const tc=(t.toCurrency||'lyd').toLowerCase();
+                      const fa=+(t[fc]||t.usd||0)||0;
+                      const ta=+(t[tc]||t.lyd||0)||0;
+                      if(t.fromCustodyId===c.id){
+                        if(fc==='usd')trfOutUSD+=fa;
+                        else if(fc==='lyd')trfOutLYD+=fa;
+                        else if(fc==='egp')trfOutEGP+=fa;
+                      }
+                      if(t.toCustodyId===c.id){
+                        if(tc==='usd')trfInUSD+=ta;
+                        else if(tc==='lyd')trfInLYD+=ta;
+                        else if(tc==='egp')trfInEGP+=ta;
+                      }
+                    });
+                    const remUSD=(+c.usd||0)+trfInUSD-dedUSD-trfOutUSD;
+                    const remLYD=(+c.lyd||0)+trfInLYD-dedLYD-trfOutLYD;
+                    const remEGP=(+c.egp||0)+trfInEGP-dedEGP-trfOutEGP;
+                    const pctUSD=c.usd>0?Math.max(0,Math.min(100,Math.round((dedUSD+trfOutUSD)/c.usd*100))):0;
+                    const totalLYDpool=(+c.lyd||0)+trfInLYD;
+                    const pctLYD=totalLYDpool>0?Math.max(0,Math.min(100,Math.round((dedLYD+trfOutLYD)/totalLYDpool*100))):0;
+                    const totalEGPpool=(+c.egp||0)+trfInEGP;
+                    const pctEGP=totalEGPpool>0?Math.max(0,Math.min(100,Math.round((dedEGP+trfOutEGP)/totalEGPpool*100))):0;
                     return h("div",{key:c.id,style:{background:"var(--bg3)",border:"1px solid var(--bdr2)",borderRadius:10,padding:14,position:"relative"}},
                       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}},
                         h("div",null,
@@ -7969,13 +8047,13 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           c.note&&h("div",{style:{fontSize:10,color:"var(--sub)"}},c.note)
                         ),
                         isAdmin&&h("div",{style:{display:"flex",gap:4}},
-                          h("button",{className:"btn-icon edit",onClick:()=>{setCustForm({...c,usd:c.usd||"",lyd:c.lyd||""});setModal("cust-form");}},h(Ic,{n:"edit",sz:12})),
-                          c.usd>0&&h("button",{className:"btn-icon",title:"تحويل إلى دينار",style:{color:"var(--gold)",borderColor:"rgba(234,179,8,.3)",background:"var(--gold2)"},onClick:()=>{setTrfForm({id:null,fromCustodyId:c.id,toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}},h(Ic,{n:"coin",sz:12})),
+                          h("button",{className:"btn-icon edit",onClick:()=>{setCustForm({...c,usd:c.usd||"",lyd:c.lyd||"",egp:c.egp||""});setModal("cust-form");}},h(Ic,{n:"edit",sz:12})),
+                          (c.usd>0||c.lyd>0||c.egp>0)&&h("button",{className:"btn-icon",title:"تحويل عملة",style:{color:"var(--gold)",borderColor:"rgba(234,179,8,.3)",background:"var(--gold2)"},onClick:()=>{const defFrom=c.usd>0?'usd':(c.egp>0?'egp':'lyd');const defTo=defFrom==='usd'?'lyd':'lyd';setTrfForm({id:null,fromCustodyId:c.id,toCustodyId:"",fromCurrency:defFrom,toCurrency:defTo,usd:"",lyd:"",egp:"",rate:"",date:"",note:""});setModal("trf-form");}},h(Ic,{n:"coin",sz:12})),
                           h("button",{className:"btn-icon del",onClick:()=>delCust(c.id)},h(Ic,{n:"del",sz:12}))
                         )
                       ),
-                      /* أرقام العهدة — قابلة للتعديل المباشر */
-                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}},
+                      /* أرقام العهدة — قابلة للتعديل المباشر (3 عملات) */
+                      h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}},
                         h("div",{style:{padding:"6px 6px 4px",background:"var(--blue2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة ($)"),
                           h("input",{type:"number",className:"inline-inp",style:{color:"var(--blue)",fontWeight:700,fontSize:12},
@@ -7987,23 +8065,28 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           h("input",{type:"number",className:"inline-inp",style:{color:"var(--gold)",fontWeight:700,fontSize:12},
                             min:0,value:c.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,
                             onChange:ev=>updCust(c.id,"lyd",ev.target.value)})
+                        ),
+                        h("div",{style:{padding:"6px 6px 4px",background:"rgba(168,85,247,.10)",borderRadius:6,border:"1px solid rgba(168,85,247,.20)"}},
+                          h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:3,textAlign:"center"}},"العهدة (ج.م)"),
+                          h("input",{type:"number",className:"inline-inp",style:{color:"#a78bfa",fontWeight:700,fontSize:12},
+                            min:0,value:c.egp||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,
+                            onChange:ev=>updCust(c.id,"egp",ev.target.value)})
                         )
                       ),
                       h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}},
                         h("div",{style:{textAlign:"center",padding:"6px 4px",background:"var(--red2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المصروف"),
-                          h("div",{style:{fontSize:12,fontWeight:700,color:"var(--red)"}},
-                            dedUSD>0?dedUSD.toFixed(2)+" $":dedLYD>0?dedLYD.toFixed(2)+" د.ل":"—")
+                          h("div",{style:{fontSize:11,fontWeight:700,color:"var(--red)",lineHeight:1.3}},
+                            [dedUSD>0?dedUSD.toFixed(2)+"$":null,dedLYD>0?dedLYD.toFixed(2)+" د.ل":null,dedEGP>0?dedEGP.toFixed(2)+" ج.م":null].filter(Boolean).join(" · ")||"—")
                         ),
-                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:remUSD>=0?"var(--green2)":"var(--red2)",borderRadius:6}},
+                        h("div",{style:{textAlign:"center",padding:"6px 4px",background:(remUSD<0||remLYD<0||remEGP<0)?"var(--red2)":"var(--green2)",borderRadius:6}},
                           h("div",{style:{fontSize:9,color:"var(--sub)",marginBottom:2}},"المتبقى"),
-                          h("div",{style:{fontSize:12,fontWeight:800,color:remUSD>=0?"var(--green)":"var(--red)"}},
-                            c.usd>0?remUSD.toFixed(2)+" $":c.lyd>0?remLYD.toFixed(2)+" د.ل":"—")
+                          h("div",{style:{fontSize:11,fontWeight:800,color:(remUSD<0||remLYD<0||remEGP<0)?"var(--red)":"var(--green)",lineHeight:1.3}},
+                            [c.usd>0||trfInUSD>0?remUSD.toFixed(2)+"$":null,c.lyd>0||trfInLYD>0?remLYD.toFixed(2)+" د.ل":null,c.egp>0||trfInEGP>0?remEGP.toFixed(2)+" ج.م":null].filter(Boolean).join(" · ")||"—")
                         )
                       ),
-                      /* شريط الاستهلاك — منفصل للدولار وللدينار (يخفى الشريط
-                         لو العملة المعنية مش موجودة فى هذه العهدة) */
-                      (c.usd>0||totalLYDpool>0)&&h("div",{style:{display:"flex",flexDirection:"column",gap:4}},
+                      /* شريط الاستهلاك — منفصل لكل عملة (يخفى لو العملة مش موجودة) */
+                      (c.usd>0||totalLYDpool>0||totalEGPpool>0)&&h("div",{style:{display:"flex",flexDirection:"column",gap:4}},
                         c.usd>0&&h("div",null,
                           h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--sub)",marginBottom:2}},
                             h("span",null,"$ الدولار"),
@@ -8020,6 +8103,15 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                           ),
                           h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
                             h("div",{style:{height:"100%",width:pctLYD+"%",background:pctLYD>=80?"var(--red)":pctLYD>=50?"var(--gold)":"var(--blue)",borderRadius:3,transition:"width .5s"}})
+                          )
+                        ),
+                        totalEGPpool>0&&h("div",null,
+                          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--sub)",marginBottom:2}},
+                            h("span",null,"ج.م الجنيه"),
+                            h("span",{style:{fontWeight:700,color:pctEGP>=80?"var(--red)":pctEGP>=50?"var(--gold)":"#a78bfa"}},pctEGP+"% مستخدم")
+                          ),
+                          h("div",{style:{height:5,background:"var(--bdr)",borderRadius:3,overflow:"hidden"}},
+                            h("div",{style:{height:"100%",width:pctEGP+"%",background:pctEGP>=80?"var(--red)":pctEGP>=50?"var(--gold)":"#a78bfa",borderRadius:3,transition:"width .5s"}})
                           )
                         )
                       ),
@@ -8040,42 +8132,64 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 transfers.length>0&&h("span",{className:"card-badge"},transfers.length+" تحويل")
               ),
               isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--gold)",color:"var(--gold)"},
-                onClick:()=>{setTrfForm({id:null,fromCustodyId:"",toCustodyId:"",usd:"",rate:"",lyd:"",date:"",note:""});setModal("trf-form");}
+                onClick:()=>{setTrfForm({id:null,fromCustodyId:"",toCustodyId:"",fromCurrency:"usd",toCurrency:"lyd",usd:"",lyd:"",egp:"",rate:"",date:"",note:""});setModal("trf-form");}
               },h(Ic,{n:"plus",sz:13}),"تحويل جديد")
             ),
             transfers.length===0
-              ?h("div",{style:{padding:"20px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد تحويلات — اضغط «تحويل جديد» لتحويل مبلغ من عهدة دولار إلى دينار")
+              ?h("div",{style:{padding:"20px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد تحويلات — اضغط «تحويل جديد» للتحويل بين العملات (دولار · دينار · جنيه)")
               :h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
                   h("thead",null,h("tr",null,
                     h("th",null,"م"),h("th",{className:"l"},"من عهدة"),h("th",{className:"l"},"إلى عهدة"),
-                    h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"سعر الصرف"),h("th",null,"المبلغ (د.ل)"),h("th",{className:"l"},"ملاحظة"),h("th",null,"")
+                    h("th",null,"التاريخ"),h("th",null,"من"),h("th",null,"سعر"),h("th",null,"إلى"),h("th",{className:"l"},"ملاحظة"),h("th",null,"")
                   )),
                   h("tbody",null,
-                    transfers.map((t,i)=>{
-                      const fromC=custody.find(c=>c.id===t.fromCustodyId);
-                      const toC=custody.find(c=>c.id===t.toCustodyId);
-                      return h("tr",{key:t.id},
-                        h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
-                        h("td",{className:"l"},fromC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--blue2)",color:"var(--blue)",fontWeight:600}},fromC.desc):"—"),
-                        h("td",{className:"l"},toC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--green2)",color:"var(--green)",fontWeight:600}},toC.desc):h("span",{style:{fontSize:10,color:"var(--sub)"}},"رصيد حر")),
-                        h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},t.date?new Date(t.date).toLocaleDateString("ar-EG"):"—"),
-                        h("td",{style:{color:"var(--blue)",fontWeight:700}},(+t.usd).toFixed(2)+" $"),
-                        h("td",{style:{color:"var(--sub)",fontSize:11}},t.rate+" د.ل/$"),
-                        h("td",{style:{color:"var(--gold)",fontWeight:700}},(+t.lyd).toFixed(2)+" د.ل"),
-                        h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},t.note||"—"),
-                        h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
-                          h("button",{className:"btn-icon edit",onClick:()=>{setTrfForm({...t});setModal("trf-form");}},h(Ic,{n:"edit",sz:12})),
-                          h("button",{className:"btn-icon del",onClick:()=>delTransfer(t.id)},h(Ic,{n:"del",sz:12}))
-                        ):"")
+                    (()=>{
+                      const SYM={usd:'$',lyd:'د.ل',egp:'ج.م'};
+                      const COL={usd:'var(--blue)',lyd:'var(--gold)',egp:'#a78bfa'};
+                      return transfers.map((t,i)=>{
+                        const fromC=custody.find(c=>c.id===t.fromCustodyId);
+                        const toC=custody.find(c=>c.id===t.toCustodyId);
+                        const fc=(t.fromCurrency||'usd').toLowerCase();
+                        const tc=(t.toCurrency||'lyd').toLowerCase();
+                        const fa=+t[fc]||+t.usd||0;
+                        const ta=+t[tc]||+t.lyd||0;
+                        return h("tr",{key:t.id},
+                          h("td",{style:{color:"var(--sub)",fontSize:11}},i+1),
+                          h("td",{className:"l"},fromC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--blue2)",color:"var(--blue)",fontWeight:600}},fromC.desc):"—"),
+                          h("td",{className:"l"},toC?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--green2)",color:"var(--green)",fontWeight:600}},toC.desc):h("span",{style:{fontSize:10,color:"var(--sub)"}},"رصيد حر")),
+                          h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},t.date?new Date(t.date).toLocaleDateString("ar-EG"):"—"),
+                          h("td",{style:{color:COL[fc],fontWeight:700}},fa.toFixed(2)+" "+SYM[fc]),
+                          h("td",{style:{color:"var(--sub)",fontSize:11}},t.rate+" "+SYM[tc]+"/"+SYM[fc]),
+                          h("td",{style:{color:COL[tc],fontWeight:700}},ta.toFixed(2)+" "+SYM[tc]),
+                          h("td",{className:"l",style:{color:"var(--sub)",fontSize:11}},t.note||"—"),
+                          h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
+                            h("button",{className:"btn-icon edit",onClick:()=>{setTrfForm({fromCurrency:'usd',toCurrency:'lyd',usd:"",lyd:"",egp:"",...t});setModal("trf-form");}},h(Ic,{n:"edit",sz:12})),
+                            h("button",{className:"btn-icon del",onClick:()=>delTransfer(t.id)},h(Ic,{n:"del",sz:12}))
+                          ):"")
+                        );
+                      });
+                    })(),
+                    (()=>{
+                      /* sum from-amounts grouped by from-currency; same for to-amounts */
+                      const fromSums={usd:0,lyd:0,egp:0};
+                      const toSums={usd:0,lyd:0,egp:0};
+                      transfers.forEach(t=>{
+                        const fc=(t.fromCurrency||'usd').toLowerCase();
+                        const tc=(t.toCurrency||'lyd').toLowerCase();
+                        fromSums[fc]=(fromSums[fc]||0)+(+t[fc]||+t.usd||0);
+                        toSums[tc]=(toSums[tc]||0)+(+t[tc]||+t.lyd||0);
+                      });
+                      const SYM={usd:'$',lyd:' د.ل',egp:' ج.م'};
+                      const COL={usd:'var(--blue)',lyd:'var(--gold)',egp:'#a78bfa'};
+                      const formatSums=(sums)=>['usd','lyd','egp'].filter(k=>sums[k]>0).map(k=>h("div",{key:k,style:{color:COL[k],fontWeight:800,fontSize:11}},sums[k].toFixed(2)+SYM[k]));
+                      return h("tr",{className:"sub-row"},
+                        h("td",{colSpan:4,className:"l"},"الإجمالى"),
+                        h("td",null,formatSums(fromSums)),
+                        h("td"),
+                        h("td",null,formatSums(toSums)),
+                        h("td",{colSpan:2})
                       );
-                    }),
-                    h("tr",{className:"sub-row"},
-                      h("td",{colSpan:4,className:"l"},"الإجمالى"),
-                      h("td",{style:{color:"var(--blue)",fontWeight:800}},transfers.reduce((a,t)=>a+(+t.usd||0),0).toFixed(2)+" $"),
-                      h("td"),
-                      h("td",{style:{color:"var(--gold)",fontWeight:800}},transfers.reduce((a,t)=>a+(+t.lyd||0),0).toFixed(2)+" د.ل"),
-                      h("td",{colSpan:2})
-                    )
+                    })()
                   )
                 ))
           ),
@@ -8085,18 +8199,18 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"var(--blue2)"}},h(Ic,{n:"coin",sz:13,c:"var(--blue)"})),"المصروفات"),
               h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
-                (()=>{const m=filteredExpItems.filter(e=>e.type==="مصروف");const usd=m.reduce((a,e)=>a+(+e.usd||0),0),lyd=m.reduce((a,e)=>a+(+e.lyd||0),0);return m.length>0&&h("span",{style:{fontSize:11,color:"var(--blue)",fontWeight:600}},(usd>0?usd.toFixed(2)+" $ ":"")+(lyd>0?lyd.toFixed(2)+" د.ل":""))})(),
+                (()=>{const m=filteredExpItems.filter(e=>e.type==="مصروف");const usd=m.reduce((a,e)=>a+(+e.usd||0),0),lyd=m.reduce((a,e)=>a+(+e.lyd||0),0),egp=m.reduce((a,e)=>a+(+e.egp||0),0);return m.length>0&&h("span",{style:{fontSize:11,color:"var(--blue)",fontWeight:600}},(usd>0?usd.toFixed(2)+" $ ":"")+(lyd>0?lyd.toFixed(2)+" د.ل ":"")+(egp>0?egp.toFixed(2)+" ج.م":""))})(),
                 isAdmin&&h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11,borderColor:"var(--blue)",color:"var(--blue)"},
-                  onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",date:"",note:"",custodyId:""});setModal("exp-form");}
+                  onClick:()=>{setExpForm({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});setModal("exp-form");}
                 },h(Ic,{n:"plus",sz:13}),"إضافة مصروف")
               )
             ),
             (()=>{const items=filteredExpItems.filter(e=>e.type==="مصروف");if(items.length===0)return h("div",{style:{padding:"24px",textAlign:"center",color:"var(--sub)",fontSize:12}},"لا توجد مصروفات — اضغط «إضافة مصروف»");
-              const totUsd=items.reduce((a,e)=>a+(+e.usd||0),0),totLyd=items.reduce((a,e)=>a+(+e.lyd||0),0);
+              const totUsd=items.reduce((a,e)=>a+(+e.usd||0),0),totLyd=items.reduce((a,e)=>a+(+e.lyd||0),0),totEgp=items.reduce((a,e)=>a+(+e.egp||0),0);
               return h("div",{className:"tbl-wrap"},h("table",{className:"tbl"},
                 h("thead",null,h("tr",null,
                   h("th",null,"م"),h("th",{className:"l"},"الوصف"),h("th",{className:"l"},"التصنيف"),h("th",{className:"l"},"المحافظة"),
-                  h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),
+                  h("th",null,"التاريخ"),h("th",null,"المبلغ ($)"),h("th",null,"المبلغ (د.ل)"),h("th",null,"المبلغ (ج.م)"),
                   h("th",{className:"l"},"من عهدة"),h("th",null,"")
                 )),
                 h("tbody",null,
@@ -8110,6 +8224,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                       h("td",{style:{fontSize:11,color:"var(--sub)",whiteSpace:"nowrap"}},e.date?new Date(e.date).toLocaleDateString("ar-EG"):"—"),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#2563EB",width:72},min:0,value:e.usd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpAcross(e.id,"usd",ev.target.value)})),
                       h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"var(--gold)",width:72},min:0,value:e.lyd||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpAcross(e.id,"lyd",ev.target.value)})),
+                      h("td",null,h("input",{type:"number",className:"day-inp",style:{borderColor:"#a78bfa",width:72},min:0,value:e.egp||"",placeholder:"0",readOnly:!isAdmin,disabled:!isAdmin,onChange:ev=>updExpAcross(e.id,"egp",ev.target.value)})),
                       h("td",{className:"l"},cust?h("span",{style:{fontSize:10,padding:"2px 8px",borderRadius:100,background:"var(--purple2)",color:"var(--purple)",fontWeight:600}},cust.desc):"—"),
                       h("td",null,isAdmin?h("div",{style:{display:"flex",gap:4}},
                         h("button",{className:"btn-icon edit",onClick:()=>editExpAcross(e)},h(Ic,{n:"edit",sz:12})),
@@ -8121,6 +8236,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                     h("td",{colSpan:5,className:"l"},"الإجمالى"),
                     h("td",{style:{color:"var(--blue)",fontWeight:800}},totUsd.toFixed(2)+" $"),
                     h("td",{style:{color:"var(--gold)",fontWeight:800}},totLyd.toFixed(2)+" د.ل"),
+                    h("td",{style:{color:"#a78bfa",fontWeight:800}},totEgp.toFixed(2)+" ج.م"),
                     h("td",{colSpan:2})
                   )
                 )
