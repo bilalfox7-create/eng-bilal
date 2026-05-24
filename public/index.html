@@ -2790,29 +2790,36 @@ function App(){
       const segs=engSegmentsInMonth(eng,year,month,p);
       const seg=segs.find(s=>s.prov===prov);
       if(!seg)return;
-      /* If departure is within this month, trim days at the departure day */
-      const daysList=depDay!==null?seg.days.filter(d=>d<=depDay):seg.days;
+      /* daysList = full segment days in this prov (used by attendance grid/PDF for cell rendering;
+         days after departure are auto-marked EG so they still render — just as Egypt-leave cells).
+         daysInLibya = subset trimmed at depDay; used by eng allowance for d1/d2 split ratios. */
+      const daysList=seg.days;
       if(daysList.length===0)return;
+      const daysInLibya=depDay!==null?daysList.filter(d=>d<=depDay):daysList;
       const daysSet=new Set(daysList);
-      const inH1=daysList.filter(d=>d<=15).length;
-      const inH2=daysList.filter(d=>d>15).length;
+      const inH1=daysInLibya.filter(d=>d<=15).length;
+      const inH2=daysInLibya.filter(d=>d>15).length;
       const d1Ratio=inH1/15;
       const d2Ratio=half2Len?inH2/half2Len:0;
       const d1Split=Math.round((+eng.d1||0)*d1Ratio);
       const d2Split=Math.round((+eng.d2||0)*d2Ratio);
       const isReadOnlyHere=p!==prov; /* engineer's primary record is in another prov */
+      const hasTransferFlag=(eng.transfers||[]).length>0;
+      const needsSplit=(hasTransferFlag&&seg.days.length<dim)||(depDay!==null&&depDay<dim);
       out.push({
         ...eng,
         currentProv:p,
         daysInProvSet:daysSet,
         daysInProv:daysList,
+        daysInLibya,
         firstDay:daysList[0],
         lastDay:daysList[daysList.length-1],
         inH1,inH2,d1Ratio,d2Ratio,
         d1Split,d2Split,
-        hasTransfer:(eng.transfers||[]).length>0,
+        hasTransfer:hasTransferFlag,
         hasDeparture:depDay!==null,
         departureDay:depDay,
+        needsSplit,
         isReadOnlyHere,
         splitInfo:isReadOnlyHere?{currentProv:p,days:daysList}:null
       });
@@ -4671,7 +4678,7 @@ function App(){
       const list=_engsByProv[p]||[];
       const dr=(+_cfg.rate||300)/30;
       return list.reduce((a,e)=>{
-        const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+        const isSplit=!!e.needsSplit;
         const d1=isSplit?e.d1Split:(+e.d1||0);
         const d2=isSplit?e.d2Split:(+e.d2||0);
         const oldD=isSplit?0:(+e.extra||0);
@@ -4689,7 +4696,7 @@ function App(){
       if(engs.length===0)return'';
       const dim=new Date(_Y,_M,0).getDate();
       const rows=engs.map((e,i)=>{
-        const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<dim);
+        const isSplit=!!e.needsSplit;
         const effD1=isSplit?e.d1Split:(+e.d1||0);
         const effD2=isSplit?e.d2Split:(+e.d2||0);
         const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},_cfg.rate,_cfg.egp);
@@ -4697,9 +4704,10 @@ function App(){
         const p1=isP1(e),p2=isP2(e);
         const badge=(paid)=>`<span style="background:${paid?"#dcfce7":"#fefce8"};color:${paid?"#15803d":"#b45309"};font-size:9px;padding:2px 6px;border-radius:100px;font-weight:700;">${paid?"✓":"⏳"}</span>`;
         const dual=(usd)=>`<div style="line-height:1.3;"><div style="font-weight:700;color:${color};font-size:10.5px;">${usd.toFixed(2)} $</div><div style="font-weight:600;color:#b45309;font-size:9px;">${(usd*rate).toFixed(0)} ج.م</div></div>`;
-        /* Build name cell with transfer badges */
+        /* Build name cell with transfer + departure badges */
         let nameBadges='';
-        if(isSplit){
+        /* Tenure badge — only when split is caused by transfer (not departure) */
+        if(isSplit&&e.hasTransfer&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate())){
           nameBadges+=`<br><span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;font-weight:700;margin-top:2px">📅 يوم ${e.firstDay}-${e.lastDay}</span>`;
           if(e.isReadOnlyHere){
             nameBadges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#F1F5F9;color:#475569;border:1px solid #CBD5E1;font-weight:700;margin-right:3px">🔒 قراءة فقط</span>`;
@@ -4710,6 +4718,10 @@ function App(){
               nameBadges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;font-weight:700;margin-right:3px">🔄 منقول من ${last.from.replace('محافظة ','')}</span>`;
             }
           }
+        }
+        /* Permanent-departure badge */
+        if(e.hasDeparture){
+          nameBadges+=`<br><span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#FEE2E2;color:#B91C1C;border:1px solid #FCA5A5;font-weight:800;margin-top:2px">📤 غادر نهائياً يوم ${e.departureDay}</span>`;
         }
         /* halfMode-aware row total: include the visible half(s) + manual old days */
         const _oldDays=isSplit?0:(+e.extra||0);
@@ -4788,11 +4800,11 @@ function App(){
 
     /* totalDays should sum the EFFECTIVE d1/d2 each engineer contributes to each prov (so split engineers double-counted correctly) */
     const totalDays1=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
-      const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+      const isSplit=!!e.needsSplit;
       return a+(isSplit?e.d1Split:(+e.d1||0));
     },0),0);
     const totalDays2=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
-      const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(_Y,_M,0).getDate());
+      const isSplit=!!e.needsSplit;
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
     /* halfMode-aware grand totals (include manual oldDays) */
@@ -4954,7 +4966,8 @@ function App(){
     const DAY_AR=["أح","إث","ث","أر","خ","ج","س"];
     const provsToDo=!isProvince?PROVS:[userProv].filter(Boolean);
     provsToDo.forEach(prov=>{
-      const engs=data[prov]||[];
+      /* Hide engineers who departed before this month */
+      const engs=(data[prov]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month));
       if(!engs.length)return;
       const header=["المهندس","التخصص",...days.map(d=>d+" "+DAY_AR[new Date(cfg.year,cfg.month-1,d).getDay()]),"حضور","غياب","إجازة مرضية","إجازة (مصر)","ساعات","أيام التأخير","إجمالى التأخير"];
       const rows=[header];
@@ -5598,7 +5611,8 @@ ${provRows.length>1?`
        مش raw count من cell.s==='P' لأن ده هيشمل أيام كان فيها المهندس
        فى مصر وكان الخلية متسجلة P غلط. */
     const totalAttDays=PROVS.reduce((acc,prov)=>{
-      const engs=attM?.data?.[prov]||[];
+      /* Attendance is for prev month (py/pm) — filter engineers who departed before THAT month */
+      const engs=(attM?.data?.[prov]||[]).filter(e=>!isDepartedBeforeMonth(e,py,pm));
       return acc+engs.reduce((a,e)=>a+attGetStats(e.id,attData,py,pm).P,0);
     },0);
     // Expenses for chosen disbursement month
@@ -5704,7 +5718,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
     <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>إجمالى أيام الحضور</th><th>متوسط الأيام/مهندس</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
-        const engs=attM.data?.[p]||[];
+        const engs=(attM.data?.[p]||[]).filter(e=>!isDepartedBeforeMonth(e,py,pm));
         /* attGetStats بيطبق egypt-leave OVERRIDE تلقائياً */
         const days=engs.reduce((a,e)=>a+attGetStats(e.id,attData,py,pm).P,0);
         const avg=engs.length?(days/engs.length).toFixed(1):'0';
@@ -5948,7 +5962,9 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
       if(!provEngs.length)return '';
       const rows=provEngs.map(eng=>{
         const eAtt=_att[eng.id]||{};
+        /* isSplit indicates the engineer didn't span the full prov×month — used to render the tenure badge */
         const isSplit=eng.hasTransfer&&(eng.firstDay>1||eng.lastDay<daysInMonth);
+        const showDepartureBadge=!!eng.hasDeparture;
         let p=0,a=0,lv=0,egL=0,lateDays=0,lateMins=0;
         const cells=days.map(d=>{
           const fri=isFri(d);
@@ -6001,6 +6017,10 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
         const activeLeave=getActiveEgyptLeave(eng);
         if(activeLeave){
           badges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#FFEDD5;color:#C2410C;border:1px solid #FED7AA;font-weight:700;margin-right:4px">🇪🇬 إجازة منذ ${activeLeave.departureDate}</span>`;
+        }
+        /* Permanent-departure badge if engineer left to Egypt in this month */
+        if(showDepartureBadge){
+          badges+=`<span style="display:inline-block;font-size:8px;padding:1px 6px;border-radius:100px;background:#FEE2E2;color:#B91C1C;border:1px solid #FCA5A5;font-weight:800;margin-right:4px">📤 غادر نهائياً يوم ${eng.departureDay}</span>`;
         }
         /* Late summary cell (per-engineer): days count + total HH:MM */
         const lateCell=lateDays>0
@@ -8290,7 +8310,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 h("tbody",null,
                   engs.map((e,i)=>{
                     /* For split engineers, use the d1Split/d2Split portions to calc instead of raw d1/d2 */
-                    const isSplit=(e.hasTransfer||e.hasDeparture)&&(e.firstDay>1||e.lastDay<new Date(cfg.year,cfg.month,0).getDate());
+                    const isSplit=!!e.needsSplit;
                     const effD1=isSplit?e.d1Split:(+e.d1||0);
                     const effD2=isSplit?e.d2Split:(+e.d2||0);
                     const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},cfg.rate,cfg.egp);
@@ -9126,7 +9146,8 @@ table{border-collapse:collapse;width:100%;font-size:10px;margin-bottom:8px}
 <div><div class="hdr-t">${mCfg.company||cfg.company} — سجل الحضور والانصراف</div>
 <div class="hdr-s">${label} · تم الإنشاء: ${new Date().toLocaleDateString('ar-EG')}</div></div></div>
 ${PROVS.map(prov=>{
-  const engs=mData[prov]||[];
+  /* Hide engineers who departed strictly before this saved month */
+  const engs=(mData[prov]||[]).filter(e=>!isDepartedBeforeMonth(e,y,m));
   if(engs.length===0)return'';
   /* aggregations per province للـ header chip */
   let provP=0,provA=0,provVac=0,provEg=0,provLateDays=0,provLateMins=0,provHrs=0;
