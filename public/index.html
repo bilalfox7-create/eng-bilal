@@ -5721,16 +5721,35 @@ ${provRows.length>1?`
     ];
     // Rents this month
     const rents=monthRents||[];
-    // Leaves this month
+    // Leaves this month — combine both sources:
+    //   (a) leave requests (the leaves[] array) — used for ticket booking
+    //   (b) attendance-based egyptLeaves on each engineer record
     const inMonth=(d)=>{if(!d)return false;const dd=new Date(d+'T12:00');return dd.getFullYear()===Y&&(dd.getMonth()+1)===M;};
     const traveled=leaves.filter(l=>l.status==='approved'&&inMonth(l.travelDate));
     const returnedThis=leaves.filter(l=>l.status==='approved'&&inMonth(l.returnDate));
     const today2=new Date();today2.setHours(12,0,0,0);
-    const onLeaveNow=leaves.filter(l=>{
+    const todayStr=`${today2.getFullYear()}-${String(today2.getMonth()+1).padStart(2,'0')}-${String(today2.getDate()).padStart(2,'0')}`;
+    /* Build "on leave now" union from both data sources */
+    const _onLeaveNowReq=leaves.filter(l=>{
       if(l.status!=='approved'||!l.travelDate)return false;
       const t=new Date(l.travelDate+'T12:00'),r=l.returnDate?new Date(l.returnDate+'T12:00'):null;
       return t<=today2&&(!r||today2<=r);
     });
+    /* From attendance-based egyptLeaves: scan all engineers across all months for active leaves */
+    const _onLeaveNowAtt=new Set();
+    Object.values(months).forEach(m=>{
+      if(!m?.data)return;
+      Object.values(m.data).forEach(provEngs=>(provEngs||[]).forEach(e=>{
+        (e.egyptLeaves||[]).forEach(l=>{
+          if(l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr)){
+            _onLeaveNowAtt.add(e.id);
+          }
+        });
+      }));
+    });
+    /* Final onLeaveNow count = unique engineers in either source */
+    const _onLeaveNowReqEngIds=new Set(_onLeaveNowReq.map(l=>l.engineerId||l.id));
+    const onLeaveNow=Array.from(new Set([..._onLeaveNowReqEngIds,..._onLeaveNowAtt])).map(id=>({id}));
     const logoSrc=logo||'';
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>التقرير الشهري الشامل — ${monthLabel}</title>
@@ -5988,6 +6007,31 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     return `<table>
       <thead><tr><th>المهندس</th><th>المحافظة</th><th>تاريخ النزول</th><th>تاريخ العودة</th><th>أيام الإجازة (فى الشهر)</th></tr></thead>
       <tbody>${onLeave.map(t=>`<tr><td style="font-weight:700">${t.eng}${t.fromPrev?' <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:100px;font-weight:700">⚠️ من شهر سابق</span>':''}</td><td>${t.prov}</td><td>${t.dep}</td><td style="${!t.ret||t.ret==='لم يرجع بعد'?'color:#EA580C;font-weight:700':''}">${t.ret==='لم يرجع بعد'?'⏳ لم يرجع بعد':t.ret}</td><td style="font-weight:700;color:#EA580C">${t.days} يوم</td></tr>`).join('')}</tbody>
+    </table>`;
+  })()}
+</div>
+
+<div class="section">
+  <h2>📤 المهندسون المغادرون لمصر نهائياً — ${monthLabel}</h2>
+  ${(()=>{
+    /* Engineers whose departedAt falls in this month — they left Libya for good this month */
+    const monthStart=`${Y}-${String(M).padStart(2,'0')}-01`;
+    const dimDep=new Date(Y,M,0).getDate();
+    const monthEnd=`${Y}-${String(M).padStart(2,'0')}-${String(dimDep).padStart(2,'0')}`;
+    const departed=[];
+    const seen=new Set();
+    Object.entries(useM?.data||{}).forEach(([prov,engs])=>(engs||[]).forEach(e=>{
+      if(!e.departedAt||seen.has(e.id))return;
+      if(e.departedAt>=monthStart&&e.departedAt<=monthEnd){
+        seen.add(e.id);
+        departed.push({eng:e.name,spec:e.spec||'مهندس',prov:prov,departedAt:e.departedAt});
+      }
+    }));
+    departed.sort((a,b)=>(a.departedAt||'').localeCompare(b.departedAt||''));
+    if(departed.length===0)return '<div class="empty">لم يغادر أى مهندس نهائياً هذا الشهر</div>';
+    return `<table>
+      <thead><tr><th>المهندس</th><th>التخصص</th><th>المحافظة</th><th>آخر يوم فى ليبيا</th></tr></thead>
+      <tbody>${departed.map(t=>`<tr><td style="font-weight:700">${t.eng}</td><td style="font-size:11px;color:#6B7280">${t.spec}</td><td>${t.prov.replace('محافظة ','')}</td><td style="color:#DC2626;font-weight:700">📤 ${t.departedAt}</td></tr>`).join('')}</tbody>
     </table>`;
   })()}
 </div>
