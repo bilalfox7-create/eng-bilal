@@ -1,0 +1,998 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>الهيكل التنظيمى — شركة الرائد للاستشارات الهندسية</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#1E3A8A;
+  --primary-dark:#1E40AF;
+  --gold:#B45309;
+  --gold-light:#D97706;
+  --ink:#0F172A;
+  --sub:#475569;
+  --soft:#64748B;
+  --line:#E2E8F0;
+  --bg:#F8FAFC;
+  --paper:#FFFFFF;
+  --derna:#3B82F6;
+  --derna-soft:#DBEAFE;
+  --bayda:#8B5CF6;
+  --bayda-soft:#EDE9FE;
+  --benghazi:#F59E0B;
+  --benghazi-soft:#FEF3C7;
+  --tabrouk:#10B981;
+  --tabrouk-soft:#DCFCE7;
+}
+body{
+  font-family:'Cairo','Segoe UI',sans-serif;
+  direction:rtl;
+  color:var(--ink);
+  background:#1A202C;
+  min-height:100vh;
+  padding:32px 0;
+}
+.print-bar{
+  position:fixed;top:14px;left:14px;z-index:99;display:flex;gap:8px;
+}
+.print-bar button{
+  padding:11px 24px;font-family:inherit;font-size:13px;font-weight:800;border:none;
+  border-radius:12px;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,#6366F1,#8B5CF6);
+  box-shadow:0 8px 24px rgba(99,102,241,.4);
+  display:inline-flex;align-items:center;gap:8px;
+  transition:transform .15s;
+}
+.print-bar button:hover{transform:translateY(-2px)}
+.print-bar .hint{padding:11px 18px;background:rgba(255,255,255,.08);color:#fff;border-radius:12px;font-size:11px;font-weight:600;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12)}
+
+/* ───── PAPER ───── */
+.paper{
+  width:297mm;max-width:100%;margin:0 auto;
+  background:var(--paper);
+  box-shadow:0 24px 64px rgba(0,0,0,.4);
+}
+.page{
+  width:297mm;min-height:210mm;
+  padding:18mm;
+  position:relative;
+  page-break-after:always;
+  overflow:hidden;
+}
+.page:last-child{page-break-after:auto}
+
+/* ───── COVER PAGE ───── */
+.cover{
+  background:
+    radial-gradient(ellipse at top right,rgba(184,134,11,.10),transparent 50%),
+    radial-gradient(ellipse at bottom left,rgba(30,58,138,.12),transparent 50%),
+    linear-gradient(180deg,#FFFFFF 0%,#FAFAFA 100%);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.cover-deco-line{
+  position:absolute;left:18mm;right:18mm;height:6px;
+  background:linear-gradient(90deg,var(--primary),var(--gold-light),var(--primary));
+  border-radius:100px;
+}
+.cover-deco-top{top:18mm}
+.cover-deco-bot{bottom:18mm}
+.cover-corner{
+  position:absolute;width:180px;height:180px;border:3px solid var(--gold-light);
+  opacity:.15;
+}
+.cover-corner.tl{top:30mm;right:30mm;border-bottom:none;border-left:none}
+.cover-corner.br{bottom:30mm;left:30mm;border-top:none;border-right:none}
+
+.cover-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;padding:20mm 0}
+.cover-logo{
+  width:110px;height:110px;border-radius:50%;
+  background:linear-gradient(135deg,#FAFAF9,#FFFFFF);
+  border:3px solid var(--gold-light);
+  display:flex;align-items:center;justify-content:center;
+  font-size:54px;font-weight:900;
+  color:var(--primary);
+  box-shadow:0 16px 40px rgba(184,134,11,.25);
+  margin-bottom:24px;
+  font-family:'Playfair Display',serif;
+}
+.cover-subtitle{
+  font-size:12px;font-weight:700;color:var(--gold-light);
+  letter-spacing:10px;margin-bottom:10px;
+}
+.cover-company{
+  font-size:38px;font-weight:900;color:var(--ink);
+  margin-bottom:8px;letter-spacing:-1px;
+}
+.cover-sub{
+  font-size:14px;color:var(--soft);font-weight:600;letter-spacing:.5px;
+}
+.cover-divider{
+  width:90px;height:3px;background:linear-gradient(90deg,transparent,var(--gold-light),transparent);
+  margin:24px 0;
+}
+.cover-title{
+  font-size:54px;font-weight:900;
+  background:linear-gradient(135deg,var(--primary) 0%,var(--gold-light) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-1px;
+  font-family:'Playfair Display',serif;
+}
+.cover-title-ar{
+  font-family:'Cairo',sans-serif;
+}
+.cover-tagline{
+  margin-top:14px;font-size:13px;color:var(--soft);
+  max-width:480px;line-height:1.9;font-weight:500;
+}
+
+.cover-meta{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  padding-top:20px;border-top:1px solid var(--line);
+}
+.cover-meta-block{font-size:11px;color:var(--soft)}
+.cover-meta-block .label{font-weight:800;color:var(--gold-light);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;font-size:9px}
+.cover-meta-block .val{color:var(--ink);font-weight:700;font-size:13px}
+
+/* ───── COMMON HEADER ───── */
+.page-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-bottom:14px;margin-bottom:22px;
+  border-bottom:2px solid var(--ink);
+  position:relative;
+}
+.page-hdr::after{
+  content:"";position:absolute;bottom:-2px;right:0;width:120px;height:4px;
+  background:var(--gold-light);
+}
+.page-hdr-l{display:flex;align-items:center;gap:14px}
+.page-hdr-logo{
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--primary),var(--gold-light));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:900;font-size:22px;
+  font-family:'Playfair Display',serif;
+}
+.page-hdr-titles h1{font-size:18px;font-weight:900;color:var(--ink);letter-spacing:-.3px}
+.page-hdr-titles p{font-size:11px;color:var(--soft);font-weight:600;margin-top:2px}
+.page-hdr-r{text-align:left;font-size:10px;color:var(--soft);font-weight:600}
+.page-hdr-r .num{font-size:14px;color:var(--gold-light);font-weight:900}
+
+/* ───── DIRECTOR HERO ───── */
+.director-hero{
+  background:
+    radial-gradient(circle at top right,rgba(184,134,11,.08),transparent 50%),
+    linear-gradient(135deg,#FAFAFA 0%,#FFFFFF 100%);
+  border:2px solid var(--line);
+  border-radius:16px;
+  padding:28px 32px;
+  margin-bottom:24px;
+  display:flex;align-items:center;gap:24px;
+  position:relative;overflow:hidden;
+}
+.director-hero::before{
+  content:"";position:absolute;top:0;right:0;width:6px;height:100%;
+  background:linear-gradient(180deg,var(--primary),var(--gold-light));
+}
+.director-avatar{
+  width:96px;height:96px;border-radius:50%;
+  background:linear-gradient(135deg,var(--primary),#3730A3);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:36px;font-weight:900;flex-shrink:0;
+  box-shadow:0 12px 32px rgba(30,58,138,.35);
+  border:4px solid #FFF;outline:1px solid var(--line);
+}
+.director-info{flex:1}
+.director-label{
+  font-size:10px;color:var(--gold-light);font-weight:800;
+  letter-spacing:4px;margin-bottom:6px;
+}
+.director-name{
+  font-size:26px;font-weight:900;color:var(--ink);
+  letter-spacing:-.5px;margin-bottom:4px;
+}
+.director-title{
+  font-size:13px;color:var(--soft);font-weight:600;
+}
+.director-stats{
+  display:flex;gap:24px;
+  border-right:1px solid var(--line);
+  padding-right:24px;
+}
+.dir-stat{text-align:center}
+.dir-stat-val{
+  font-size:30px;font-weight:900;color:var(--primary);
+  font-family:'Playfair Display',serif;line-height:1;
+}
+.dir-stat-lbl{
+  font-size:10px;color:var(--soft);font-weight:700;margin-top:4px;
+  letter-spacing:.5px;
+}
+
+/* ───── STAT BAR ───── */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+  margin-bottom:24px;
+}
+.stat-card{
+  background:#FAFAFA;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:18px 18px 16px;
+  position:relative;
+  overflow:hidden;
+}
+.stat-card-line{
+  position:absolute;top:0;right:0;width:100%;height:3px;
+}
+.stat-card.blue .stat-card-line{background:linear-gradient(90deg,#3B82F6,#60A5FA)}
+.stat-card.purple .stat-card-line{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.stat-card.amber .stat-card-line{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.stat-card.green .stat-card-line{background:linear-gradient(90deg,#10B981,#34D399)}
+.stat-card-icon{font-size:28px;margin-bottom:8px}
+.stat-card-val{
+  font-size:32px;font-weight:900;color:var(--ink);
+  font-family:'Playfair Display',serif;line-height:1;
+  margin-bottom:4px;
+}
+.stat-card-lbl{
+  font-size:11px;color:var(--soft);font-weight:700;letter-spacing:.3px;
+}
+
+/* ───── CITY OVERVIEW GRID ───── */
+.cities-section-title{
+  display:flex;align-items:center;gap:10px;
+  font-size:14px;font-weight:900;color:var(--ink);
+  margin-bottom:14px;letter-spacing:.3px;
+}
+.cities-section-title::before{
+  content:"";width:5px;height:20px;background:var(--gold-light);border-radius:3px;
+}
+.cities-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+}
+.city-overview{
+  background:#FFFFFF;
+  border:1.5px solid var(--line);
+  border-radius:14px;
+  padding:18px 20px;
+  position:relative;
+  overflow:hidden;
+}
+.city-overview::before{
+  content:"";position:absolute;top:0;right:0;width:100%;height:5px;
+}
+.city-overview.derna::before{background:linear-gradient(90deg,#3B82F6,#60A5FA)}
+.city-overview.bayda::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA)}
+.city-overview.benghazi::before{background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.city-overview.tabrouk::before{background:linear-gradient(90deg,#10B981,#34D399)}
+.city-overview-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.city-overview-name{font-size:17px;font-weight:900;color:var(--ink);display:flex;align-items:center;gap:8px}
+.city-dot{width:10px;height:10px;border-radius:50%}
+.city-overview.derna .city-dot{background:#3B82F6}
+.city-overview.bayda .city-dot{background:#8B5CF6}
+.city-overview.benghazi .city-dot{background:#F59E0B}
+.city-overview.tabrouk .city-dot{background:#10B981}
+.city-overview-pill{
+  font-size:10px;font-weight:800;padding:3px 10px;border-radius:100px;
+}
+.city-overview.derna .city-overview-pill{background:var(--derna-soft);color:#1E40AF}
+.city-overview.bayda .city-overview-pill{background:var(--bayda-soft);color:#5B21B6}
+.city-overview.benghazi .city-overview-pill{background:var(--benghazi-soft);color:#92400E}
+.city-overview.tabrouk .city-overview-pill{background:var(--tabrouk-soft);color:#166534}
+.city-mgr{
+  background:#FAFAFA;border-radius:10px;padding:10px 12px;
+  margin-bottom:12px;border:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;
+}
+.city-mgr-avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:13px;flex-shrink:0;
+}
+.city-overview.derna .city-mgr-avatar{background:var(--derna-soft);color:#1E40AF}
+.city-overview.bayda .city-mgr-avatar{background:var(--bayda-soft);color:#5B21B6}
+.city-overview.benghazi .city-mgr-avatar{background:var(--benghazi-soft);color:#92400E}
+.city-overview.tabrouk .city-mgr-avatar{background:var(--tabrouk-soft);color:#166534}
+.city-mgr-info{flex:1;min-width:0}
+.city-mgr-label{font-size:9px;color:var(--soft);font-weight:700;letter-spacing:.5px}
+.city-mgr-name{font-size:13px;font-weight:800;color:var(--ink);margin-top:1px}
+.city-mgr-role{font-size:10px;color:var(--soft);font-weight:600;margin-top:1px}
+.city-overview-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.city-mini-stat{text-align:center;padding:8px 4px;background:#FAFAFA;border-radius:8px;border:1px solid var(--line)}
+.city-mini-stat-val{font-size:18px;font-weight:900;color:var(--ink);font-family:'Playfair Display',serif;line-height:1}
+.city-mini-stat-lbl{font-size:9px;color:var(--soft);font-weight:700;margin-top:3px}
+
+/* ───── CITY DETAIL PAGE ───── */
+.city-detail{
+  background:#FFFFFF;
+  border:2px solid var(--line);
+  border-radius:18px;
+  padding:24px;
+  margin-bottom:18px;
+  position:relative;overflow:hidden;
+  break-inside:avoid;
+}
+.city-detail::before{
+  content:"";position:absolute;top:0;right:0;width:100%;height:8px;
+}
+.city-detail.derna::before{background:linear-gradient(90deg,#3B82F6,#60A5FA,#3B82F6)}
+.city-detail.bayda::before{background:linear-gradient(90deg,#8B5CF6,#A78BFA,#8B5CF6)}
+.city-detail.benghazi::before{background:linear-gradient(90deg,#F59E0B,#FCD34D,#F59E0B)}
+.city-detail.tabrouk::before{background:linear-gradient(90deg,#10B981,#34D399,#10B981)}
+.city-detail-hdr{
+  display:flex;align-items:center;gap:18px;
+  margin-bottom:18px;padding-bottom:14px;
+  border-bottom:1px solid var(--line);
+}
+.city-detail-icon{
+  width:64px;height:64px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;flex-shrink:0;
+}
+.city-detail.derna .city-detail-icon{background:var(--derna-soft)}
+.city-detail.bayda .city-detail-icon{background:var(--bayda-soft)}
+.city-detail.benghazi .city-detail-icon{background:var(--benghazi-soft)}
+.city-detail.tabrouk .city-detail-icon{background:var(--tabrouk-soft)}
+.city-detail-info{flex:1}
+.city-detail-name{font-size:22px;font-weight:900;color:var(--ink);margin-bottom:3px}
+.city-detail-sub{font-size:12px;color:var(--soft);font-weight:600}
+.city-detail-stats{display:flex;gap:14px;font-size:11px}
+.city-detail-stat{text-align:center;padding:8px 14px;background:#FAFAFA;border-radius:10px;border:1px solid var(--line)}
+.city-detail-stat .v{font-size:18px;font-weight:900;color:var(--ink);font-family:'Playfair Display',serif;line-height:1}
+.city-detail-stat .l{font-size:9px;color:var(--soft);font-weight:700;margin-top:3px}
+
+.team-section-title{
+  font-size:11px;font-weight:800;color:var(--soft);letter-spacing:1.5px;
+  margin:14px 0 10px;
+  display:flex;align-items:center;gap:8px;
+}
+.team-section-title::after{
+  content:"";flex:1;height:1px;background:var(--line);
+}
+
+.mgr-card{
+  background:linear-gradient(135deg,#FAFAFA,#FFFFFF);
+  border:2px solid;border-radius:14px;
+  padding:14px 18px;
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:12px;
+}
+.city-detail.derna .mgr-card{border-color:#3B82F6}
+.city-detail.bayda .mgr-card{border-color:#8B5CF6}
+.city-detail.benghazi .mgr-card{border-color:#F59E0B}
+.city-detail.tabrouk .mgr-card{border-color:#10B981}
+.mgr-card .mgr-avatar{
+  width:50px;height:50px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:900;flex-shrink:0;
+  border:3px solid #FFF;
+}
+.city-detail.derna .mgr-card .mgr-avatar{background:#3B82F6;color:#fff}
+.city-detail.bayda .mgr-card .mgr-avatar{background:#8B5CF6;color:#fff}
+.city-detail.benghazi .mgr-card .mgr-avatar{background:#F59E0B;color:#fff}
+.city-detail.tabrouk .mgr-card .mgr-avatar{background:#10B981;color:#fff}
+.mgr-card-info{flex:1}
+.mgr-card-label{font-size:9px;color:var(--gold-light);font-weight:800;letter-spacing:2px}
+.mgr-card-name{font-size:16px;font-weight:900;color:var(--ink);margin-top:2px}
+.mgr-card-role{font-size:11px;color:var(--soft);font-weight:600;margin-top:1px}
+.mgr-card-badge{
+  font-size:10px;font-weight:800;padding:4px 12px;border-radius:100px;
+}
+.city-detail.derna .mgr-card-badge{background:var(--derna-soft);color:#1E40AF}
+.city-detail.bayda .mgr-card-badge{background:var(--bayda-soft);color:#5B21B6}
+.city-detail.benghazi .mgr-card-badge{background:var(--benghazi-soft);color:#92400E}
+.city-detail.tabrouk .mgr-card-badge{background:var(--tabrouk-soft);color:#166534}
+
+.team-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.team-card{
+  background:#FAFAFA;border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;
+  display:flex;align-items:center;gap:10px;
+  break-inside:avoid;
+}
+.team-card-avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:900;flex-shrink:0;
+}
+.city-detail.derna .team-card-avatar{background:var(--derna-soft);color:#1E40AF}
+.city-detail.bayda .team-card-avatar{background:var(--bayda-soft);color:#5B21B6}
+.city-detail.benghazi .team-card-avatar{background:var(--benghazi-soft);color:#92400E}
+.city-detail.tabrouk .team-card-avatar{background:var(--tabrouk-soft);color:#166534}
+.team-card-info{flex:1;min-width:0}
+.team-card-name{font-size:11.5px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-card-role{font-size:9.5px;color:var(--soft);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.projects-list{
+  background:#FAFAFA;border:1px solid var(--line);
+  border-radius:10px;padding:14px 18px;
+  margin-top:14px;
+}
+.projects-list-title{
+  font-size:11px;font-weight:800;color:var(--soft);letter-spacing:1.5px;
+  margin-bottom:10px;display:flex;align-items:center;gap:8px;
+}
+.projects-list-title .count{
+  background:#FFFFFF;padding:2px 9px;border-radius:100px;
+  border:1px solid var(--line);font-size:10px;color:var(--ink);font-weight:900;
+}
+.projects-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.project-item{
+  display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink);
+  background:#FFFFFF;padding:8px 12px;border-radius:8px;border:1px solid var(--line);
+  font-weight:600;
+}
+.project-item .num{
+  width:22px;height:22px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:900;flex-shrink:0;color:#FFFFFF;
+}
+.city-detail.derna .project-item .num{background:#3B82F6}
+.city-detail.bayda .project-item .num{background:#8B5CF6}
+.city-detail.benghazi .project-item .num{background:#F59E0B}
+.city-detail.tabrouk .project-item .num{background:#10B981}
+
+/* ───── SIGNATURES PAGE ───── */
+.sig-page{display:flex;flex-direction:column}
+.sig-block{
+  background:linear-gradient(135deg,#FAFAFA,#FFFFFF);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:24px 28px;
+  margin-bottom:16px;
+}
+.sig-block h3{font-size:14px;font-weight:900;color:var(--ink);margin-bottom:8px}
+.sig-block p{font-size:12px;color:var(--soft);line-height:1.9;font-weight:500}
+.sig-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;
+  margin-top:auto;padding-top:24px;
+}
+.sig-box{text-align:center}
+.sig-box-name{font-size:11px;color:var(--soft);font-weight:800;letter-spacing:.5px;margin-bottom:54px}
+.sig-line{height:1.5px;background:var(--ink);margin-bottom:6px}
+.sig-role{font-size:10px;color:var(--soft);font-weight:600}
+
+.footer-strip{
+  margin-top:24px;padding-top:14px;
+  border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;color:var(--soft);font-weight:600;
+}
+.footer-strip .brand{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-weight:800;letter-spacing:.5px;
+}
+
+/* ───── PRINT ───── */
+@page{size:A4 landscape;margin:0}
+@media print{
+  body{background:#FFFFFF;padding:0}
+  .paper{box-shadow:none}
+  .print-bar{display:none}
+  .page{break-after:page}
+  .city-detail{break-inside:avoid}
+  .team-card{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <span class="hint">A4 أفقي · 4 صفحات · جاهز للإرسال للمدير</span>
+</div>
+
+<div class="paper">
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1: COVER -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-deco-line cover-deco-top"></div>
+  <div class="cover-corner tl"></div>
+  <div class="cover-corner br"></div>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-top:24mm">
+    <div style="font-size:11px;font-weight:800;color:#475569;letter-spacing:3px">CORPORATE PROFILE</div>
+    <div style="font-size:11px;font-weight:800;color:#B45309;letter-spacing:3px">2026</div>
+  </div>
+
+  <div class="cover-mid">
+    <div class="cover-logo">ر</div>
+    <div class="cover-subtitle">EL · RAED · ENGINEERING</div>
+    <div class="cover-company">شركة الرائد للاستشارات الهندسية</div>
+    <div class="cover-sub">El-Raed Engineering Consultancy</div>
+    <div class="cover-divider"></div>
+    <div class="cover-title">الهيكل التنظيمى</div>
+    <div class="cover-tagline">
+      هيكل إدارة مشروعات ليبيا — مايو ٢٠٢٦<br>
+      تقرير تفصيلى للمسؤولين والفِرَق والمشاريع عبر ٤ محافظات
+    </div>
+  </div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-block">
+      <div class="label">صادر بتاريخ</div>
+      <div class="val">٢٤ مايو ٢٠٢٦</div>
+    </div>
+    <div class="cover-meta-block" style="text-align:center">
+      <div class="label">عدد المهندسين</div>
+      <div class="val" style="color:#1E3A8A;font-size:22px">٣٧ مهندس</div>
+    </div>
+    <div class="cover-meta-block" style="text-align:left">
+      <div class="label">عدد المحافظات</div>
+      <div class="val">٤ محافظات</div>
+    </div>
+  </div>
+
+  <div class="cover-deco-line cover-deco-bot"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2: DIRECTOR + STATS + CITY OVERVIEW -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-hdr">
+    <div class="page-hdr-l">
+      <div class="page-hdr-logo">ر</div>
+      <div class="page-hdr-titles">
+        <h1>الهيكل التنظيمى — نظرة عامة</h1>
+        <p>شركة الرائد للاستشارات الهندسية · مشروعات ليبيا</p>
+      </div>
+    </div>
+    <div class="page-hdr-r">
+      <div>صفحة <span class="num">١</span> من ٤</div>
+      <div style="margin-top:2px">مايو ٢٠٢٦</div>
+    </div>
+  </div>
+
+  <!-- DIRECTOR -->
+  <div class="director-hero">
+    <div class="director-avatar">ض</div>
+    <div class="director-info">
+      <div class="director-label">المدير العام</div>
+      <div class="director-name">ضياء الدين محمود</div>
+      <div class="director-title">مدير مشروعات ليبيا · شركة الرائد للاستشارات الهندسية</div>
+    </div>
+    <div class="director-stats">
+      <div class="dir-stat">
+        <div class="dir-stat-val">٣٧</div>
+        <div class="dir-stat-lbl">مهندس</div>
+      </div>
+      <div class="dir-stat">
+        <div class="dir-stat-val">٤</div>
+        <div class="dir-stat-lbl">محافظات</div>
+      </div>
+      <div class="dir-stat">
+        <div class="dir-stat-val">٢٩</div>
+        <div class="dir-stat-lbl">مشروع</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAT BAR -->
+  <div class="stats-bar">
+    <div class="stat-card blue">
+      <div class="stat-card-line"></div>
+      <div class="stat-card-icon">👥</div>
+      <div class="stat-card-val">٣٧</div>
+      <div class="stat-card-lbl">إجمالى المهندسين</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-card-line"></div>
+      <div class="stat-card-icon">🏛️</div>
+      <div class="stat-card-val">٤</div>
+      <div class="stat-card-lbl">المحافظات النشطة</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-card-line"></div>
+      <div class="stat-card-icon">📋</div>
+      <div class="stat-card-val">٢٩</div>
+      <div class="stat-card-lbl">المشاريع الجارية</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-card-line"></div>
+      <div class="stat-card-icon">📊</div>
+      <div class="stat-card-val">٩٢٪</div>
+      <div class="stat-card-lbl">متوسط الحضور</div>
+    </div>
+  </div>
+
+  <!-- CITIES GRID OVERVIEW -->
+  <div class="cities-section-title">المحافظات والمسؤولون</div>
+
+  <div class="cities-grid">
+    <!-- DERNA -->
+    <div class="city-overview derna">
+      <div class="city-overview-top">
+        <div class="city-overview-name"><span class="city-dot"></span> محافظة درنة</div>
+        <span class="city-overview-pill">١٠ مهندس</span>
+      </div>
+      <div class="city-mgr">
+        <div class="city-mgr-avatar">بل</div>
+        <div class="city-mgr-info">
+          <div class="city-mgr-label">المسؤول</div>
+          <div class="city-mgr-name">بلال أشرف على</div>
+          <div class="city-mgr-role">مدير مشروع · منسق ورقيات</div>
+        </div>
+      </div>
+      <div class="city-overview-stats">
+        <div class="city-mini-stat"><div class="city-mini-stat-val">١٠</div><div class="city-mini-stat-lbl">مهندس</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٦</div><div class="city-mini-stat-lbl">مشروع</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٩٥٪</div><div class="city-mini-stat-lbl">حضور</div></div>
+      </div>
+    </div>
+
+    <!-- BAYDA -->
+    <div class="city-overview bayda">
+      <div class="city-overview-top">
+        <div class="city-overview-name"><span class="city-dot"></span> محافظة البيضاء</div>
+        <span class="city-overview-pill">١٨ مهندس</span>
+      </div>
+      <div class="city-mgr">
+        <div class="city-mgr-avatar">مف</div>
+        <div class="city-mgr-info">
+          <div class="city-mgr-label">المسؤول</div>
+          <div class="city-mgr-name">محمد فؤاد محمد محمود</div>
+          <div class="city-mgr-role">مدير مشروع</div>
+        </div>
+      </div>
+      <div class="city-overview-stats">
+        <div class="city-mini-stat"><div class="city-mini-stat-val">١٨</div><div class="city-mini-stat-lbl">مهندس</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">١٦</div><div class="city-mini-stat-lbl">مشروع</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٩٢٪</div><div class="city-mini-stat-lbl">حضور</div></div>
+      </div>
+    </div>
+
+    <!-- BENGHAZI -->
+    <div class="city-overview benghazi">
+      <div class="city-overview-top">
+        <div class="city-overview-name"><span class="city-dot"></span> محافظة بنغازى</div>
+        <span class="city-overview-pill">٧ مهندس</span>
+      </div>
+      <div class="city-mgr">
+        <div class="city-mgr-avatar">كإ</div>
+        <div class="city-mgr-info">
+          <div class="city-mgr-label">المسؤول</div>
+          <div class="city-mgr-name">كريم إبراهيم مرجان</div>
+          <div class="city-mgr-role">فنى مساحة</div>
+        </div>
+      </div>
+      <div class="city-overview-stats">
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٧</div><div class="city-mini-stat-lbl">مهندس</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٤</div><div class="city-mini-stat-lbl">مشروع</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٨٨٪</div><div class="city-mini-stat-lbl">حضور</div></div>
+      </div>
+    </div>
+
+    <!-- TABROUK -->
+    <div class="city-overview tabrouk">
+      <div class="city-overview-top">
+        <div class="city-overview-name"><span class="city-dot"></span> محافظة طبرق</div>
+        <span class="city-overview-pill">٣ مهندس</span>
+      </div>
+      <div class="city-mgr">
+        <div class="city-mgr-avatar">كك</div>
+        <div class="city-mgr-info">
+          <div class="city-mgr-label">المسؤول</div>
+          <div class="city-mgr-name">كريم كمال</div>
+          <div class="city-mgr-role">مدير مشروع</div>
+        </div>
+      </div>
+      <div class="city-overview-stats">
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٣</div><div class="city-mini-stat-lbl">مهندس</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٣</div><div class="city-mini-stat-lbl">مشروع</div></div>
+        <div class="city-mini-stat"><div class="city-mini-stat-val">٩٦٪</div><div class="city-mini-stat-lbl">حضور</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span>تم إنشاء هذا التقرير من نظام إدارة مشروعات ليبيا — شركة الرائد للاستشارات الهندسية</span>
+    <span class="brand">© Bilal A.Ali 2026</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3: DETAILED TEAMS (Derna + Bayda) -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-hdr">
+    <div class="page-hdr-l">
+      <div class="page-hdr-logo">ر</div>
+      <div class="page-hdr-titles">
+        <h1>الفِرَق والمشاريع — درنة والبيضاء</h1>
+        <p>تفاصيل المهندسين والمشاريع لكل محافظة</p>
+      </div>
+    </div>
+    <div class="page-hdr-r">
+      <div>صفحة <span class="num">٢</span> من ٤</div>
+      <div style="margin-top:2px">مايو ٢٠٢٦</div>
+    </div>
+  </div>
+
+  <!-- DERNA DETAIL -->
+  <div class="city-detail derna">
+    <div class="city-detail-hdr">
+      <div class="city-detail-icon">🏛️</div>
+      <div class="city-detail-info">
+        <div class="city-detail-name">محافظة درنة</div>
+        <div class="city-detail-sub">١٠ مهندس · ٦ مشاريع · فرع شرق ليبيا</div>
+      </div>
+      <div class="city-detail-stats">
+        <div class="city-detail-stat"><div class="v">١٠</div><div class="l">مهندس</div></div>
+        <div class="city-detail-stat"><div class="v">٦</div><div class="l">مشاريع</div></div>
+        <div class="city-detail-stat"><div class="v">٩٥٪</div><div class="l">حضور</div></div>
+      </div>
+    </div>
+
+    <div class="team-section-title">المسؤول</div>
+    <div class="mgr-card">
+      <div class="mgr-avatar">بل</div>
+      <div class="mgr-card-info">
+        <div class="mgr-card-label">PROJECT MANAGER</div>
+        <div class="mgr-card-name">بلال أشرف على</div>
+        <div class="mgr-card-role">مدير مشروع · منسق ورقيات</div>
+      </div>
+      <span class="mgr-card-badge">حاضر ✓</span>
+    </div>
+
+    <div class="team-section-title">الفريق الهندسى (٩ مهندس)</div>
+    <div class="team-grid">
+      <div class="team-card"><div class="team-card-avatar">مس</div><div class="team-card-info"><div class="team-card-name">محمد سلامة غريب</div><div class="team-card-role">أخصائى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">عأ</div><div class="team-card-info"><div class="team-card-name">عبد العظيم أحمد</div><div class="team-card-role">مهندس مكتب فنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مش</div><div class="team-card-info"><div class="team-card-name">محمد شحاتة محمد</div><div class="team-card-role">أخصائى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مص</div><div class="team-card-info"><div class="team-card-name">محمد صلاح محمد السيد</div><div class="team-card-role">مهندس مدنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">من</div><div class="team-card-info"><div class="team-card-name">محمد نابغ محمود</div><div class="team-card-role">مهندس معمارى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">بأ</div><div class="team-card-info"><div class="team-card-name">بهاء أحمد محمود</div><div class="team-card-role">مدير مشروع طرق</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مح</div><div class="team-card-info"><div class="team-card-name">محمد حمدى إبراهيم</div><div class="team-card-role">مهندس ضبط جودة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أش</div><div class="team-card-info"><div class="team-card-name">أحمد الشوربجى</div><div class="team-card-role">مهندس طرق</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أت</div><div class="team-card-info"><div class="team-card-name">أحمد عبده أحمد تمام</div><div class="team-card-role">مهندس طرق</div></div></div>
+    </div>
+
+    <div class="projects-list">
+      <div class="projects-list-title">المشاريع <span class="count">٦</span></div>
+      <div class="projects-grid">
+        <div class="project-item"><span class="num">١</span> وادى درنة والطرق الموازية</div>
+        <div class="project-item"><span class="num">٢</span> الطريق الساحلى والكورنيش</div>
+        <div class="project-item"><span class="num">٣</span> شبكات الصرف الصحى ومحطة المعالجة</div>
+        <div class="project-item"><span class="num">٤</span> جدران الدعم بوادى درنة</div>
+        <div class="project-item"><span class="num">٥</span> حواجز الطريق الساحلى</div>
+        <div class="project-item"><span class="num">٦</span> كابلات الجهد المتوسط</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span>تم إنشاء هذا التقرير من نظام إدارة مشروعات ليبيا</span>
+    <span class="brand">© Bilal A.Ali 2026</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4: BAYDA DETAIL -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-hdr">
+    <div class="page-hdr-l">
+      <div class="page-hdr-logo">ر</div>
+      <div class="page-hdr-titles">
+        <h1>الفِرَق والمشاريع — محافظة البيضاء</h1>
+        <p>أكبر مكتب فى الشركة · ١٨ مهندس · ١٦ مشروع</p>
+      </div>
+    </div>
+    <div class="page-hdr-r">
+      <div>صفحة <span class="num">٣</span> من ٤</div>
+      <div style="margin-top:2px">مايو ٢٠٢٦</div>
+    </div>
+  </div>
+
+  <div class="city-detail bayda">
+    <div class="city-detail-hdr">
+      <div class="city-detail-icon">🏛️</div>
+      <div class="city-detail-info">
+        <div class="city-detail-name">محافظة البيضاء</div>
+        <div class="city-detail-sub">١٨ مهندس · ١٦ مشروع · المكتب الرئيسى للجبل الأخضر</div>
+      </div>
+      <div class="city-detail-stats">
+        <div class="city-detail-stat"><div class="v">١٨</div><div class="l">مهندس</div></div>
+        <div class="city-detail-stat"><div class="v">١٦</div><div class="l">مشاريع</div></div>
+        <div class="city-detail-stat"><div class="v">٩٢٪</div><div class="l">حضور</div></div>
+      </div>
+    </div>
+
+    <div class="team-section-title">المسؤول</div>
+    <div class="mgr-card">
+      <div class="mgr-avatar">مف</div>
+      <div class="mgr-card-info">
+        <div class="mgr-card-label">PROJECT MANAGER</div>
+        <div class="mgr-card-name">محمد فؤاد محمد محمود</div>
+        <div class="mgr-card-role">مدير مشروع</div>
+      </div>
+      <span class="mgr-card-badge">حاضر ✓</span>
+    </div>
+
+    <div class="team-section-title">الفريق الهندسى (١٧ مهندس)</div>
+    <div class="team-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="team-card"><div class="team-card-avatar">كإ</div><div class="team-card-info"><div class="team-card-name">كريم إبراهيم</div><div class="team-card-role">مدنى طرق</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">فص</div><div class="team-card-info"><div class="team-card-name">فاضل صلاح الفيشاوى</div><div class="team-card-role">مكتب فنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أج</div><div class="team-card-info"><div class="team-card-name">أحمد يوسف جعفر</div><div class="team-card-role">مهندس مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">عح</div><div class="team-card-info"><div class="team-card-name">عمرو حسن عبدالصادق</div><div class="team-card-role">فنى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أع</div><div class="team-card-info"><div class="team-card-name">أحمد محمد عبود</div><div class="team-card-role">أخصائى ضبط جودة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">حع</div><div class="team-card-info"><div class="team-card-name">حسن العسيوى</div><div class="team-card-role">مهندس مدنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">إع</div><div class="team-card-info"><div class="team-card-name">إبراهيم سعد عباس</div><div class="team-card-role">مهندس مدنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مج</div><div class="team-card-info"><div class="team-card-name">محمد حمدى الجندى</div><div class="team-card-role">مهندس كهرباء</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">هأ</div><div class="team-card-info"><div class="team-card-name">هشام أحمد أمين</div><div class="team-card-role">فنى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مف</div><div class="team-card-info"><div class="team-card-name">محمد على فرج</div><div class="team-card-role">منسق ورقيات</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">إز</div><div class="team-card-info"><div class="team-card-name">إبراهيم زيد</div><div class="team-card-role">مهندس مدنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أص</div><div class="team-card-info"><div class="team-card-name">أحمد صابر</div><div class="team-card-role">مهندس مدنى</div></div></div>
+    </div>
+
+    <div class="projects-list">
+      <div class="projects-list-title">المشاريع <span class="count">١٦</span></div>
+      <div class="projects-grid">
+        <div class="project-item"><span class="num">١</span> محطة معالجة الصرف الصحى بالبيضاء</div>
+        <div class="project-item"><span class="num">٢</span> طرق سطحية - ٨ كم</div>
+        <div class="project-item"><span class="num">٣</span> طريق البيضاء ماسة - ٧.٢ كم</div>
+        <div class="project-item"><span class="num">٤</span> طريق عمر المختار - ٧٥٠ م</div>
+        <div class="project-item"><span class="num">٥</span> حوض الغريقة - ١.٥ كم</div>
+        <div class="project-item"><span class="num">٦</span> طريق رأس هلال - ١٦ كم</div>
+        <div class="project-item"><span class="num">٧</span> الطوق الجنوبى - ٨ كم</div>
+        <div class="project-item"><span class="num">٨</span> طريق الغريقة - ٤ كم</div>
+        <div class="project-item"><span class="num">٩</span> طريق المخيلى - ١.٨ كم</div>
+        <div class="project-item"><span class="num">١٠</span> طريق الوردية</div>
+        <div class="project-item"><span class="num">١١</span> طريق وادى الكوف - ٩ كم</div>
+        <div class="project-item"><span class="num">١٢</span> استكمال الطوق الجنوبى - ٢.٤ كم</div>
+        <div class="project-item"><span class="num">١٣</span> طريق الغريقة عمر المختار - ١٦ كم</div>
+        <div class="project-item"><span class="num">١٤</span> الطوق الشمالى</div>
+        <div class="project-item"><span class="num">١٥</span> كوبرى الخور</div>
+        <div class="project-item"><span class="num">١٦</span> نفق تقاطع الطوق الشمالى/البيضاء</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span>تم إنشاء هذا التقرير من نظام إدارة مشروعات ليبيا</span>
+    <span class="brand">© Bilal A.Ali 2026</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 5: BENGHAZI + TABROUK + SIGNATURES -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page sig-page">
+  <div class="page-hdr">
+    <div class="page-hdr-l">
+      <div class="page-hdr-logo">ر</div>
+      <div class="page-hdr-titles">
+        <h1>الفِرَق والمشاريع — بنغازى وطبرق</h1>
+        <p>المكاتب الفرعية والتواقيع الرسمية</p>
+      </div>
+    </div>
+    <div class="page-hdr-r">
+      <div>صفحة <span class="num">٤</span> من ٤</div>
+      <div style="margin-top:2px">مايو ٢٠٢٦</div>
+    </div>
+  </div>
+
+  <!-- BENGHAZI -->
+  <div class="city-detail benghazi">
+    <div class="city-detail-hdr">
+      <div class="city-detail-icon">🏛️</div>
+      <div class="city-detail-info">
+        <div class="city-detail-name">محافظة بنغازى</div>
+        <div class="city-detail-sub">٧ مهندس · ٤ مشاريع · المكتب الفرعى</div>
+      </div>
+      <div class="city-detail-stats">
+        <div class="city-detail-stat"><div class="v">٧</div><div class="l">مهندس</div></div>
+        <div class="city-detail-stat"><div class="v">٤</div><div class="l">مشاريع</div></div>
+        <div class="city-detail-stat"><div class="v">٨٨٪</div><div class="l">حضور</div></div>
+      </div>
+    </div>
+
+    <div class="mgr-card">
+      <div class="mgr-avatar">كإ</div>
+      <div class="mgr-card-info">
+        <div class="mgr-card-label">SITE COORDINATOR</div>
+        <div class="mgr-card-name">كريم إبراهيم مرجان</div>
+        <div class="mgr-card-role">فنى مساحة</div>
+      </div>
+      <span class="mgr-card-badge">حاضر ✓</span>
+    </div>
+
+    <div class="team-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="team-card"><div class="team-card-avatar">خأ</div><div class="team-card-info"><div class="team-card-name">خالد أحمد أبوالمعاطى</div><div class="team-card-role">فنى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">أق</div><div class="team-card-info"><div class="team-card-name">أمين قرنى</div><div class="team-card-role">منسق مستندات</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">إم</div><div class="team-card-info"><div class="team-card-name">إبراهيم محمد ماضى</div><div class="team-card-role">مهندس مكتب فنى</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">شق</div><div class="team-card-info"><div class="team-card-name">شريف محمد قدرى</div><div class="team-card-role">ضبط جودة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">من</div><div class="team-card-info"><div class="team-card-name">محسن ماهر نصر</div><div class="team-card-role">ضبط جودة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مي</div><div class="team-card-info"><div class="team-card-name">محمد يوسف</div><div class="team-card-role">مهندس كهرباء</div></div></div>
+    </div>
+
+    <div class="projects-list">
+      <div class="projects-list-title">المشاريع <span class="count">٤</span></div>
+      <div class="projects-grid">
+        <div class="project-item"><span class="num">١</span> توسعة طريق البكور - ٤.٦ كم</div>
+        <div class="project-item"><span class="num">٢</span> توسعة طريق المرج - ١٦ كم</div>
+        <div class="project-item"><span class="num">٣</span> طرق سطحية بكوبرى جزيرة الطيارة</div>
+        <div class="project-item"><span class="num">٤</span> طرق سطحية بكوبرى مصنع الإسمنت</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABROUK -->
+  <div class="city-detail tabrouk">
+    <div class="city-detail-hdr">
+      <div class="city-detail-icon">🏛️</div>
+      <div class="city-detail-info">
+        <div class="city-detail-name">محافظة طبرق</div>
+        <div class="city-detail-sub">٣ مهندس · ٣ مشاريع · مكتب أقصى الشرق</div>
+      </div>
+      <div class="city-detail-stats">
+        <div class="city-detail-stat"><div class="v">٣</div><div class="l">مهندس</div></div>
+        <div class="city-detail-stat"><div class="v">٣</div><div class="l">مشاريع</div></div>
+        <div class="city-detail-stat"><div class="v">٩٦٪</div><div class="l">حضور</div></div>
+      </div>
+    </div>
+
+    <div class="mgr-card">
+      <div class="mgr-avatar">كك</div>
+      <div class="mgr-card-info">
+        <div class="mgr-card-label">PROJECT MANAGER</div>
+        <div class="mgr-card-name">كريم كمال</div>
+        <div class="mgr-card-role">مدير مشروع</div>
+      </div>
+      <span class="mgr-card-badge">حاضر ✓</span>
+    </div>
+
+    <div class="team-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="team-card"><div class="team-card-avatar">مص</div><div class="team-card-info"><div class="team-card-name">محمد صلاح محمد سيد</div><div class="team-card-role">أخصائى مساحة</div></div></div>
+      <div class="team-card"><div class="team-card-avatar">مد</div><div class="team-card-info"><div class="team-card-name">مصطفى إبراهيم الدسوقى</div><div class="team-card-role">مهندس ضبط جودة</div></div></div>
+    </div>
+
+    <div class="projects-list">
+      <div class="projects-list-title">المشاريع <span class="count">٣</span></div>
+      <div class="projects-grid">
+        <div class="project-item"><span class="num">١</span> جزيرة مسيد (كوبرى + طرق + مرافق صحية)</div>
+        <div class="project-item"><span class="num">٢</span> المركز الطبى (كوبرى + طرق + مرافق صحية)</div>
+        <div class="project-item"><span class="num">٣</span> صيانة وتطوير محطة معالجة طبرق</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNATURES -->
+  <div class="sig-row">
+    <div class="sig-box">
+      <div class="sig-box-name">المُعِد</div>
+      <div class="sig-line"></div>
+      <div class="sig-role">إدارة المشروعات</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-box-name">المُراجع</div>
+      <div class="sig-line"></div>
+      <div class="sig-role">إدارة الجودة</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-box-name">المُعتمِد</div>
+      <div class="sig-line"></div>
+      <div class="sig-role">المدير العام</div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span>تم إنشاء هذا التقرير تلقائياً من نظام إدارة مشروعات ليبيا — شركة الرائد للاستشارات الهندسية</span>
+    <span class="brand">© Bilal A.Ali 2026</span>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
