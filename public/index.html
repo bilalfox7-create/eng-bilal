@@ -6472,17 +6472,20 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         ${cityBoxes}
       </svg>`;
     };
-    /* Build city detail page for one city */
-    const cityPage=(c,idx,pageNum)=>{
+    /* Build city detail page for one city — stacked layout (team on top, projects below) */
+    const cityPage=(c,idx,pageNum,totalPagesArg)=>{
       const m=c.meta;
-      const teamGridCols=c.team.length>9?4:3;
-      const projCols=c.projects.length>10?2:1;
+      /* Adaptive grid cols based on counts so cards stay readable */
+      const teamCount=c.team.length;
+      const teamCols=teamCount<=6?3:(teamCount<=12?4:(teamCount<=18?6:8));
+      const projCount=c.projects.length;
+      const projCols=projCount<=4?1:(projCount<=10?2:3);
       const teamHtml=c.team.map((e,i)=>`<div class="team-card-lux"><span class="team-card-lux-num">${String(i+1).padStart(2,'0')}</span><div class="team-card-lux-avatar">${initial(e.name)}</div><div class="team-card-lux-info"><div class="team-card-lux-name">${e.name}</div><div class="team-card-lux-role">${e.spec||'مهندس'}</div></div></div>`).join('');
-      const projHtml=c.projects.map((p,i)=>`<div class="proj-item-lux ${c.id}"><span class="proj-item-num">${String(i+1).padStart(2,'0')}</span> ${p}</div>`).join('');
-      return `<div class="page">
+      const projHtml=c.projects.map((p,i)=>`<div class="proj-item-lux ${c.id}"><span class="proj-item-num">${String(i+1).padStart(2,'0')}</span><span class="proj-item-name">${p}</span></div>`).join('');
+      return `<div class="page city-page">
         <div class="page-hdr">
           <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>محافظة ${c.name}</h1><div class="sub">${c.name} Office · ${c.engs.length} Engineers · ${c.projects.length} Projects</div></div></div>
-          <div class="page-hdr-r"><div><span class="pg">${String(pageNum).padStart(2,'0')}</span><span class="pg-total"> / ${4+cities.filter(x=>x.engs.length>0).length}</span></div><div class="date">${monthLabel}</div></div>
+          <div class="page-hdr-r"><div><span class="pg">${String(pageNum).padStart(2,'0')}</span><span class="pg-total"> / ${totalPagesArg}</span></div><div class="date">${monthLabel}</div></div>
         </div>
         <div class="city-hero ${c.id}">
           <div class="city-hero-num">${String(idx+1).padStart(2,'0')}</div>
@@ -6496,18 +6499,18 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             <div class="city-hero-stat"><div class="city-hero-stat-val">${String(c.projects.length).padStart(2,'0')}</div><div class="city-hero-stat-lbl">Projects</div></div>
           </div>
         </div>
-        <div class="city-content">
+        <div class="city-stack">
+          <div class="mgr-spotlight ${c.id}">
+            <div class="mgr-avatar-lux">${initial(c.mgrName)}</div>
+            <div class="mgr-spotlight-info"><div class="mgr-spotlight-label">PROJECT MANAGER · مدير المشروع</div><div class="mgr-spotlight-name">${c.mgrName}</div><div class="mgr-spotlight-role">${c.mgrRole}</div></div>
+          </div>
           <div class="team-section">
-            <div class="team-section-hdr"><div class="team-section-title">Project Manager &amp; Team</div><div class="team-section-count">${String(c.engs.length).padStart(2,'0')} MEMBERS</div></div>
-            <div class="mgr-spotlight ${c.id}">
-              <div class="mgr-avatar-lux">${initial(c.mgrName)}</div>
-              <div class="mgr-spotlight-info"><div class="mgr-spotlight-label">PROJECT MANAGER</div><div class="mgr-spotlight-name">${c.mgrName}</div><div class="mgr-spotlight-role">${c.mgrRole}</div></div>
-            </div>
-            <div class="team-grid-lux" style="grid-template-columns:repeat(${teamGridCols},1fr)">${teamHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px">لا يوجد فريق مسجّل</div>'}</div>
+            <div class="team-section-hdr"><div class="team-section-title">Engineering Team · الفريق الهندسى</div><div class="team-section-count">${String(c.engs.length).padStart(2,'0')} MEMBERS</div></div>
+            <div class="team-grid-lux" style="grid-template-columns:repeat(${teamCols},minmax(0,1fr))">${teamHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px;grid-column:1/-1">لا يوجد فريق مسجّل</div>'}</div>
           </div>
           <div class="proj-section">
-            <div class="team-section-hdr"><div class="team-section-title">Projects Portfolio</div><div class="team-section-count">${String(c.projects.length).padStart(2,'0')} PROJECTS</div></div>
-            <div class="proj-grid" style="${projCols===2?'display:grid;grid-template-columns:1fr 1fr;gap:5px':''}">${projHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px">لا توجد مشاريع مسجّلة</div>'}</div>
+            <div class="team-section-hdr"><div class="team-section-title">Projects Portfolio · المشاريع</div><div class="team-section-count">${String(c.projects.length).padStart(2,'0')} PROJECTS</div></div>
+            <div class="proj-grid" style="grid-template-columns:repeat(${projCols},minmax(0,1fr))">${projHtml||'<div style="text-align:center;color:#94A3B8;font-size:11px;padding:14px;grid-column:1/-1">لا توجد مشاريع مسجّلة</div>'}</div>
           </div>
         </div>
         <div class="footer-strip"><span>${m.officeLabel} · ${c.name.toUpperCase()}</span><span class="brand">© ${company} · ${_Y}</span></div>
@@ -6520,6 +6523,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .print-btn{padding:11px 24px;font-family:inherit;font-size:13px;font-weight:800;border:none;border-radius:12px;cursor:pointer;color:#0A0E1A;background:linear-gradient(135deg,#D4A538,#F5E6C5);box-shadow:0 8px 24px rgba(184,134,11,.4)}
     .paper{width:297mm;margin:0 auto;background:#FAFAF7}
     .page{width:297mm;height:210mm;padding:14mm 16mm;position:relative;page-break-after:always;overflow:hidden;background:#FAFAF7}
+    .page.city-page{height:auto;min-height:210mm;overflow:visible}
     .page:last-child{page-break-after:auto}
     .cover{background:radial-gradient(circle at 80% 20%,rgba(212,165,56,.18),transparent 50%),radial-gradient(circle at 20% 80%,rgba(15,38,89,.20),transparent 50%),linear-gradient(135deg,#0A0E1A 0%,#1A2238 60%,#0F2659 100%);padding:0;color:#F5E6C5}
     .cover-inner{position:absolute;inset:14mm 16mm;display:flex;flex-direction:column;border:2px solid rgba(212,165,56,.30);padding:18mm 22mm}
@@ -6590,12 +6594,12 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .city-hero-stat{text-align:center}
     .city-hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;color:#0A0E1A;line-height:1}
     .city-hero-stat-lbl{font-size:9.5px;color:#7B7B7B;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-top:3px}
-    .city-content{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
-    .team-section,.proj-section{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:14px 16px}
-    .team-section-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #E8E0CC}
+    .city-stack{display:flex;flex-direction:column;gap:10px}
+    .team-section,.proj-section{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:10px 12px}
+    .team-section-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #E8E0CC}
     .team-section-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#0A0E1A;font-style:italic;letter-spacing:.3px}
     .team-section-count{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#B8860B;letter-spacing:1px}
-    .mgr-spotlight{background:linear-gradient(135deg,#FAFAF7,#FFFFFF);border:2px solid;padding:12px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px}
+    .mgr-spotlight{background:linear-gradient(135deg,#FAFAF7,#FFFFFF);border:2px solid;padding:10px 14px;display:flex;align-items:center;gap:12px}
     .mgr-spotlight.derna{border-color:#3B82F6}.mgr-spotlight.bayda{border-color:#8B5CF6}.mgr-spotlight.benghazi{border-color:#F59E0B}.mgr-spotlight.tabrouk{border-color:#10B981}
     .mgr-avatar-lux{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#fff;flex-shrink:0;border:3px solid #fff}
     .mgr-spotlight.derna .mgr-avatar-lux{background:#3B82F6;box-shadow:0 0 0 1.5px #3B82F6}
@@ -6606,17 +6610,18 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .mgr-spotlight-label{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:3px;color:#B8860B}
     .mgr-spotlight-name{font-size:16px;font-weight:900;color:#0A0E1A;margin-top:2px;line-height:1.2}
     .mgr-spotlight-role{font-size:11px;color:#7B7B7B;font-weight:600;margin-top:2px}
-    .team-grid-lux{display:grid;gap:8px}
-    .team-card-lux{background:#FAFAF7;border:1px solid #E8E0CC;padding:8px 10px;display:flex;align-items:center;gap:8px}
-    .team-card-lux-num{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#7B7B7B;width:18px;text-align:center;letter-spacing:.5px}
-    .team-card-lux-avatar{width:30px;height:30px;border-radius:50%;background:#F5F1E8;color:#0A0E1A;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:600;flex-shrink:0;border:1px solid #D4C5A8}
-    .team-card-lux-info{flex:1;min-width:0}
-    .team-card-lux-name{font-size:11px;font-weight:800;color:#0A0E1A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
-    .team-card-lux-role{font-size:9.5px;color:#7B7B7B;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
-    .proj-grid{display:flex;flex-direction:column;gap:6px}
-    .proj-item-lux{display:flex;align-items:center;gap:8px;font-size:10.5px;color:#0A0E1A;background:#FAFAF7;padding:7px 10px;border-right:3px solid;font-weight:600;line-height:1.3}
+    .team-grid-lux{display:grid;gap:6px}
+    .team-card-lux{background:#FAFAF7;border:1px solid #E8E0CC;padding:6px 8px;display:flex;align-items:center;gap:6px;min-width:0}
+    .team-card-lux-num{font-family:'Bebas Neue',sans-serif;font-size:12px;color:#7B7B7B;width:16px;text-align:center;letter-spacing:.5px;flex-shrink:0}
+    .team-card-lux-avatar{width:26px;height:26px;border-radius:50%;background:#F5F1E8;color:#0A0E1A;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:11px;font-weight:600;flex-shrink:0;border:1px solid #D4C5A8}
+    .team-card-lux-info{flex:1;min-width:0;overflow:hidden}
+    .team-card-lux-name{font-size:10.5px;font-weight:800;color:#0A0E1A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+    .team-card-lux-role{font-size:9px;color:#7B7B7B;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+    .proj-grid{display:grid;gap:5px}
+    .proj-item-lux{display:flex;align-items:center;gap:6px;font-size:10px;color:#0A0E1A;background:#FAFAF7;padding:5px 8px;border-right:3px solid;font-weight:600;line-height:1.25;min-width:0}
     .proj-item-lux.derna{border-color:#3B82F6}.proj-item-lux.bayda{border-color:#8B5CF6}.proj-item-lux.benghazi{border-color:#F59E0B}.proj-item-lux.tabrouk{border-color:#10B981}
-    .proj-item-num{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#B8860B;width:18px;text-align:center;letter-spacing:.5px}
+    .proj-item-num{font-family:'Bebas Neue',sans-serif;font-size:12px;color:#B8860B;width:16px;text-align:center;letter-spacing:.5px;flex-shrink:0}
+    .proj-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .thanks-block{background:linear-gradient(135deg,#0A0E1A,#0F2659);color:#F5E6C5;padding:24px 30px;margin-bottom:18px;position:relative}
     .thanks-block::before,.thanks-block::after{content:"";position:absolute;width:30px;height:30px;border:2px solid #D4A538}
     .thanks-block::before{top:8px;right:8px;border-bottom:none;border-left:none}
@@ -6624,19 +6629,22 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .thanks-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;font-style:italic;color:#F5E6C5;margin-bottom:8px}
     .thanks-text{font-size:12px;color:rgba(245,230,197,.85);line-height:1.9;font-weight:500;max-width:600px}
     .sig-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:auto;padding-top:18px}
-    .sig-box{text-align:center}
-    .sig-box-name{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#B8860B;letter-spacing:4px;margin-bottom:48px}
-    .sig-line{height:1.5px;background:#0A0E1A;margin-bottom:6px}
+    .sig-box{text-align:center;display:flex;flex-direction:column;justify-content:flex-end;min-height:120px}
+    .sig-box-name{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#B8860B;letter-spacing:4px;margin-bottom:18px}
+    .sig-filled{font-size:18px;font-weight:900;color:#0A0E1A;margin-bottom:8px;letter-spacing:.3px;text-transform:uppercase;font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:600}
+    .sig-line{height:1.5px;background:#0A0E1A;margin-bottom:6px;margin-top:auto}
+    .sig-line.tall{margin-top:30px}
     .sig-role{font-size:10px;color:#7B7B7B;font-weight:600}
     .footer-strip{margin-top:18px;padding-top:12px;border-top:1px solid #E8E0CC;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7B7B7B;font-weight:600}
     .footer-strip .brand{font-family:'Cormorant Garamond',serif;background:linear-gradient(135deg,#B8860B,#D4A538);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:600;letter-spacing:.5px;font-style:italic;font-size:11px}
     @page{size:A4 landscape;margin:0 !important}
-    @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-section,.proj-section,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.city-content,.tree-svg-wrap,.thanks-block,.sig-row{break-inside:avoid !important;page-break-inside:avoid !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
+    @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page.city-page{height:auto !important;min-height:210mm !important;max-height:none !important;overflow:visible !important;page-break-inside:auto !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.tree-svg-wrap,.thanks-block,.sig-row,.proj-item-lux{break-inside:avoid !important;page-break-inside:avoid !important}.team-section,.proj-section{break-inside:auto !important;page-break-inside:auto !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
     const visibleCities=cities.filter(c=>c.engs.length>0||c.projects.length>0);
-    const totalPages=4+visibleCities.length;
-    const cityPagesHtml=visibleCities.map((c,i)=>cityPage(c,i,3+i)).join('');
-    /* Closing page with appendix for any city with 0 engineers + signatures */
-    const emptyCities=cities.filter(c=>c.engs.length===0&&c.projects.length===0);
+    /* Numbered pages: hierarchy(1) + stats(1) + each visible city + signatures(1) = 3 + cityCount */
+    const totalPages=3+visibleCities.length;
+    const cityPagesHtml=visibleCities.map((c,i)=>cityPage(c,i,3+i,totalPages)).join('');
+    /* Preparer name — prefer username, fall back to role label */
+    const preparerName=(user&&(user.username||user.role))||'admin';
     const signatureBlock=`<div class="page sig-page" style="display:flex;flex-direction:column">
       <div class="page-hdr">
         <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>التواقيع والاعتمادات</h1><div class="sub">Signatures &amp; Acknowledgements</div></div></div>
@@ -6647,9 +6655,9 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         <div class="thanks-text">هذا الهيكل التنظيمى يُعبّر عن جهد متراكم وتنظيم دقيق لإدارة مشاريع ${company} فى ليبيا. كل مهندس فى هذا التقرير يُمثّل جزءاً من رؤية أكبر — تقديم خدمات استشارية هندسية بأعلى مستوى من الجودة والاحترافية. شكراً لكل عضو فى الفريق على إخلاصه وعمله المتواصل.</div>
       </div>
       <div class="sig-row">
-        <div class="sig-box"><div class="sig-box-name">PREPARED BY</div><div class="sig-line"></div><div class="sig-role">المُعِد · إدارة المشروعات</div></div>
-        <div class="sig-box"><div class="sig-box-name">REVIEWED BY</div><div class="sig-line"></div><div class="sig-role">المُراجع · إدارة الجودة</div></div>
-        <div class="sig-box"><div class="sig-box-name">APPROVED BY</div><div class="sig-line"></div><div class="sig-role">المُعتمِد · المدير العام</div></div>
+        <div class="sig-box"><div class="sig-box-name">PREPARED BY · المُعِد</div><div class="sig-filled">${preparerName}</div><div class="sig-line"></div><div class="sig-role">إدارة المشروعات</div></div>
+        <div class="sig-box"><div class="sig-box-name">REVIEWED BY · المُراجع</div><div class="sig-line tall"></div><div class="sig-role">إدارة الجودة</div></div>
+        <div class="sig-box"><div class="sig-box-name">APPROVED BY · المُعتمِد</div><div class="sig-line tall"></div><div class="sig-role">المدير العام · ${dirName}</div></div>
       </div>
       <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
     </div>`;
