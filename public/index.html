@@ -5476,10 +5476,7 @@ ${hasOOP?`<div style="margin:10px 0 14px;padding:14px 18px;background:linear-gra
 </div>
 
 <div style="margin:14px 0;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <span style="font-size:12px;font-weight:800;color:#374151">شريط الاستهلاك (لكل عملة)</span>
-    ${aggBalance.hasRate?`<span style="font-size:10px;color:#6B7280">إجمالى الاستهلاك الفعلى (محسوب بسعر الصرف ${aggBalance.rateLYD}): <b style="color:${aggBalance.critical?'#DC2626':aggBalance.low?'#D97706':'#15803d'}">${aggBalance.pctReal}%</b></span>`:''}
-  </div>
+  <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:10px">شريط الاستهلاك (لكل عملة)</div>
   ${aggBalance.hasUSD?`
   <div style="margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
@@ -5491,7 +5488,7 @@ ${hasOOP?`<div style="margin:10px 0 14px;padding:14px 18px;background:linear-gra
     </div>
   </div>`:''}
   ${aggBalance.hasLYD?`
-  <div>
+  <div style="margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
       <b style="color:#111827">د.ل الدينار</b>
       <b style="color:${aggBalance.criticalLYD?'#DC2626':aggBalance.lowLYD?'#D97706':'#15803d'}">${aggBalance.pctLYD}% مستخدم · ${100-aggBalance.pctLYD}% متبقى</b>
@@ -5500,7 +5497,17 @@ ${hasOOP?`<div style="margin:10px 0 14px;padding:14px 18px;background:linear-gra
       <div style="height:100%;width:${aggBalance.pctLYD}%;background:${aggBalance.criticalLYD?'linear-gradient(90deg,#DC2626,#F87171)':aggBalance.lowLYD?'linear-gradient(90deg,#D97706,#FCD34D)':'linear-gradient(90deg,#15803d,#34D399)'};border-radius:4px"></div>
     </div>
   </div>`:''}
-  ${!aggBalance.hasUSD&&!aggBalance.hasLYD?`<div style="font-size:11px;color:#6B7280;font-style:italic">لا توجد عهد مسجلة</div>`:''}
+  ${aggBalance.hasEGP?`
+  <div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+      <b style="color:#111827">ج.م الجنيه</b>
+      <b style="color:${aggBalance.criticalEGP?'#DC2626':aggBalance.lowEGP?'#D97706':'#6D28D9'}">${aggBalance.pctEGP}% مستخدم · ${100-aggBalance.pctEGP}% متبقى</b>
+    </div>
+    <div style="height:9px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${aggBalance.pctEGP}%;background:${aggBalance.criticalEGP?'linear-gradient(90deg,#DC2626,#F87171)':aggBalance.lowEGP?'linear-gradient(90deg,#D97706,#FCD34D)':'linear-gradient(90deg,#6D28D9,#A78BFA)'};border-radius:4px"></div>
+    </div>
+  </div>`:''}
+  ${!aggBalance.hasUSD&&!aggBalance.hasLYD&&!aggBalance.hasEGP?`<div style="font-size:11px;color:#6B7280;font-style:italic">لا توجد عهد مسجلة</div>`:''}
 </div>
 
 ${filteredCustody.length>0?`
@@ -7934,15 +7941,7 @@ button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2
                 /* شريطان منفصلان — كل عملة لها استهلاكها الخاص (للرؤية التشغيلية:
                    هل عندى رصيد دولار أحوّل منه؟ هل الدينار خلص؟) */
                 h("div",null,
-                  h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}},
-                    h("div",{style:{fontSize:11,fontWeight:700,color:"var(--sub)"}},"شريط الاستهلاك (لكل عملة)"),
-                    /* الاستهلاك الفعلى الكلى — يحييد التحويلات (مش صرف حقيقى) */
-                    aggBalance.hasRate&&h("div",{style:{fontSize:10,color:"var(--sub)",display:"flex",alignItems:"center",gap:6}},
-                      h("span",null,"الاستهلاك الفعلى الكلى:"),
-                      h("b",{style:{color:aggBalance.critical?"#F87171":aggBalance.low?"#FCD34D":"#34D399",fontWeight:800,fontSize:12}},aggBalance.pctReal+"%"),
-                      h("span",{style:{opacity:.7}},`(محسوب بسعر ${aggBalance.rateLYD})`)
-                    )
-                  ),
+                  h("div",{style:{fontSize:11,fontWeight:700,color:"var(--sub)",marginBottom:8}},"شريط الاستهلاك (لكل عملة)"),
                   buildBar("$ الدولار",aggBalance.pctUSD,aggBalance.criticalUSD,aggBalance.lowUSD,aggBalance.hasUSD,aggBalance.balanceUSD),
                   buildBar("د.ل الدينار",aggBalance.pctLYD,aggBalance.criticalLYD,aggBalance.lowLYD,aggBalance.hasLYD,aggBalance.balanceLYD),
                   buildBar("ج.م الجنيه",aggBalance.pctEGP,aggBalance.criticalEGP,aggBalance.lowEGP,aggBalance.hasEGP,aggBalance.balanceEGP),
