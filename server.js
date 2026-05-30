@@ -3,7 +3,7 @@ const compression= require('compression');
 const session    = require('express-session');
 const path       = require('path');
 const fs         = require('fs');
-const { initDb, getDb } = require('./db');
+const { initDb, all } = require('./db');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -43,7 +43,7 @@ app.use(session({
   }
 }));
 
-/* ── Health check for Railway uptime monitoring ─────── */
+/* ── Health check for uptime monitoring ─────────────── */
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use('/auth', require('./routes/auth'));
@@ -54,17 +54,14 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-initDb();
-
 /* ── Auto backup every 24h ───────────────────────────── */
 const apiRouter  = require('./routes/api');
 const BACKUP_DIR = apiRouter.BACKUP_DIR;
 
-function runBackup() {
+async function runBackup() {
   try {
     if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    const db   = getDb();
-    const rows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
+    const rows = await all('SELECT key, data, cfg, saved_at, expenses, attendance FROM months');
     const months = {};
     for (const row of rows) {
       months[row.key] = {
@@ -78,8 +75,8 @@ function runBackup() {
     const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const file = path.join(BACKUP_DIR, `backup-${ts}.json`);
     fs.writeFileSync(file, JSON.stringify({ months }, null, 2));
-    const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
-    while (all.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
+    const allFiles = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+    while (allFiles.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, allFiles.shift()));
     console.log(`✅ نسخة احتياطية: ${file}`);
   } catch (e) { console.error('❌ فشل النسخ الاحتياطي:', e.message); }
 }
@@ -89,6 +86,15 @@ function scheduleNextBackup() {
   if (t <= new Date()) t.setDate(t.getDate() + 1);
   setTimeout(() => { runBackup(); scheduleNextBackup(); }, t - new Date());
 }
-setTimeout(() => { runBackup(); scheduleNextBackup(); }, 5000);
 
-app.listen(PORT, () => console.log(`🚀 Server ready → http://localhost:${PORT}`));
+/* ── Start: connect + seed DB, then listen ───────────── */
+(async () => {
+  try {
+    await initDb();
+  } catch (e) {
+    console.error('❌ فشل الاتصال بقاعدة البيانات:', e.message);
+    process.exit(1);
+  }
+  setTimeout(() => { runBackup(); scheduleNextBackup(); }, 5000);
+  app.listen(PORT, () => console.log(`🚀 Server ready → http://localhost:${PORT}`));
+})();

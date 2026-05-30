@@ -1,33 +1,67 @@
-const { DatabaseSync } = require('node:sqlite');
+const { createClient } = require('@libsql/client');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 
-// Railway: /data (volume) — Vercel: /tmp (ephemeral) — local: ./data.db
-const DB_PATH = process.env.DB_PATH ||
-  (process.env.RAILWAY_ENVIRONMENT ? '/data/data.db' :
-   process.env.VERCEL               ? '/tmp/data.db'  :
-   path.join(__dirname, 'data.db'));
+/* ──────────────────────────────────────────────────────────────
+   Database connection (libSQL / Turso)
 
-let db;
+   Production (Render + Turso): set these env vars
+     TURSO_DATABASE_URL = libsql://<your-db>.turso.io
+     TURSO_AUTH_TOKEN   = <token>
+   Local dev / fallback: an embedded SQLite file (no network needed).
+   The data lives in Turso's cloud — separate from the web host — so
+   if the host ever goes offline the data stays safe.
+   ────────────────────────────────────────────────────────────── */
+const url =
+  process.env.TURSO_DATABASE_URL ||
+  ('file:' + path.join(__dirname, 'data-local.db'));
+const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
 
-function getDb() {
-  if (!db) {
-    db = new DatabaseSync(DB_PATH);
-    db.exec('PRAGMA journal_mode = WAL');
+let client;
+function getClient() {
+  if (!client) {
+    client = createClient({ url, authToken });
   }
-  return db;
+  return client;
 }
 
-function initDb() {
-  const db = getDb();
+/* ── Async helpers mirroring the old sync prepare().get/run/all API ──
+   Call sites do:  await get(sql, [args])  /  await run(...)  /  await all(...)
+*/
+async function get(sql, args = []) {
+  const r = await getClient().execute({ sql, args });
+  return r.rows[0]; // undefined if none
+}
+async function all(sql, args = []) {
+  const r = await getClient().execute({ sql, args });
+  return r.rows;
+}
+async function run(sql, args = []) {
+  const r = await getClient().execute({ sql, args });
+  return {
+    changes: Number(r.rowsAffected || 0),
+    lastInsertRowid: r.lastInsertRowid != null ? Number(r.lastInsertRowid) : undefined,
+  };
+}
+/* multiple semicolon-separated statements, no params (DDL scripts) */
+async function exec(sqlScript) {
+  await getClient().executeMultiple(sqlScript);
+}
+/* transactional batch of write statements: [{ sql, args }, ...] */
+async function batchWrite(statements) {
+  await getClient().batch(statements, 'write');
+}
 
-  db.exec(`
+async function initDb() {
+  // Full final schema (all columns inlined — fresh Turso DB starts clean).
+  await exec(`
     CREATE TABLE IF NOT EXISTS months (
-      key      TEXT PRIMARY KEY,
-      data     TEXT NOT NULL,
-      cfg      TEXT NOT NULL,
-      saved_at TEXT,
-      expenses TEXT
+      key        TEXT PRIMARY KEY,
+      data       TEXT NOT NULL,
+      cfg        TEXT NOT NULL,
+      saved_at   TEXT,
+      expenses   TEXT,
+      attendance TEXT
     );
 
     CREATE TABLE IF NOT EXISTS app_config (
@@ -36,9 +70,12 @@ function initDb() {
     );
 
     CREATE TABLE IF NOT EXISTS users (
-      id       INTEGER PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
+      id                   INTEGER PRIMARY KEY,
+      username             TEXT UNIQUE NOT NULL,
+      password             TEXT NOT NULL,
+      role                 TEXT DEFAULT 'admin',
+      province             TEXT,
+      must_change_password INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS org_chart (
@@ -55,26 +92,28 @@ function initDb() {
     );
   `);
 
-  // أضف أعمدة للقواعد القديمة
-  try { db.exec('ALTER TABLE months ADD COLUMN expenses TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE months ADD COLUMN attendance TEXT'); } catch(e) {}
-  try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'"); } catch(e) {}
-  try { db.exec('ALTER TABLE users ADD COLUMN province TEXT'); } catch(e) {}
-  try { db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0'); } catch(e) {}
+  // Backward-compat: if connecting to an older DB missing newer columns,
+  // add them. On a fresh DB these throw "duplicate column" → ignored.
+  const addCol = async (sql) => { try { await getClient().execute(sql); } catch (e) {} };
+  await addCol("ALTER TABLE months ADD COLUMN expenses TEXT");
+  await addCol("ALTER TABLE months ADD COLUMN attendance TEXT");
+  await addCol("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'");
+  await addCol("ALTER TABLE users ADD COLUMN province TEXT");
+  await addCol("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0");
 
-  // تأكد أن جميع المستخدمين بدون role يحصلون على 'admin' (صفوف قديمة)
-  db.exec("UPDATE users SET role = 'admin' WHERE role IS NULL AND province IS NULL");
+  // Old rows without a role → treat as admin.
+  await run("UPDATE users SET role = 'admin' WHERE role IS NULL AND province IS NULL");
 
-  // إنشاء مستخدم الأدمن الافتراضي إذا لم يكن موجوداً
-  const count = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'admin'").get();
+  // Default admin
+  const count = await get("SELECT COUNT(*) as c FROM users WHERE role = 'admin'");
   if (Number(count.c) === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
-    db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'admin', 1)").run('admin', hash);
+    await run("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'admin', 1)", ['admin', hash]);
     console.log('✅ تم إنشاء المستخدم الافتراضي: admin / admin123');
     console.log('⚠️  غيّر كلمة المرور من صفحة الإعدادات بعد أول تسجيل دخول.');
   }
 
-  // إنشاء مستخدمي المحافظات إذا لم يكونوا موجودين
+  // Province users
   const provUsers = [
     { username: 'derna',    password: 'derna123',    province: 'محافظة درنة'    },
     { username: 'albaida',  password: 'albaida123',  province: 'محافظة البيضاء' },
@@ -82,40 +121,40 @@ function initDb() {
     { username: 'tobruk',   password: 'tobruk123',   province: 'محافظة طبرق'   },
   ];
   for (const u of provUsers) {
-    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    const exists = await get('SELECT id FROM users WHERE username = ?', [u.username]);
     if (!exists) {
       const hash = bcrypt.hashSync(u.password, 10);
-      db.prepare("INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, 'province', ?, 1)").run(u.username, hash, u.province);
+      await run("INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, 'province', ?, 1)", [u.username, hash, u.province]);
       console.log(`✅ مستخدم المحافظة: ${u.username} / ${u.password} (${u.province})`);
     }
   }
 
-  // إنشاء مستخدمي المشاهدة إذا لم يكونوا موجودين
+  // Viewer users
   const viewerUsers = [
     { username: 'mohamed_basyouni', password: '123456' },
     { username: 'diaa_eldin',       password: '123456' },
   ];
   for (const u of viewerUsers) {
-    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    const exists = await get('SELECT id FROM users WHERE username = ?', [u.username]);
     if (!exists) {
       const hash = bcrypt.hashSync(u.password, 10);
-      db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'viewer', 1)").run(u.username, hash);
+      await run("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'viewer', 1)", [u.username, hash]);
       console.log(`✅ مستخدم مشاهد: ${u.username} / ${u.password}`);
     }
   }
 
-  // إنشاء مستخدم HR (مختار حسن) إذا لم يكن موجوداً
+  // HR user
   const hrUsers = [
     { username: 'mokhtar', password: '123456', display: 'مختار حسن' },
   ];
   for (const u of hrUsers) {
-    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    const exists = await get('SELECT id FROM users WHERE username = ?', [u.username]);
     if (!exists) {
       const hash = bcrypt.hashSync(u.password, 10);
-      db.prepare("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'hr', 1)").run(u.username, hash);
+      await run("INSERT INTO users (username, password, role, must_change_password) VALUES (?, ?, 'hr', 1)", [u.username, hash]);
       console.log(`✅ مستخدم HR: ${u.username} / ${u.password} (${u.display})`);
     }
   }
 }
 
-module.exports = { getDb, initDb };
+module.exports = { getClient, initDb, get, all, run, exec, batchWrite };

@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../db');
+const { get, run } = require('../db');
 
 const router = express.Router();
 
@@ -42,7 +42,7 @@ router.get('/me', (req, res) => {
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   if (!checkRateLimit(ip)) {
     return res.status(429).json({ error: 'عدد محاولات تسجيل الدخول تجاوز الحد — انتظر 15 دقيقة' });
@@ -53,8 +53,7 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ error: 'أدخل اسم المستخدم وكلمة المرور' });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim());
+  const user = await get('SELECT * FROM users WHERE username = ?', [username.trim()]);
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
@@ -74,22 +73,21 @@ router.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-router.post('/change-password', (req, res) => {
+router.post('/change-password', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'غير مصرح' });
   const { oldPassword, newPassword } = req.body;
   if (!oldPassword || !newPassword || newPassword.length < 6) {
     return res.status(400).json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل' });
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
+  const user = await get('SELECT * FROM users WHERE id = ?', [req.session.user.id]);
 
   if (!bcrypt.compareSync(oldPassword, user.password)) {
     return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
   }
 
   const hash = bcrypt.hashSync(newPassword, 10);
-  db.prepare('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?').run(hash, user.id);
+  await run('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?', [hash, user.id]);
   res.json({ ok: true });
 });
 

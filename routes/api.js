@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const fs      = require('fs');
 const path    = require('path');
-const { getDb } = require('../db');
+const { get, all, run, batchWrite } = require('../db');
 
 const router = express.Router();
 
@@ -34,9 +34,8 @@ const adminOnly = (req, res, next) => {
 
 /* ── Months ─────────────────────────────────────────── */
 
-router.get('/months', (_req, res) => {
-  const db = getDb();
-  const rows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
+router.get('/months', async (_req, res) => {
+  const rows = await all('SELECT key, data, cfg, saved_at, expenses, attendance FROM months');
   const months = {};
   for (const row of rows) {
     if (row.key === 'leaves') {
@@ -55,10 +54,9 @@ router.get('/months', (_req, res) => {
   res.json({ months });
 });
 
-router.put('/months/:key', (req, res) => {
+router.put('/months/:key', async (req, res) => {
   const { key } = req.params;
   const user = req.session.user;
-  const db   = getDb();
 
   /* ── Viewer + HR: read-only ── */
   if (user.role === 'viewer' || user.role === 'hr') return res.status(403).json({ error: 'للقراءة فقط' });
@@ -68,7 +66,7 @@ router.put('/months/:key', (req, res) => {
     /* ── leaves: province can add/update their own province's requests ── */
     if (key === 'leaves') {
       const prov = user.province;
-      const existing = db.prepare("SELECT data FROM months WHERE key = 'leaves'").get();
+      const existing = await get("SELECT data FROM months WHERE key = 'leaves'");
       const existingData = existing ? JSON.parse(existing.data) : {};
       const existingReqs = existingData.requests || [];
       const existingStatuses = existingData.engineerStatuses || {};
@@ -76,13 +74,13 @@ router.put('/months/:key', (req, res) => {
       const otherReqs = existingReqs.filter(r => r.prov !== prov);
       const myReqs    = inReqs.filter(r => r.prov === prov);
       const merged = [...otherReqs, ...myReqs];
-      db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
-        ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
-        .run(JSON.stringify({ requests: merged, engineerStatuses: existingStatuses }));
+      await run(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
+        ON CONFLICT(key) DO UPDATE SET data = excluded.data`,
+        [JSON.stringify({ requests: merged, engineerStatuses: existingStatuses })]);
       return res.json({ ok: true });
     }
 
-    const existing = db.prepare('SELECT * FROM months WHERE key = ?').get(key);
+    const existing = await get('SELECT * FROM months WHERE key = ?', [key]);
     if (!existing) return res.status(403).json({ error: 'الشهر غير موجود، تواصل مع الأدمن لإنشائه أولاً' });
 
     const existingData = JSON.parse(existing.data);
@@ -111,8 +109,8 @@ router.put('/months/:key', (req, res) => {
       }
     });
 
-    db.prepare('UPDATE months SET data = ?, attendance = ? WHERE key = ?')
-      .run(JSON.stringify(existingData), JSON.stringify(existingAtt), key);
+    await run('UPDATE months SET data = ?, attendance = ? WHERE key = ?',
+      [JSON.stringify(existingData), JSON.stringify(existingAtt), key]);
 
     // Log province save for admin notification
     saveLogs.push({ id: ++saveLogId, province: prov, username: user.username, key, time: Date.now() });
@@ -126,9 +124,9 @@ router.put('/months/:key', (req, res) => {
   if (key === 'leaves') {
     const requests = req.body.requests || [];
     const engineerStatuses = req.body.engineerStatuses || {};
-    db.prepare(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
-      ON CONFLICT(key) DO UPDATE SET data = excluded.data`)
-      .run(JSON.stringify({ requests, engineerStatuses }));
+    await run(`INSERT INTO months (key, data, cfg) VALUES ('leaves', ?, '{}')
+      ON CONFLICT(key) DO UPDATE SET data = excluded.data`,
+      [JSON.stringify({ requests, engineerStatuses })]);
     return res.json({ ok: true });
   }
 
@@ -142,7 +140,7 @@ router.put('/months/:key', (req, res) => {
      newer data was added in another tab/session).
   */
   if (!force) {
-    const existing = db.prepare('SELECT data, expenses, attendance FROM months WHERE key = ?').get(key);
+    const existing = await get('SELECT data, expenses, attendance FROM months WHERE key = ?', [key]);
     if (existing) {
       const existingData = JSON.parse(existing.data || '{}');
       const existingExp  = existing.expenses ? JSON.parse(existing.expenses) : null;
@@ -191,15 +189,13 @@ router.put('/months/:key', (req, res) => {
     }
 
     /* ── Pre-save backup ──
-       Snapshot the entire DB before this write. Cheap insurance —
-       SQLite copy is ~kB. Keeps last 100 snapshots.
+       Snapshot the entire months table before this write to a JSON file.
+       Cheap insurance. Keeps last 100 snapshots. (Filesystem may be
+       ephemeral on some hosts — the durable copy lives in the cloud DB.)
     */
     try {
-      const BACKUP_DIR = process.env.DB_PATH
-        ? path.join(path.dirname(process.env.DB_PATH), 'backups')
-        : path.join(__dirname, '..', 'backups');
       if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
-      const allRows = db.prepare('SELECT key, data, cfg, saved_at, expenses, attendance FROM months').all();
+      const allRows = await all('SELECT key, data, cfg, saved_at, expenses, attendance FROM months');
       const months = {};
       for (const row of allRows) {
         months[row.key] = {
@@ -213,12 +209,12 @@ router.put('/months/:key', (req, res) => {
       const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       fs.writeFileSync(path.join(BACKUP_DIR, `pre-save-${ts}-${key}.json`),
                        JSON.stringify({ months }, null, 0));
-      const all = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
-      while (all.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, all.shift()));
+      const allFiles = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
+      while (allFiles.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, allFiles.shift()));
     } catch (e) { console.error('pre-save backup failed:', e.message); }
   }
 
-  db.prepare(`
+  await run(`
     INSERT INTO months (key, data, cfg, saved_at, expenses, attendance) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET
       data       = excluded.data,
@@ -226,15 +222,15 @@ router.put('/months/:key', (req, res) => {
       saved_at   = excluded.saved_at,
       expenses   = excluded.expenses,
       attendance = excluded.attendance
-  `).run(key, JSON.stringify(data), JSON.stringify(cfg), savedAt || null,
-         expenses   ? JSON.stringify(expenses)   : null,
-         attendance ? JSON.stringify(attendance) : null);
+  `, [key, JSON.stringify(data), JSON.stringify(cfg), savedAt || null,
+      expenses   ? JSON.stringify(expenses)   : null,
+      attendance ? JSON.stringify(attendance) : null]);
 
   res.json({ ok: true });
 });
 
-router.delete('/months/:key', adminOnly, (req, res) => {
-  getDb().prepare('DELETE FROM months WHERE key = ?').run(req.params.key);
+router.delete('/months/:key', adminOnly, async (req, res) => {
+  await run('DELETE FROM months WHERE key = ?', [req.params.key]);
   res.json({ ok: true });
 });
 
@@ -243,7 +239,7 @@ router.delete('/months/:key', adminOnly, (req, res) => {
    - Travel/return dates, postpone, cancelTicket, ticketStatus: admin only
      (viewer/HR are scoped to leave-approval — they shouldn't mutate
      ticket bookings or shift travel dates) */
-router.patch('/leaves/:id', (req, res) => {
+router.patch('/leaves/:id', async (req, res) => {
   const user = req.session.user;
   if (user.role !== 'admin' && user.role !== 'viewer' && user.role !== 'hr') {
     return res.status(403).json({ error: 'للأدمن والمشرفين فقط' });
@@ -257,9 +253,8 @@ router.patch('/leaves/:id', (req, res) => {
   }
   const { status, travelDate, returnDate } = req.body;
   const { id } = req.params;
-  const db = getDb();
 
-  const row = db.prepare("SELECT data FROM months WHERE key = 'leaves'").get();
+  const row = await get("SELECT data FROM months WHERE key = 'leaves'");
   if (!row) return res.status(404).json({ error: 'لا توجد بيانات' });
 
   const requests = JSON.parse(row.data).requests || [];
@@ -300,80 +295,74 @@ router.patch('/leaves/:id', (req, res) => {
   }
 
   requests[idx] = item;
-  db.prepare("UPDATE months SET data = ? WHERE key = 'leaves'")
-    .run(JSON.stringify({ requests }));
+  await run("UPDATE months SET data = ? WHERE key = 'leaves'",
+    [JSON.stringify({ requests })]);
 
   res.json({ ok: true, request: item });
 });
 
 /* Replace ALL months (import → replace mode) — admin only */
-router.put('/data', adminOnly, (req, res) => {
+router.put('/data', adminOnly, async (req, res) => {
   const { months } = req.body;
   if (!months) return res.status(400).json({ error: 'بيانات ناقصة' });
 
-  const db = getDb();
-  const insert = db.prepare(`
+  const insertSql = `
     INSERT INTO months (key, data, cfg, saved_at, expenses, attendance) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET
       data       = excluded.data,
       cfg        = excluded.cfg,
       saved_at   = excluded.saved_at,
       expenses   = excluded.expenses,
-      attendance = excluded.attendance
-  `);
+      attendance = excluded.attendance`;
 
-  db.exec('BEGIN');
-  try {
-    db.prepare('DELETE FROM months').run();
-    for (const [key, m] of Object.entries(months)) {
-      insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
-                 m.expenses   ? JSON.stringify(m.expenses)   : null,
-                 m.attendance ? JSON.stringify(m.attendance) : null);
-    }
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
+  const statements = [{ sql: 'DELETE FROM months', args: [] }];
+  for (const [key, m] of Object.entries(months)) {
+    statements.push({ sql: insertSql, args: [
+      key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
+      m.expenses   ? JSON.stringify(m.expenses)   : null,
+      m.attendance ? JSON.stringify(m.attendance) : null,
+    ]});
   }
+  await batchWrite(statements);
 
   res.json({ ok: true });
 });
 
 /* ── Org Chart — admin write ─────────────────────────── */
 
-router.get('/org-chart', (_req, res) => {
-  const row = getDb().prepare('SELECT data FROM org_chart WHERE id = 1').get();
+router.get('/org-chart', async (_req, res) => {
+  const row = await get('SELECT data FROM org_chart WHERE id = 1');
   res.json({ data: row ? JSON.parse(row.data) : null });
 });
 
-router.put('/org-chart', adminOnly, (req, res) => {
+router.put('/org-chart', adminOnly, async (req, res) => {
   const { data } = req.body;
   if (!data) return res.status(400).json({ error: 'بيانات ناقصة' });
-  getDb().prepare(`
+  await run(`
     INSERT INTO org_chart (id, data) VALUES (1, ?)
     ON CONFLICT(id) DO UPDATE SET data = excluded.data
-  `).run(JSON.stringify(data));
+  `, [JSON.stringify(data)]);
   res.json({ ok: true });
 });
 
 /* ── Logo — admin write ──────────────────────────────── */
 
-router.get('/logo', (_req, res) => {
-  const row = getDb().prepare("SELECT value FROM app_config WHERE key = 'logo'").get();
+router.get('/logo', async (_req, res) => {
+  const row = await get("SELECT value FROM app_config WHERE key = 'logo'");
   res.json({ logo: row ? row.value : null });
 });
 
-router.put('/logo', adminOnly, (req, res) => {
+router.put('/logo', adminOnly, async (req, res) => {
   const { logo } = req.body;
-  getDb().prepare(`
+  await run(`
     INSERT INTO app_config (key, value) VALUES ('logo', ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
-  `).run(logo || null);
+  `, [logo || null]);
   res.json({ ok: true });
 });
 
-router.delete('/logo', adminOnly, (_req, res) => {
-  getDb().prepare("DELETE FROM app_config WHERE key = 'logo'").run();
+router.delete('/logo', adminOnly, async (_req, res) => {
+  await run("DELETE FROM app_config WHERE key = 'logo'");
   res.json({ ok: true });
 });
 
@@ -385,8 +374,8 @@ const DEFAULT_FIXED_RENTS = [
   { id: 'r3', desc: 'سكن رقم 3', day: 22, lyd: 5000, usd: 0, prov: '' }
 ];
 
-router.get('/fixed-rents', (_req, res) => {
-  const row = getDb().prepare("SELECT value FROM app_config WHERE key = 'fixed_rents'").get();
+router.get('/fixed-rents', async (_req, res) => {
+  const row = await get("SELECT value FROM app_config WHERE key = 'fixed_rents'");
   let rents;
   try { rents = row ? JSON.parse(row.value) : DEFAULT_FIXED_RENTS; }
   catch { rents = DEFAULT_FIXED_RENTS; }
@@ -394,57 +383,50 @@ router.get('/fixed-rents', (_req, res) => {
   res.json({ rents });
 });
 
-router.put('/fixed-rents', adminOnly, (req, res) => {
+router.put('/fixed-rents', adminOnly, async (req, res) => {
   const { rents } = req.body;
   if (!Array.isArray(rents)) return res.status(400).json({ error: 'بيانات غير صالحة' });
-  getDb().prepare(`
+  await run(`
     INSERT INTO app_config (key, value) VALUES ('fixed_rents', ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
-  `).run(JSON.stringify(rents));
+  `, [JSON.stringify(rents)]);
   res.json({ ok: true });
 });
 
 /* ── User management — admin only ───────────────────── */
 
-router.get('/users', adminOnly, (_req, res) => {
-  const users = getDb()
-    .prepare("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username")
-    .all();
+router.get('/users', adminOnly, async (_req, res) => {
+  const users = await all("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username");
   res.json({ users });
 });
 
-router.put('/users/:id/password', adminOnly, (req, res) => {
+router.put('/users/:id/password', adminOnly, async (req, res) => {
   const { password } = req.body;
   if (!password || password.length < 6) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
   const hash = bcrypt.hashSync(password, 10);
-  const result = getDb()
-    .prepare("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role IN ('province','viewer','hr')")
-    .run(hash, req.params.id);
+  const result = await run("UPDATE users SET password = ?, must_change_password = 0 WHERE id = ? AND role IN ('province','viewer','hr')", [hash, req.params.id]);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
 });
 
-router.post('/users', adminOnly, (req, res) => {
+router.post('/users', adminOnly, async (req, res) => {
   const { username, password, province, role } = req.body;
   const userRole = role === 'viewer' ? 'viewer' : 'province';
   if (!username || !username.trim()) return res.status(400).json({ error: 'أدخل اسم المستخدم' });
   if (!password || password.length < 6)  return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
   if (userRole === 'province' && (!province || !province.trim())) return res.status(400).json({ error: 'اختر المحافظة' });
-  const db = getDb();
-  const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username.trim());
+  const exists = await get('SELECT id FROM users WHERE username = ?', [username.trim()]);
   if (exists) return res.status(409).json({ error: 'اسم المستخدم موجود مسبقاً' });
   const hash = bcrypt.hashSync(password, 10);
   const provVal = userRole === 'province' ? province.trim() : null;
-  const result = db.prepare(
-    'INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, ?, ?, 1)'
-  ).run(username.trim(), hash, userRole, provVal);
+  const result = await run(
+    'INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, ?, ?, 1)',
+    [username.trim(), hash, userRole, provVal]);
   res.json({ ok: true, id: result.lastInsertRowid, username: username.trim(), role: userRole, province: provVal });
 });
 
-router.delete('/users/:id', adminOnly, (req, res) => {
-  const result = getDb()
-    .prepare("DELETE FROM users WHERE id = ? AND role IN ('province','viewer','hr')")
-    .run(req.params.id);
+router.delete('/users/:id', adminOnly, async (req, res) => {
+  const result = await run("DELETE FROM users WHERE id = ? AND role IN ('province','viewer','hr')", [req.params.id]);
   if (result.changes === 0) return res.status(404).json({ error: 'المستخدم غير موجود' });
   res.json({ ok: true });
 });
@@ -473,31 +455,30 @@ router.get('/save-logs', adminOnly, (req, res) => {
 
 /* ── Activity log ────────────────────────────────────── */
 
-router.post('/activity', (req, res) => {
+router.post('/activity', async (req, res) => {
   const user = req.session.user;
   const { action, detail } = req.body;
   if (!action) return res.status(400).json({ error: 'action required' });
-  getDb().prepare('INSERT INTO activity_log (username, action, detail, ts) VALUES (?,?,?,?)')
-    .run(user.username, action, detail || '', Date.now());
+  await run('INSERT INTO activity_log (username, action, detail, ts) VALUES (?,?,?,?)',
+    [user.username, action, detail || '', Date.now()]);
   res.json({ ok: true });
 });
 
-router.get('/activity', adminOnly, (req, res) => {
-  const rows = getDb().prepare('SELECT * FROM activity_log ORDER BY ts DESC LIMIT 100').all();
+router.get('/activity', adminOnly, async (req, res) => {
+  const rows = await all('SELECT * FROM activity_log ORDER BY ts DESC LIMIT 100');
   res.json({ logs: rows });
 });
 
-router.delete('/activity', adminOnly, (req, res) => {
+router.delete('/activity', adminOnly, async (req, res) => {
   const { ids, byAction } = req.body || {};
-  const db = getDb();
   let deleted = 0;
   if (Array.isArray(ids) && ids.length > 0) {
     const placeholders = ids.map(() => '?').join(',');
-    const result = db.prepare(`DELETE FROM activity_log WHERE id IN (${placeholders})`).run(...ids);
+    const result = await run(`DELETE FROM activity_log WHERE id IN (${placeholders})`, ids);
     deleted += result.changes;
   }
   if (typeof byAction === 'string' && byAction.length > 0) {
-    const result = db.prepare('DELETE FROM activity_log WHERE action = ?').run(byAction);
+    const result = await run('DELETE FROM activity_log WHERE action = ?', [byAction]);
     deleted += result.changes;
   }
   res.json({ ok: true, deleted });
@@ -505,9 +486,10 @@ router.delete('/activity', adminOnly, (req, res) => {
 
 /* ── Server backups ──────────────────────────────────── */
 
-const BACKUP_DIR = process.env.DB_PATH
-  ? path.join(path.dirname(process.env.DB_PATH), 'backups')
-  : path.join(__dirname, '..', 'backups');
+const BACKUP_DIR = process.env.BACKUP_DIR
+  || (process.env.DB_PATH
+        ? path.join(path.dirname(process.env.DB_PATH), 'backups')
+        : path.join(__dirname, '..', 'backups'));
 
 router.get('/backups', adminOnly, (_req, res) => {
   try {
@@ -531,30 +513,29 @@ router.get('/backups/:file', adminOnly, (req, res) => {
   res.download(full, file);
 });
 
-router.post('/backups/:file/restore', adminOnly, (req, res) => {
+router.post('/backups/:file/restore', adminOnly, async (req, res) => {
   const file = path.basename(req.params.file);
   const full = path.join(BACKUP_DIR, file);
   if (!fs.existsSync(full)) return res.status(404).json({ error: 'ملف غير موجود' });
   let content;
   try { content = JSON.parse(fs.readFileSync(full, 'utf8')); } catch (e) { return res.status(400).json({ error: 'ملف تالف' }); }
   if (!content.months) return res.status(400).json({ error: 'صيغة غير صحيحة' });
-  const db = getDb();
-  const insert = db.prepare(`
+
+  const insertSql = `
     INSERT INTO months (key, data, cfg, saved_at, expenses, attendance) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET
       data=excluded.data, cfg=excluded.cfg, saved_at=excluded.saved_at,
-      expenses=excluded.expenses, attendance=excluded.attendance
-  `);
-  db.exec('BEGIN');
-  try {
-    db.prepare('DELETE FROM months').run();
-    for (const [key, m] of Object.entries(content.months)) {
-      insert.run(key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
-                 m.expenses ? JSON.stringify(m.expenses) : null,
-                 m.attendance ? JSON.stringify(m.attendance) : null);
-    }
-    db.exec('COMMIT');
-  } catch (e) { db.exec('ROLLBACK'); throw e; }
+      expenses=excluded.expenses, attendance=excluded.attendance`;
+
+  const statements = [{ sql: 'DELETE FROM months', args: [] }];
+  for (const [key, m] of Object.entries(content.months)) {
+    statements.push({ sql: insertSql, args: [
+      key, JSON.stringify(m.data), JSON.stringify(m.cfg), m.savedAt || null,
+      m.expenses   ? JSON.stringify(m.expenses)   : null,
+      m.attendance ? JSON.stringify(m.attendance) : null,
+    ]});
+  }
+  await batchWrite(statements);
   res.json({ ok: true });
 });
 

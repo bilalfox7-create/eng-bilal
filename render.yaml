@@ -1,0 +1,22 @@
+# Render Blueprint — free web service for the Libya Engineering app.
+# Database lives in Turso (separate cloud) via the env vars below, so the
+# data stays safe even if this web service is paused or redeployed.
+services:
+  - type: web
+    name: el-raed-libya
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true        # Render auto-generates a strong secret
+      - key: TURSO_DATABASE_URL
+        sync: false                # set in dashboard: libsql://<db>.turso.io
+      - key: TURSO_AUTH_TOKEN
+        sync: false                # set in dashboard: the Turso auth token
