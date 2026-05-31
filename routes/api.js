@@ -3,6 +3,7 @@ const bcrypt  = require('bcryptjs');
 const fs      = require('fs');
 const path    = require('path');
 const { get, all, run, batchWrite } = require('../db');
+const { backupToGitHub } = require('../github-backup');
 
 const router = express.Router();
 
@@ -537,6 +538,12 @@ router.post('/backups/:file/restore', adminOnly, async (req, res) => {
   }
   await batchWrite(statements);
   res.json({ ok: true });
+});
+
+/* ── Manual GitHub backup trigger (admin) ── */
+router.post('/github-backup', adminOnly, async (_req, res) => {
+  try { res.json(await backupToGitHub({ force: true })); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

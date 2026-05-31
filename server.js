@@ -4,6 +4,7 @@ const session    = require('express-session');
 const path       = require('path');
 const fs         = require('fs');
 const { initDb, all } = require('./db');
+const { backupToGitHub } = require('./github-backup');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -78,6 +79,11 @@ async function runBackup() {
     const allFiles = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.json')).sort();
     while (allFiles.length > 100) fs.unlinkSync(path.join(BACKUP_DIR, allFiles.shift()));
     console.log(`✅ نسخة احتياطية: ${file}`);
+    try {
+      const r = await backupToGitHub({ force: true });
+      if (r.ok)        console.log(`✅ رُفعت نسخة على GitHub (${r.months} شهر)`);
+      else             console.log(`ℹ️ GitHub backup skipped: ${r.skipped}`);
+    } catch (ge) { console.error('❌ فشل رفع GitHub:', ge.message); }
   } catch (e) { console.error('❌ فشل النسخ الاحتياطي:', e.message); }
 }
 
