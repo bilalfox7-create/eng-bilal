@@ -6390,13 +6390,10 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     const _M=cfg.month||(now.getMonth()+1),_Y=cfg.year||now.getFullYear();
     const monthLabel=MONTHS[_M-1]+' '+_Y;
     /* Logo handling: use uploaded logo data-URL if set, else fall back to 'R' monogram */
-    const logoSrc=logo||'';
-    const logoCoverHtml=logoSrc
-      ? `<div style="width:130px;height:130px;border-radius:50%;background:#FFF;border:3px solid #D4A538;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 0 6px rgba(212,165,56,.10),0 20px 60px rgba(0,0,0,.50);overflow:hidden"><img src="${logoSrc}" style="max-width:90%;max-height:90%;object-fit:contain"/></div>`
-      : `<div style="width:130px;height:130px;border-radius:50%;background:radial-gradient(circle at center,rgba(245,230,197,.10),transparent 70%),linear-gradient(135deg,#0F2659,#0A0E1A);border:3px solid #D4A538;display:flex;align-items:center;justify-content:center;margin-bottom:28px;box-shadow:0 0 0 6px rgba(212,165,56,.10),0 20px 60px rgba(0,0,0,.50);font-family:'Cormorant Garamond',serif;font-size:78px;font-weight:600;background:linear-gradient(135deg,#D4A538,#F5E6C5);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1">R</div>`;
-    const logoHdrHtml=logoSrc
-      ? `<div style="width:42px;height:42px;border-radius:50%;background:#FFF;border:1.5px solid #D4A538;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${logoSrc}" style="max-width:85%;max-height:85%;object-fit:contain"/></div>`
-      : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0F2659,#0A0E1A);border:1.5px solid #D4A538;display:flex;align-items:center;justify-content:center;color:#D4A538;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;line-height:1">R</div>`;
+    /* Logo: uploaded data-URL if set, else the bundled Raed logo asset (absolute URL so it loads inside the about:blank print window) */
+    const logoSrc=logo||(location.origin+'/logo.jpg');
+    const logoCoverHtml=`<div style="background:#fff;border:3px solid #D4A538;border-radius:16px;padding:16px 28px;margin-bottom:26px;box-shadow:0 0 0 6px rgba(212,165,56,.10),0 20px 60px rgba(0,0,0,.5);display:inline-flex;align-items:center;justify-content:center"><img src="${logoSrc}" style="height:82px;max-width:320px;object-fit:contain;display:block"/></div>`;
+    const logoHdrHtml=`<div style="background:#fff;border:1.5px solid #E8E0CC;border-radius:8px;padding:5px 9px;display:inline-flex;align-items:center"><img src="${logoSrc}" style="height:34px;max-width:115px;object-fit:contain;display:block"/></div>`;
     /* Map CITY_CFG to live data so report uses real numbers */
     const CITY_META={
       derna:   {accent:'#3B82F6',soft:'#DBEAFE',deep:'#1E40AF',gradFrom:'#1E40AF',gradTo:'#3B82F6',officeLabel:'OFFICE I'},
