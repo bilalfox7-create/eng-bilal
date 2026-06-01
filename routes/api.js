@@ -86,22 +86,30 @@ router.put('/months/:key', async (req, res) => {
 
     const existingData = JSON.parse(existing.data);
     const existingAtt  = existing.attendance ? JSON.parse(existing.attendance) : {};
+    const existingExp  = existing.expenses   ? JSON.parse(existing.expenses)   : null;
     const prov         = user.province;
     const inData       = req.body.data       || {};
     const inAtt        = req.body.attendance || {};
+    const inExp        = req.body.expenses;
 
-    // Only update d1 / d2 / paid for engineers in their province
-    const provEngIds = new Set((existingData[prov] || []).map(e => e.id));
-    if (existingData[prov]) {
-      existingData[prov] = existingData[prov].map(e => {
-        const newE = (inData[prov] || []).find(ne => ne.id === e.id);
-        if (!newE) return e;
-        return { ...e, d1: newE.d1 ?? e.d1, d2: newE.d2 ?? e.d2, paid: newE.paid ?? e.paid };
-      });
+    /* ── Engineers: merge THIS province's engineers only ──
+       Apply the incoming version of each engineer by id (so d1/d2/paid,
+       egyptLeaves, egyptTransfer, departedAt, name/spec … ALL propagate),
+       and ADD any new engineers this province created. Never delete an
+       existing engineer (stale-tab safety) and NEVER touch other provinces. */
+    const incomingList = Array.isArray(inData[prov]) ? inData[prov] : null;
+    if (incomingList) {
+      const existingArr  = existingData[prov] || [];
+      const incomingById = new Map(incomingList.map(e => [e.id, e]));
+      const existingIds  = new Set(existingArr.map(e => e.id));
+      const merged = existingArr.map(e => incomingById.has(e.id) ? { ...e, ...incomingById.get(e.id) } : e);
+      for (const e of incomingList) if (!existingIds.has(e.id)) merged.push(e);
+      existingData[prov] = merged;
     }
 
-    // Replace (not merge) attendance for engineers in their province
-    // so deletions/clears propagate to DB
+    // Replace attendance for engineers in their province (incl. newly added)
+    // so adds/edits/clears propagate; other engineers untouched.
+    const provEngIds = new Set((existingData[prov] || []).map(e => e.id));
     provEngIds.forEach(engId => {
       if (inAtt[engId] !== undefined) {
         existingAtt[engId] = inAtt[engId];
@@ -110,8 +118,26 @@ router.put('/months/:key', async (req, res) => {
       }
     });
 
-    await run('UPDATE months SET data = ?, attendance = ? WHERE key = ?',
-      [JSON.stringify(existingData), JSON.stringify(existingAtt), key]);
+    /* ── Expenses: merge THIS province's custody + items (matched by `prov`),
+       keep every other province's items untouched, and preserve currency
+       transfers as-is (treasury-level — province users don't manage them). */
+    let expToWrite = existingExp;
+    if (inExp && typeof inExp === 'object') {
+      const base = existingExp || { custody: [], items: [], transfers: [] };
+      const mergeProv = (exArr, inArr) => [
+        ...((exArr || []).filter(x => x && x.prov !== prov)),
+        ...((inArr || []).filter(x => x && x.prov === prov)),
+      ];
+      expToWrite = {
+        custody:   mergeProv(base.custody, inExp.custody),
+        items:     mergeProv(base.items,   inExp.items),
+        transfers: base.transfers || [],
+      };
+    }
+
+    await run('UPDATE months SET data = ?, attendance = ?, expenses = ? WHERE key = ?',
+      [JSON.stringify(existingData), JSON.stringify(existingAtt),
+       expToWrite ? JSON.stringify(expToWrite) : null, key]);
 
     // Log province save for admin notification
     saveLogs.push({ id: ++saveLogId, province: prov, username: user.username, key, time: Date.now() });
