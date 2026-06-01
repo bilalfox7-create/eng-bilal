@@ -6096,11 +6096,12 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
      navigating away. mode='print' auto-opens print dialog,
      mode='preview' just opens window for viewing.
   ────────────────────────────────────────────────────── */
-  const _openPdfWin=(html,mode)=>{
+  const _openPdfWin=(html,mode,skipSig)=>{
     const w=window.open('','_blank','width=1100,height=820');
     if(!w){msg('السماح بفتح النوافذ المنبثقة','err');return null;}
-    /* Inject developer signature before closing body so every helper-built PDF gets it */
-    const sig=_devSigPdf();
+    /* Inject developer signature before closing body so every helper-built PDF gets it.
+       skipSig=true: caller embeds its own themed credit inside the last page (avoids a blank orphan page). */
+    const sig=skipSig?'':_devSigPdf();
     const finalHtml=html.includes('</body>')?html.replace('</body>',sig+'</body>'):html+sig;
     w.document.write(finalHtml);
     w.document.close();
@@ -6528,7 +6529,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .page{width:297mm;height:210mm;padding:14mm 16mm;position:relative;page-break-after:always;overflow:hidden;background:#FAFAF7}
     .page.city-page{height:auto;min-height:210mm;overflow:visible}
     .page:last-child{page-break-after:auto}
-    .cover{background:radial-gradient(circle at 80% 20%,rgba(212,165,56,.18),transparent 50%),radial-gradient(circle at 20% 80%,rgba(15,38,89,.20),transparent 50%),linear-gradient(135deg,#0A0E1A 0%,#1A2238 60%,#0F2659 100%);padding:0;color:#F5E6C5}
+    .cover{background-color:#0A0E1A;background-image:radial-gradient(circle at 80% 20%,rgba(212,165,56,.18),transparent 50%),radial-gradient(circle at 20% 80%,rgba(15,38,89,.20),transparent 50%),linear-gradient(135deg,#0A0E1A 0%,#1A2238 60%,#0F2659 100%);padding:0;color:#F5E6C5}
     .cover-inner{position:absolute;inset:14mm 16mm;display:flex;flex-direction:column;border:2px solid rgba(212,165,56,.30);padding:18mm 22mm}
     .cover-corner-ornament{position:absolute;width:60px;height:60px;border:2px solid #D4A538}
     .cover-corner-ornament.tr{top:-2px;right:-2px;border-bottom:none;border-left:none}
@@ -6641,7 +6642,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .footer-strip{margin-top:18px;padding-top:12px;border-top:1px solid #E8E0CC;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7B7B7B;font-weight:600}
     .footer-strip .brand{font-family:'Cormorant Garamond',serif;background:linear-gradient(135deg,#B8860B,#D4A538);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:600;letter-spacing:.5px;font-style:italic;font-size:11px}
     @page{size:A4 landscape;margin:0 !important}
-    @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page.city-page{height:auto !important;min-height:210mm !important;max-height:none !important;overflow:visible !important;page-break-inside:auto !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.tree-svg-wrap,.thanks-block,.sig-row,.proj-item-lux{break-inside:avoid !important;page-break-inside:avoid !important}.team-section,.proj-section{break-inside:auto !important;page-break-inside:auto !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
+    @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page.city-page{height:auto !important;min-height:210mm !important;max-height:none !important;overflow:visible !important;page-break-inside:auto !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.tree-svg-wrap,.thanks-block,.sig-row,.proj-item-lux{break-inside:avoid !important;page-break-inside:avoid !important}.team-section,.proj-section{break-inside:avoid !important;page-break-inside:avoid !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important;background-color:#0A0E1A !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
     const visibleCities=cities.filter(c=>c.engs.length>0||c.projects.length>0);
     /* Numbered pages: hierarchy(1) + stats(1) + each visible city + signatures(1) = 3 + cityCount */
     const totalPages=3+visibleCities.length;
@@ -6663,6 +6664,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         <div class="sig-box"><div class="sig-box-name">APPROVED BY · المُعتمِد</div><div class="sig-line tall"></div><div class="sig-role">المدير العام · ${dirName}</div></div>
       </div>
       <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
+      <div style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:9.5px;color:rgba(184,134,11,.6);letter-spacing:1.5px;margin-top:8px;font-style:italic">© Bilal A.Ali · ${_Y}</div>
     </div>`;
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
     <title>الهيكل التنظيمى — ${company}</title>
@@ -6726,7 +6728,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       ${cityPagesHtml}
       ${signatureBlock}
     </div></body></html>`;
-    _openPdfWin(html,mode);
+    _openPdfWin(html,mode,true);
   };
 
   /* ── Wrappers for existing PDFs (now accept mode + monthKey) ── */
