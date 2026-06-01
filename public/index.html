@@ -6483,7 +6483,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       const teamCount=c.team.length;
       const teamCols=teamCount<=6?3:(teamCount<=12?4:(teamCount<=18?6:8));
       const projCount=c.projects.length;
-      const projCols=projCount<=4?1:(projCount<=10?2:3);
+      const projCols=projCount<=4?1:(projCount<=8?2:(projCount<=14?3:4));
       const teamHtml=c.team.map((e,i)=>`<div class="team-card-lux"><span class="team-card-lux-num">${String(i+1).padStart(2,'0')}</span><div class="team-card-lux-avatar">${initial(e.name)}</div><div class="team-card-lux-info"><div class="team-card-lux-name">${e.name}</div><div class="team-card-lux-role">${e.spec||'مهندس'}</div></div></div>`).join('');
       const projHtml=c.projects.map((p,i)=>`<div class="proj-item-lux ${c.id}"><span class="proj-item-num">${String(i+1).padStart(2,'0')}</span><span class="proj-item-name">${p}</span></div>`).join('');
       return `<div class="page city-page">
@@ -6527,7 +6527,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .print-btn{padding:11px 24px;font-family:inherit;font-size:13px;font-weight:800;border:none;border-radius:12px;cursor:pointer;color:#0A0E1A;background:linear-gradient(135deg,#D4A538,#F5E6C5);box-shadow:0 8px 24px rgba(184,134,11,.4)}
     .paper{width:297mm;margin:0 auto;background:#FAFAF7}
     .page{width:297mm;height:210mm;padding:14mm 16mm;position:relative;page-break-after:always;overflow:hidden;background:#FAFAF7}
-    .page.city-page{height:auto;min-height:210mm;overflow:visible}
+    .page.city-page{height:auto;min-height:210mm;overflow:visible;padding:9mm 14mm}
     .page:last-child{page-break-after:auto}
     .cover{background-color:#0A0E1A;background-image:linear-gradient(135deg,#0A0E1A 0%,#1A2238 60%,#0F2659 100%);padding:0;color:#F5E6C5}
     .cover-inner{position:absolute;inset:14mm 16mm;display:flex;flex-direction:column;border:2px solid rgba(212,165,56,.30);padding:18mm 22mm}
@@ -6584,7 +6584,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .donut-card-name{font-size:12px;font-weight:900;color:#0A0E1A;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
     .donut-card-dot{width:8px;height:8px;border-radius:50%}
     .donut-card-sub{font-size:10px;color:#7B7B7B;font-weight:600;margin-top:6px;letter-spacing:.3px}
-    .city-hero{display:flex;align-items:stretch;gap:0;margin-bottom:16px;border:1.5px solid #0A0E1A;background:#FFFFFF}
+    .city-hero{display:flex;align-items:stretch;gap:0;margin-bottom:8px;border:1.5px solid #0A0E1A;background:#FFFFFF}
     .city-hero-num{width:100px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:78px;line-height:1;letter-spacing:1px;color:#FFFFFF}
     .city-hero.derna .city-hero-num{background:linear-gradient(135deg,#1E40AF,#3B82F6)}
     .city-hero.bayda .city-hero-num{background:linear-gradient(135deg,#5B21B6,#8B5CF6)}
@@ -6598,12 +6598,12 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .city-hero-stat{text-align:center}
     .city-hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;color:#0A0E1A;line-height:1}
     .city-hero-stat-lbl{font-size:9.5px;color:#7B7B7B;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-top:3px}
-    .city-stack{display:flex;flex-direction:column;gap:10px}
-    .team-section,.proj-section{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:10px 12px}
+    .city-stack{display:flex;flex-direction:column;gap:6px}
+    .team-section,.proj-section{background:#FFFFFF;border:1.5px solid #E8E0CC;padding:8px 12px}
     .team-section-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #E8E0CC}
     .team-section-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#0A0E1A;font-style:italic;letter-spacing:.3px}
     .team-section-count{font-family:'Bebas Neue',sans-serif;font-size:14px;color:#B8860B;letter-spacing:1px}
-    .mgr-spotlight{background:linear-gradient(135deg,#FAFAF7,#FFFFFF);border:2px solid;padding:10px 14px;display:flex;align-items:center;gap:12px}
+    .mgr-spotlight{background:linear-gradient(135deg,#FAFAF7,#FFFFFF);border:2px solid;padding:7px 14px;display:flex;align-items:center;gap:12px}
     .mgr-spotlight.derna{border-color:#3B82F6}.mgr-spotlight.bayda{border-color:#8B5CF6}.mgr-spotlight.benghazi{border-color:#F59E0B}.mgr-spotlight.tabrouk{border-color:#10B981}
     .mgr-avatar-lux{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#fff;flex-shrink:0;border:3px solid #fff}
     .mgr-spotlight.derna .mgr-avatar-lux{background:#3B82F6;box-shadow:0 0 0 1.5px #3B82F6}
@@ -6615,14 +6615,14 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .mgr-spotlight-name{font-size:16px;font-weight:900;color:#0A0E1A;margin-top:2px;line-height:1.2}
     .mgr-spotlight-role{font-size:11px;color:#7B7B7B;font-weight:600;margin-top:2px}
     .team-grid-lux{display:grid;gap:6px}
-    .team-card-lux{background:#FAFAF7;border:1px solid #E8E0CC;padding:6px 8px;display:flex;align-items:center;gap:6px;min-width:0}
+    .team-card-lux{background:#FAFAF7;border:1px solid #E8E0CC;padding:4px 8px;display:flex;align-items:center;gap:6px;min-width:0}
     .team-card-lux-num{font-family:'Bebas Neue',sans-serif;font-size:12px;color:#7B7B7B;width:16px;text-align:center;letter-spacing:.5px;flex-shrink:0}
     .team-card-lux-avatar{width:26px;height:26px;border-radius:50%;background:#F5F1E8;color:#0A0E1A;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:11px;font-weight:600;flex-shrink:0;border:1px solid #D4C5A8}
     .team-card-lux-info{flex:1;min-width:0;overflow:hidden}
     .team-card-lux-name{font-size:10.5px;font-weight:800;color:#0A0E1A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
     .team-card-lux-role{font-size:9px;color:#7B7B7B;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
     .proj-grid{display:grid;gap:5px}
-    .proj-item-lux{display:flex;align-items:center;gap:6px;font-size:10px;color:#0A0E1A;background:#FAFAF7;padding:5px 8px;border-right:3px solid;font-weight:600;line-height:1.25;min-width:0}
+    .proj-item-lux{display:flex;align-items:center;gap:6px;font-size:10px;color:#0A0E1A;background:#FAFAF7;padding:4px 7px;border-right:3px solid;font-weight:600;line-height:1.25;min-width:0}
     .proj-item-lux.derna{border-color:#3B82F6}.proj-item-lux.bayda{border-color:#8B5CF6}.proj-item-lux.benghazi{border-color:#F59E0B}.proj-item-lux.tabrouk{border-color:#10B981}
     .proj-item-num{font-family:'Bebas Neue',sans-serif;font-size:12px;color:#B8860B;width:16px;text-align:center;letter-spacing:.5px;flex-shrink:0}
     .proj-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -6639,7 +6639,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     .sig-line{height:1.5px;background:#0A0E1A;margin-bottom:6px;margin-top:auto}
     .sig-line.tall{margin-top:30px}
     .sig-role{font-size:10px;color:#7B7B7B;font-weight:600}
-    .footer-strip{margin-top:18px;padding-top:12px;border-top:1px solid #E8E0CC;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7B7B7B;font-weight:600}
+    .footer-strip{margin-top:10px;padding-top:12px;border-top:1px solid #E8E0CC;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7B7B7B;font-weight:600}
     .footer-strip .brand{font-family:'Cormorant Garamond',serif;background:linear-gradient(135deg,#B8860B,#D4A538);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:600;letter-spacing:.5px;font-style:italic;font-size:11px}
     @page{size:A4 landscape;margin:0 !important}
     @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page.city-page{height:auto !important;min-height:210mm !important;max-height:none !important;overflow:visible !important;page-break-inside:auto !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.tree-svg-wrap,.thanks-block,.sig-row,.proj-item-lux{break-inside:avoid !important;page-break-inside:avoid !important}.team-section,.proj-section{break-inside:avoid !important;page-break-inside:avoid !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important;background-color:#0A0E1A !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
