@@ -6013,20 +6013,28 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     const dimComp=new Date(Y,M,0).getDate();
     const monthEnd=`${Y}-${String(M).padStart(2,'0')}-${String(dimComp).padStart(2,'0')}`;
     const onLeave=[];
-    Object.entries(useM?.data||{}).forEach(([prov,engs])=>(engs||[]).forEach(e=>{
-      (e.egyptLeaves||[]).forEach(l=>{
-        const overlaps=l.departureDate<=monthEnd&&(!l.returnDate||l.returnDate>=monthStart);
-        if(overlaps){
-          /* Compute leave days in this month */
-          let daysInMonth=0;
-          for(let d=1;d<=dimComp;d++){
-            const ds=`${Y}-${String(M).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            if(l.departureDate<=ds&&(!l.returnDate||l.returnDate>ds))daysInMonth++;
+    const _seenLv=new Set();
+    /* DS4 fix: scan ALL months' data (dedup by engineer id) so a leave recorded in an
+       earlier month still appears here — matches the cross-month "في إجازة الآن" count above. */
+    Object.values(months||{}).forEach(mm=>{
+      if(!mm?.data)return;
+      Object.entries(mm.data).forEach(([prov,engs])=>(engs||[]).forEach(e=>{
+        if(_seenLv.has(e.id))return;
+        (e.egyptLeaves||[]).forEach(l=>{
+          if(_seenLv.has(e.id))return;
+          const overlaps=l.departureDate<=monthEnd&&(!l.returnDate||l.returnDate>=monthStart);
+          if(overlaps){
+            _seenLv.add(e.id);
+            let daysInMonth=0;
+            for(let d=1;d<=dimComp;d++){
+              const ds=`${Y}-${String(M).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+              if(l.departureDate<=ds&&(!l.returnDate||l.returnDate>ds))daysInMonth++;
+            }
+            onLeave.push({eng:e.name,prov:prov.replace('محافظة ',''),dep:l.departureDate,ret:l.returnDate||'لم يرجع بعد',days:daysInMonth,fromPrev:l.departureDate<monthStart});
           }
-          onLeave.push({eng:e.name,prov:prov.replace('محافظة ',''),dep:l.departureDate,ret:l.returnDate||'لم يرجع بعد',days:daysInMonth,fromPrev:l.departureDate<monthStart});
-        }
-      });
-    }));
+        });
+      }));
+    });
     onLeave.sort((a,b)=>(a.dep||'').localeCompare(b.dep||''));
     if(onLeave.length===0)return '<div class="empty">لا يوجد مهندسون فى إجازة هذا الشهر</div>';
     return `<table>
