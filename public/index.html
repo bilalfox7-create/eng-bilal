@@ -1912,41 +1912,41 @@ const CITY_CFG=[
 ];
 const PROJ_DATA={
   derna:[
-    "وادي درنة والطرق الموازية",
-    "الطريق الساحلي والكورنيش",
-    "شبكات الصرف الصحي ومحطة المعالجة",
-    "جدران الدعم بوادي درنة",
-    "حواجز الطريق الساحلي",
-    "كابلات الجهد المتوسط"
+    "مشروع وادي درنة والطرق المحاذية لوادي درنة",
+    "مشروع الطريق الساحلي وممشى الطريق الساحلي",
+    "مشروع شبكات الصرف الصحي ومحطة معالجة الصرف الصحي",
+    "مشروع الحوائط الساندة لوادي الناقة",
+    "مشروع برابخ الطريق الساحلي",
+    "مشروع كابلات الجهد المتوسط"
   ],
   bayda:[
-    "محطة معالجة الصرف الصحي بالبيضاء",
-    "طرق سطحية - 8 كم",
-    "طريق البيضاء ماسة - 7.2 كم",
-    "طريق عمر المختار - 750 م",
-    "حوض الغريقة - 1.5 كم",
-    "طريق رأس هلال - 16 كم",
-    "الطوق الجنوبي - 8 كم",
-    "طريق الغريقة - 4 كم",
-    "طريق المخيلي - 1.8 كم",
+    "محطة المعالجة للصرف الصحي بمدينة البيضاء",
+    "الطرق السطحية",
+    "طريق البيضاء مسة 7.2 كم",
+    "طريق عمرو المختار 750م",
+    "صيانة الغريقة 1.5 كم",
+    "طريق راس هلال 16 كم",
+    "الدائري الجنوبي 8 كم",
+    "طريق الغريقة 4 كم",
+    "طريق المخيلي 1.8 كم",
     "طريق الوردية",
-    "طريق وادي الكوف - 9 كم",
-    "استكمال الطوق الجنوبي - 2.4 كم",
-    "طريق الغريقة عمر المختار - 16 كم",
-    "الطوق الشمالي",
+    "طريق وادي الكوف 9 كم",
+    "استكمال الدائري الجنوبي 2.4 كم",
+    "طريق الغريقة عمر المختار 16 كم",
+    "طريق الدائري الشمالي",
     "كوبري الخور",
-    "نفق تقاطع الطوق الشمالي / البيضاء"
+    "نفق تقاطع الدائري الشمالي مع البيضاء مسة"
   ],
   benghazi:[
-    "توسعة طريق البكور - 4.6 كم",
-    "توسعة طريق المرج - 16 كم",
-    "طرق سطحية بكوبري جزيرة الطيارة",
-    "طرق سطحية بكوبري مصنع الإسمنت"
+    "مشروع توسعة ورفع كفاءة طريق الباكور بطول 4.6 كم",
+    "مشروع توسعة ورفع كفاءة طريق المرج بطول 16 كم",
+    "مشروع اعمال الطرق السطحية بكوبري جزيرة الطيارة",
+    "مشروع اعمال الطرق السطحية بكوبري مصنع الاسمنت"
   ],
   tabrouk:[
-    "جزيرة مسيد (كوبري + طرق + مرافق صحية)",
-    "المركز الطبي (كوبري + طرق + مرافق صحية)",
-    "صيانة وتطوير محطة معالجة طبرق"
+    "جزيرة إمساعد (كوبري + طرق سطحية + مرافق صحي)",
+    "المركز الطبي (كوبري + طرق سطحية + مرافق صحي)",
+    "صيانة وتطوير محطة معالجة طبرق ومحطات الرفع"
   ]
 };
 
@@ -2033,7 +2033,7 @@ function OcOrgChart(props){
     const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
     const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
     const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
-    const projs=cityOrg.projects||PROJ_DATA[cfgC.id]||[];
+    const projs=PROJ_DATA[cfgC.id]||cityOrg.projects||[];
     /* attendance % across all engineers in city */
     const pcts=engs.map(function(e){return ocAttPct(e.id,att,cfgMonth,cfgYear);});
     const avgAtt=pcts.length>0?Math.round(pcts.reduce(function(a,b){return a+b;},0)/pcts.length):0;
@@ -6471,7 +6471,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
       const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
       const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
-      const projects=(cityOrg.projects||PROJ_DATA[cfgC.id]||[]).map(p=>typeof p==='string'?p:(p?.name||''));
+      const projects=(PROJ_DATA[cfgC.id]||cityOrg.projects||[]).map(p=>typeof p==='string'?p:(p?.name||''));
       const team=engs.filter(e=>e.id!==mgrEng?.id||!mgrEng);
       return {id:cfgC.id,name:cfgC.name,prov:provName,meta,engs,mgrName,mgrRole,projects,team};
     });
