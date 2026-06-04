@@ -2360,7 +2360,7 @@ function App(){
           const prevKey=sortedKeys[sortedKeys.length-1];
           const prev=prevKey?m[prevKey]:null;
           const nd=prev?.data?JSON.parse(JSON.stringify(prev.data)):JSON.parse(JSON.stringify(BASE));
-          PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
+          PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;e.extra=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
           const[y2,m2]=expectedKey.split('-');
           m[expectedKey]={data:nd,cfg:{...(prev?.cfg||{rate:300,egp:52.5,company:''}),month:+m2,year:+y2},savedAt:null,attendance:null,expenses:null};
           /* Save to DB */
@@ -2581,7 +2581,7 @@ function App(){
         const prevKey=sortedKeys[sortedKeys.length-1];
         const prev=prevKey?m[prevKey]:null;
         const nd=prev?.data?JSON.parse(JSON.stringify(prev.data)):JSON.parse(JSON.stringify(BASE));
-        PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
+        PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;e.extra=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
         const[y2,m2]=expectedKey.split('-');
         m[expectedKey]={data:nd,cfg:{...(prev?.cfg||{rate:300,egp:52.5,company:''}),month:+m2,year:+y2},savedAt:null,attendance:null,expenses:null};
         if(d.role==='admin')fetch(`/api/months/${expectedKey}`,{method:'PUT',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(m[expectedKey])}).catch(()=>{});
@@ -3253,7 +3253,7 @@ function App(){
     setAk(k);
     if(!months[k]){
       const prev=months[ak];const nd=dc(prev?.data||BASE);
-      PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;});});
+      PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;e.extra=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
       const[y,m]=k.split("-");
       const nm={data:nd,cfg:{...(prev?.cfg||cfg),month:+m,year:+y},savedAt:null};
       setMonths(p=>({...p,[k]:nm}));
@@ -3267,7 +3267,7 @@ function App(){
        فقط لأن السيرفر هيمسح الباقى */
     const cur=months[ak]||{};
     const v={
-      data:dc(data),cfg:dc(cfg),savedAt:new Date().toISOString(),
+      data:dc(dataRaw),cfg:dc(cfg),savedAt:new Date().toISOString(),
       expenses:cur.expenses||null,attendance:cur.attendance||null
     };
     setMonths(p=>({...p,[ak]:v}));
@@ -3281,7 +3281,7 @@ function App(){
     const k=mkKey(nmForm.month,nmForm.year);
     if(!months[k]){
       const prev=months[ak];const nd=dc(prev?.data||BASE);
-      PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;});});
+      PROVS.forEach(p=>{(nd[p]||[]).forEach(e=>{e.d1=0;e.d2=0;e.extra=0;if(e.paid1!==undefined)e.paid1=false;if(e.paid2!==undefined)e.paid2=false;});});
       const[y,m]=k.split("-");
       const nm={data:nd,cfg:{...(prev?.cfg||cfg),month:+m,year:+y},savedAt:null};
       setMonths(p=>({...p,[k]:nm}));
@@ -3298,7 +3298,7 @@ function App(){
 
   const updData=(p,id,f,v)=>{
     if(lockGuard())return;
-    const nd=dc(data);nd[p]=nd[p].map(e=>e.id===id?{...e,[f]:Math.max(0,Math.min(15,+v||0))}:e);
+    const nd=dc(dataRaw);nd[p]=nd[p].map(e=>e.id===id?{...e,[f]:Math.max(0,Math.min(15,+v||0))}:e);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     queueSave(ak,updated);
@@ -3315,7 +3315,7 @@ function App(){
   const submitEng=()=>{
     if(!form.name.trim()){msg("أدخل اسم المهندس","err");return;}
     if(lockGuard())return;
-    const nd=dc(data);
+    const nd=dc(dataRaw);
     // Auto-calc d1/d2 if arrivalDate is in current month. `extra` is manual — never auto-set.
     const arrCalc=calcArrivalDays(form.arrivalDate,cfg.year,cfg.month);
     const finalD1=arrCalc?arrCalc.d1:+form.d1;
@@ -3460,7 +3460,7 @@ function App(){
   const delEng=async(p,id,name)=>{
     if(!confirm("حذف "+name+"؟"))return;
     if(lockGuard())return;
-    const nd=dc(data);nd[p]=nd[p].filter(e=>e.id!==id);
+    const nd=dc(dataRaw);nd[p]=nd[p].filter(e=>e.id!==id);
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     pendingRef.current[ak]=updated;await flushSaves();
@@ -3503,7 +3503,7 @@ function App(){
     setTransferring(true);
     setTimeout(()=>{transferringRef.current=false;setTransferring(false);},2000);
     const transferEntry={id:'tr_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),from:fromProv,to:toProv,date:dateStr,by:user?.username||'admin',at:new Date().toISOString()};
-    const nd=dc(data);
+    const nd=dc(dataRaw);
     /* Remove from old prov, push to new prov with updated transfers + prov */
     nd[fromProv]=(nd[fromProv]||[]).filter(e=>e.id!==engId);
     const updatedEng={...engRec,prov:toProv,transfers:[...(engRec.transfers||[]),transferEntry]};
@@ -3960,7 +3960,7 @@ function App(){
       if(ageMs>24*60*60*1000){msg('انتهت مهلة التراجع (٢٤ ساعة) — تواصل مع الأدمن','err');return;}
     }
     /* Confirmation already shown in UI — proceed */
-    const nd=dc(data);
+    const nd=dc(dataRaw);
     nd[curProv]=(nd[curProv]||[]).filter(e=>e.id!==engId);
     const newTransfers=ts.filter((_,i)=>i!==tIdx);
     const updatedEng={...engRec,prov:tr.from,transfers:newTransfers};
@@ -3992,7 +3992,7 @@ function App(){
     if(lockGuard())return;
     /* Province user can only toggle paid for their own province */
     if(isProvince&&p!==userProv){msg('غير مصرح','err');return;}
-    const nd=dc(data);
+    const nd=dc(dataRaw);
     nd[p]=nd[p].map(e=>{
       if(e.id!==id)return e;
       const cur1=isP1(e),cur2=isP2(e);
@@ -4009,10 +4009,11 @@ function App(){
 
   const markAllPaid=(paid,half)=>{
     if(lockGuard())return;
-    const nd=dc(data);
+    const nd=dc(dataRaw);
     /* Province user only marks their own province's engineers */
     const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
     provsScope.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>{
+      if(e.egyptTransfer)return e;
       const cur1=isP1(e),cur2=isP2(e);
       const out={...e,paid1:half===1||half==='both'?paid:cur1,paid2:half===2||half==='both'?paid:cur2};
       delete out.paid;
