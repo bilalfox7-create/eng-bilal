@@ -8856,13 +8856,17 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               const egp=tot*(+cfg.egp||0);
               return{p:prov,n:a.n+1,a1:a.a1+a1,a2:a.a2+a2,oldDays:(a.oldDays||0)+oldD,oldAmt:(a.oldAmt||0)+oldAmt,tot:a.tot+tot,egp:a.egp+egp};
             },{p:prov,n:0,a1:0,a2:0,oldDays:0,oldAmt:0,tot:0,egp:0});
+            const _mHalf=halfView===1?1:halfView===2?2:'both';
+            const _realEngs=engs.filter(e=>!e.egyptTransfer);
+            const _allPaidH=_realEngs.length>0&&_realEngs.every(e=>_mHalf===1?isP1(e):_mHalf===2?isP2(e):(isP1(e)&&isP2(e)));
+            const _hLbl=_mHalf==='both'?'الشهر':_mHalf===1?'النص الأول':'النص التاني';
             const maxTv=!isProvince?maxT:T.tot||1;
             return h("div",{key:prov,className:"card",style:{borderTop:`2.5px solid ${color}`}},
               h("div",{className:"prov-hdr"},
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
                 h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
                   h("span",{style:{fontSize:11,fontWeight:600,color:"var(--sub)"}},f$(T.tot)),
-                  isAdmin&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},title:"تأشير مهندسي المحافظة كمدفوع (النصف المعروض)",onClick:()=>markAllPaid(true,halfView===1?1:halfView===2?2:'both',prov)},h(Ic,{n:"paid",sz:12}),"تأشير"),
+                  isAdmin&&h("button",{className:"btn"+(_allPaidH?"":" green"),style:{padding:"4px 10px",fontSize:11},title:(_allPaidH?'إلغاء تأشير ':'تأشير ')+_hLbl+' لمهندسي المحافظة',onClick:()=>markAllPaid(!_allPaidH,_mHalf,prov)},h(Ic,{n:"paid",sz:12}),(_allPaidH?'إلغاء ':'تأشير ')+_hLbl),
                   isAdmin&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة")
                 )
               ),
