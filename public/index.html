@@ -9080,7 +9080,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               h("div",{className:"card"},h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"compare",sz:13,c:"#D97706"})),"مقارنة المحافظات")),h("div",{style:{padding:"12px"}},h(BarChart,{labels:histStats.slice(-6).map(s=>s.label),datasets:PROVS.map((p,pi)=>({label:p.replace("محافظة ",""),data:histStats.slice(-6).map(s=>+s.provTots[pi].toFixed(2)),backgroundColor:PCOLS[pi]+"CC"})),height:170})))
             ),
             h("div",{className:"card"},
-              h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"trophy",sz:13,c:"#D97706"})),"المهندسون الأعلى إعاشةً – كل الفترات")),
+              h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"trophy",sz:13,c:"#D97706"})),"المهندسون الأعلى إعاشةً – كل الفترات"),h("button",{className:"btn no-print",style:{padding:"4px 10px",fontSize:11},onClick:()=>window.print()},"🖨️ طباعة")),
               h("div",{style:{padding:"4px 16px 12px"}},
                 topEngs.length===0?h("div",{style:{textAlign:"center",padding:20,color:"var(--sub)",fontSize:12}},"لا توجد بيانات"):
                 topEngs.map((e,i)=>{
@@ -9252,7 +9252,8 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             cmpKeys.length>0&&h("div",{className:"card"},
               h("div",{className:"card-hdr"},
                 h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#F5F3FF"}},h(Ic,{n:"stats",sz:13,c:"#7C3AED"})),"الرسم البياني"),
-                h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+                h("div",{style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}},
+                  h("button",{className:"btn no-print",style:{padding:"4px 10px",fontSize:11},onClick:()=>window.print()},"🖨️ طباعة"),
                   allM.map((m,i)=>h("span",{key:i,style:{fontSize:10,background:CMP_COLS[i]+"18",color:CMP_COLS[i],padding:"2px 8px",borderRadius:100,fontWeight:600}},i===0?"الحالي: "+m.label:m.label))
                 )
               ),
