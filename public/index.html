@@ -6198,7 +6198,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           if(st==='P')p++;else if(st==='A')a++;else if(['AL','SL','EL'].includes(st))lv++;
           if(fri)return '<td style="background:#F1F5F9;color:#94A3B8;text-align:center;font-size:9px;font-weight:700">ع</td>';
           if(!st)return '<td></td>';
-          return `<td style="background:${S_BG[st]};color:${S_COL[st]};text-align:center;font-size:9px;font-weight:800">${st}</td>`;
+          return `<td style="background:${S_BG[st]};color:${S_COL[st]};text-align:center;font-size:9px;font-weight:800">${ATT_SHORT[st]||st}</td>`;
         }).join('');
         /* Multi-month full-duration aggregates for summary header */
         const _lvFull=getDisplayLeaveDays(eng.id,Y,M,lv);
@@ -9473,7 +9473,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
                 const lateLabel=(lh||lm)?(String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'';
                 return`<td style="${tdStyle};background:${S_BG.TXR};color:${S_COL.TXR};font-size:8px;font-weight:800;line-height:1.1"><div>⚠</div>${lateLabel?`<div style="font-size:7px;font-weight:700">${lateLabel}</div>`:''}</td>`;
               }
-              return`<td style="${tdStyle};background:${S_BG[st]};color:${S_COL[st]};font-size:9px;font-weight:800">${st}</td>`;
+              return`<td style="${tdStyle};background:${S_BG[st]};color:${S_COL[st]};font-size:9px;font-weight:800">${ATT_SHORT[st]||st}</td>`;
             };
 
             const rows=provEngs.map(eng=>{
@@ -9725,7 +9725,7 @@ ${PROVS.map(prov=>{
         const lateLabel=(lh||lm)?(String(lh).padStart(2,'0')+':'+String(lm).padStart(2,'0')):'';
         return`<td style="${tdS};background:${S_BG.TXR};color:${S_COL.TXR};font-size:7.5px;font-weight:800;line-height:1.1"><div>⚠</div>${lateLabel?`<div style="font-size:6.5px;font-weight:700">${lateLabel}</div>`:''}</td>`;
       }
-      return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${st}</td>`;
+      return`<td style="${tdS};background:${S_BG[st]};color:${S_COL[st]};font-size:8px;font-weight:800">${ATT_SHORT[st]||st}</td>`;
     }).join('');
     /* attGetStats دلوقتى بيطبق egypt-leave OVERRIDE داخلياً — s.P و s.A مضبوطة. */
     const adjP=s.P,adjA=s.A;
