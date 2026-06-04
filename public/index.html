@@ -5847,17 +5847,17 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 <div class="section">
   <h2>👷 المهندسون حسب المحافظة</h2>
   <table>
-    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th></tr></thead>
+    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th><th>الإجمالى (ج.م)</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
         const engs=(_data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,Y,M));
         const p1=engs.filter(e=>isP1(e)).length;
         const p2=engs.filter(e=>isP2(e)).length;
         const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0)+(+e.extra||0))/30*monthRate),0);
-        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${p1}/${engs.length}</td><td class="paid-yes">${p2}/${engs.length}</td><td>${fmt(tot)} $</td></tr>`;
+        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${p1}/${engs.length}</td><td class="paid-yes">${p2}/${engs.length}</td><td>${fmt(tot)} $</td><td>${fmt(tot*LIVE_EGP)} ج.م</td></tr>`;
       }).join('')}
     </tbody>
-    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paid1Engs}/${totalEngs}</td><td class="paid-yes">${paid2Engs}/${totalEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td></tr></tfoot>
+    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paid1Engs}/${totalEngs}</td><td class="paid-yes">${paid2Engs}/${totalEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td><td>${fmt((paidUsdSum+unpaidUsdSum)*LIVE_EGP)} ج.م</td></tr></tfoot>
   </table>
 </div>
 
@@ -6366,7 +6366,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       </div>`;
     }
     const stBadge=st=>{const m={'approved':['#ECFDF5','#059669','معتمدة'],'pending':['#FFFBEB','#D97706','معلقة'],'cancelled':['#FEF2F2','#DC2626','ملغية'],'rejected':['#FEF2F2','#DC2626','مرفوضة']};const x=m[st]||['#F1F5F9','#64748B',st||'—'];return `<span style="background:${x[0]};color:${x[1]};padding:2px 8px;border-radius:100px;font-size:10px;font-weight:800">${x[2]}</span>`;};
-    const renderTable=(arr,title)=>arr.length?`<div class="section"><div class="section-title">${title} (${arr.length})</div><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th style="text-align:center">المدة</th><th>التذكرة</th><th>ملاحظات</th><th>الحالة</th></tr></thead><tbody>${arr.map(l=>{const ts=l.ticketStatus||(l.ticketBooked?'booked':'notBooked');const tkt={booked:'محجوزة',notBooked:'غير محجوزة',postponed:'مؤجلة',cancelled:'ملغاة'}[ts]||'—';return `<tr><td style="font-weight:700">${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td style="text-align:center;font-weight:700">${l.durationDays||'—'} ${l.durationDays?'يوم':''}</td><td style="font-size:10px">${tkt}${l.ticketDetails?` · ${l.ticketDetails}`:''}</td><td style="font-size:10px;color:#64748B">${l.notes||l.cancelReason||'—'}</td><td>${stBadge(l.status)}</td></tr>`}).join('')}</tbody></table></div>`:'';
+    const renderTable=(arr,title)=>arr.length?`<div class="section"><div class="section-title">${title} (${arr.length})</div><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>طلبها</th><th>السفر</th><th>العودة</th><th style="text-align:center">المدة</th><th>التذكرة</th><th>ملاحظات</th><th>الحالة</th><th>القرار</th></tr></thead><tbody>${arr.map(l=>{const ts=l.ticketStatus||(l.ticketBooked?'booked':'notBooked');const tkt={booked:'محجوزة',notBooked:'غير محجوزة',postponed:'مؤجلة',cancelled:'ملغاة'}[ts]||'—';return `<tr><td style="font-weight:700">${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td style="font-size:10px">${l.requestedBy||'—'}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td style="text-align:center;font-weight:700">${l.durationDays||'—'} ${l.durationDays?'يوم':''}</td><td style="font-size:10px">${tkt}${l.ticketDetails?` · ${l.ticketDetails}`:''}</td><td style="font-size:10px;color:#64748B">${l.notes||l.cancelReason||'—'}</td><td>${stBadge(l.status)}</td><td style="font-size:9px;color:#64748B">${l.decidedBy?(l.decidedBy+(l.decidedAt?' · '+new Date(l.decidedAt).toLocaleDateString('ar-EG'):'')):'—'}</td></tr>`}).join('')}</tbody></table></div>`:'';
     /* محتوى الـ tables — محسوب حسب الفلتر */
     let content='';
     if(!f){
