@@ -5708,6 +5708,16 @@ ${provRows.length>1?`
     const unpaidUsdSum=unpaid1USD+unpaid2USD+oldDaysUSD;
     const paidEngs=paid1Engs+paid2Engs;// total halves paid (out of totalEngs*2)
     const unpaidEngs=(totalEngs*2)-paidEngs;
+    // Per-half payment status cell — keeps النص الأول/التاني separate, colored by REAL status
+    // (green=all paid · orange=partial · gray=none) so 0/N no longer shows misleading green.
+    const halfStatusCell=(paidN,n,amt)=>{
+      if(n===0||(+amt||0)<0.005)return '<td style="text-align:center;color:#9CA3AF">—</td>';
+      const all=paidN>=n,none=paidN===0;
+      const col=all?'#059669':none?'#6B7280':'#D97706';
+      const bg=all?'#D1FAE5':none?'#F3F4F6':'#FEF3C7';
+      const lbl=all?'مدفوع':none?'معلّق':'جزئي';
+      return `<td style="text-align:center"><span style="display:inline-block;padding:2px 9px;border-radius:100px;background:${bg};color:${col};font-weight:800;font-size:11px;white-space:nowrap">${fmtN(paidN)}/${fmtN(n)} · ${lbl}</span><div style="font-size:10px;color:${col};margin-top:3px;font-weight:700">${fmt(amt)} $</div></td>`;
+    };
     // Attendance for prev month (which has been completed)
     const pm=M===1?12:M-1,py=M===1?Y-1:Y;
     const attK=`${py}-${String(pm).padStart(2,'0')}`;
@@ -5867,19 +5877,19 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 </div>
 
 <div class="section">
-  <h2>👷 المهندسون حسب المحافظة</h2>
+  <h2>📊 ملخص الإعاشة حسب المحافظة</h2>
   <table>
-    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>نص أول مدفوع</th><th>نص تاني مدفوع</th><th>الإجمالى ($)</th><th>الإجمالى (ج.م)</th></tr></thead>
+    <thead><tr><th>المحافظة</th><th>عدد المهندسين</th><th>النص الأول</th><th>النص التاني</th><th>الإجمالى ($)</th><th>الإجمالى (ج.م)</th></tr></thead>
     <tbody>
       ${PROVS.map(p=>{
         const engs=(_data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,Y,M));
-        const p1=engs.filter(e=>isP1(e)).length;
-        const p2=engs.filter(e=>isP2(e)).length;
-        const tot=engs.reduce((a,e)=>a+(((+e.d1||0)+(+e.d2||0)+(+e.extra||0))/30*monthRate),0);
-        return `<tr><td>${p}</td><td>${engs.length}</td><td class="paid-yes">${p1}/${engs.length}</td><td class="paid-yes">${p2}/${engs.length}</td><td>${fmt(tot)} $</td><td>${fmt(tot*LIVE_EGP)} ج.م</td></tr>`;
+        const n=engs.length;const dr=monthRate/30;
+        let p1=0,p2=0,h1=0,h2=0,tot=0;
+        engs.forEach(e=>{const a1=(+e.d1||0)*dr,a2=(+e.d2||0)*dr,ex=(+e.extra||0)*dr;h1+=a1;h2+=a2;tot+=a1+a2+ex;if(isP1(e))p1++;if(isP2(e))p2++;});
+        return `<tr><td>${p}</td><td>${fmtN(n)}</td>${halfStatusCell(p1,n,h1)}${halfStatusCell(p2,n,h2)}<td>${fmt(tot)} $</td><td>${fmt(tot*LIVE_EGP)} ج.م</td></tr>`;
       }).join('')}
     </tbody>
-    <tfoot><tr><td>الإجمالى</td><td>${totalEngs}</td><td class="paid-yes">${paid1Engs}/${totalEngs}</td><td class="paid-yes">${paid2Engs}/${totalEngs}</td><td>${fmt(paidUsdSum+unpaidUsdSum)} $</td><td>${fmt((paidUsdSum+unpaidUsdSum)*LIVE_EGP)} ج.م</td></tr></tfoot>
+    <tfoot><tr><td>الإجمالى</td><td>${fmtN(totalEngs)}</td>${halfStatusCell(paid1Engs,totalEngs,paid1USD+unpaid1USD)}${halfStatusCell(paid2Engs,totalEngs,paid2USD+unpaid2USD)}<td>${fmt(paidUsdSum+unpaidUsdSum)} $</td><td>${fmt((paidUsdSum+unpaidUsdSum)*LIVE_EGP)} ج.م</td></tr></tfoot>
   </table>
 </div>
 
