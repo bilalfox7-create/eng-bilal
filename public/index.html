@@ -10469,10 +10469,27 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                 html+=`<h1>📊 تقرير مخصص</h1><h2>${new Date().toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'})}</h2>`;
                 html+=`<div class="filt"><strong>الفلاتر:</strong> ${f.fromDate?'من '+f.fromDate+' ':''}${f.toDate?'إلى '+f.toDate+' ':''}· المحافظة: <strong>${f.prov==='all'?'الكل':f.prov}</strong> · النوع: <strong>${f.type==='all'?'شامل':f.type}</strong></div>`;
                 if(f.type==='all'||f.type==='eng'){
-                  html+=`<h3>المهندسون والإعاشة</h3><table><thead><tr><th>الاسم</th><th>التخصص</th><th>المحافظة</th><th>الإعاشة ($)</th></tr></thead><tbody>`;
+                  html+=`<h3>المهندسون والإعاشة</h3><table><thead><tr><th>الاسم</th><th>التخصص</th><th>المحافظة</th><th>الإعاشة ($)</th><th>الإعاشة (ج.م)</th></tr></thead><tbody>`;
                   const akm=months[ak];
-                  if(akm&&akm.data){const provs=f.prov==='all'?PROVS:[f.prov];provs.forEach(p=>(akm.data[p]||[]).forEach(e=>{const c=calc(e,akm.cfg?.rate||300,akm.cfg?.egp||52.5);html+=`<tr><td>${e.name}</td><td>${e.spec||'مهندس'}</td><td>${p.replace('محافظة ','')}</td><td>${c.tot.toFixed(2)}</td></tr>`;}));}
+                  if(akm&&akm.data){const provs=f.prov==='all'?PROVS:[f.prov];provs.forEach(p=>(akm.data[p]||[]).filter(e=>!e.egyptTransfer).forEach(e=>{const c=calc(e,akm.cfg?.rate||300,akm.cfg?.egp||52.5);html+=`<tr><td>${e.name}</td><td>${e.spec||'مهندس'}</td><td>${p.replace('محافظة ','')}</td><td>${c.tot.toFixed(2)}</td><td>${c.egp.toFixed(0)}</td></tr>`;}));}
                   html+=`</tbody></table>`;
+                }
+                if(f.type==='all'||f.type==='att'){
+                  const akm=months[ak];const provs=f.prov==='all'?PROVS:[f.prov];const att=akm?.attendance||{};
+                  html+=`<h3>ملخص الحضور — ${mn} ${cfg.year}</h3><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>حضور</th><th>غياب</th><th>إجازة مصر</th><th>ساعات العمل</th></tr></thead><tbody>`;
+                  if(akm&&akm.data){provs.forEach(p=>(akm.data[p]||[]).filter(e=>!e.egyptTransfer).forEach(e=>{const s=attGetStats(e.id,att,cfg.year,cfg.month);html+=`<tr><td>${e.name}</td><td>${p.replace('محافظة ','')}</td><td>${s.P}</td><td>${s.A}</td><td>${s.egyptDays}</td><td>${s.hrs}س</td></tr>`;}));}
+                  html+=`</tbody></table>`;
+                }
+                if(f.type==='all'||f.type==='exp'){
+                  const inR=d=>(!f.fromDate||(d||'')>=f.fromDate)&&(!f.toDate||(d||'')<=f.toDate);const inP=pv=>(f.prov==='all'||pv===f.prov);
+                  const cust=(aggCustody||[]).filter(c=>inR(c.date)&&inP(c.prov));const items=(aggExpItems||[]).filter(e=>inR(e.date)&&inP(e.prov));
+                  html+=`<h3>العهد الواردة</h3><table><thead><tr><th>التاريخ</th><th>الوصف</th><th>المحافظة</th><th>$</th><th>د.ل</th><th>ج.م</th></tr></thead><tbody>${cust.map(c=>`<tr><td>${c.date||'—'}</td><td>${c.desc||''}</td><td>${(c.prov||'').replace('محافظة ','')}</td><td>${(+c.usd||0).toFixed(2)}</td><td>${(+c.lyd||0).toFixed(2)}</td><td>${(+c.egp||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+                  html+=`<h3>المصروفات والإيجارات</h3><table><thead><tr><th>التاريخ</th><th>الوصف</th><th>النوع</th><th>المحافظة</th><th>$</th><th>د.ل</th><th>ج.م</th></tr></thead><tbody>${items.map(e=>`<tr><td>${e.date||'—'}</td><td>${e.desc||''}</td><td>${e.type||'مصروف'}</td><td>${(e.prov||'').replace('محافظة ','')}</td><td>${(+e.usd||0).toFixed(2)}</td><td>${(+e.lyd||0).toFixed(2)}</td><td>${(+e.egp||0).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+                }
+                if(f.type==='all'||f.type==='leave'){
+                  const inR=d=>(!f.fromDate||(d||'')>=f.fromDate)&&(!f.toDate||(d||'')<=f.toDate);
+                  const lvs=(leaves||[]).filter(l=>(f.prov==='all'||l.prov===f.prov)&&inR(l.travelDate||l.leaveStartDate));
+                  html+=`<h3>إجازات مصر</h3><table><thead><tr><th>المهندس</th><th>المحافظة</th><th>السفر</th><th>العودة</th><th>المدة</th><th>الحالة</th></tr></thead><tbody>${lvs.map(l=>`<tr><td>${l.engineerName||'—'}</td><td>${(l.prov||'').replace('محافظة ','')}</td><td>${l.travelDate||l.leaveStartDate||'—'}</td><td>${l.returnDate||l.leaveEndDate||'—'}</td><td>${l.durationDays||'—'}</td><td>${l.status||'—'}</td></tr>`).join('')}</tbody></table>`;
                 }
                 html+=`<div class="dev-sig-pdf">© Bilal A.Ali ${new Date().getFullYear()}</div></body></html>`;
                 w.document.write(html);w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
