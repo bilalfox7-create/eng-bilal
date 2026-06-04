@@ -8820,7 +8820,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               ),
               /* Mark-all-paid quick actions when there are unpaid in current half */
               (isAdmin||isProvince)&&((showH1&&paidStats.unpaid1N>0)||(showH2&&paidStats.unpaid2N>0))&&h("div",{key:"qact",style:{display:"flex",gap:6,padding:"8px 10px",background:"rgba(252,211,77,.04)",borderRadius:10,border:"1px dashed rgba(252,211,77,.3)",alignItems:"center",flexWrap:"wrap"}},
-                h("span",{style:{fontSize:11,fontWeight:800,color:"#FCD34D",marginLeft:"auto"}},"⏳ ",unpaidN," نص معلق:"),
+                h("span",{style:{fontSize:11,fontWeight:800,color:"#FCD34D",marginLeft:"auto"}},"⏳ لسه معلق:"),
                 showH1&&paidStats.unpaid1N>0&&h("button",{className:"btn green",style:{padding:"5px 11px",fontSize:11},onClick:()=>markAllPaid(true,1)},h(Ic,{n:"paid",sz:11}),"تأشير النص الأول (",paidStats.unpaid1N,")"),
                 showH2&&paidStats.unpaid2N>0&&h("button",{className:"btn green",style:{padding:"5px 11px",fontSize:11},onClick:()=>markAllPaid(true,2)},h(Ic,{n:"paid",sz:11}),"تأشير النص التانى (",paidStats.unpaid2N,")")
               )
