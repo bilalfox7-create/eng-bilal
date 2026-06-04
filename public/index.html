@@ -4756,7 +4756,7 @@ function App(){
         const c=calc({...e,d1:effD1,d2:effD2,extra:isSplit?0:(+e.extra||0)},_cfg.rate,_cfg.egp);
         const bg=i%2===0?'#ffffff':'#f8fafc';
         const p1=isP1(e),p2=isP2(e);
-        const badge=(paid)=>`<span style="background:${paid?"#dcfce7":"#fefce8"};color:${paid?"#15803d":"#b45309"};font-size:9px;padding:2px 6px;border-radius:100px;font-weight:700;">${paid?"✓":"⏳"}</span>`;
+        const badge=(paid)=>`<span style="background:${paid?"#dcfce7":"#fef3c7"};color:${paid?"#15803d":"#b45309"};font-size:9px;padding:2px 7px;border-radius:100px;font-weight:800;white-space:nowrap;">${paid?"✓ مدفوع":"⏳ معلّق"}</span>`;
         const dual=(usd)=>`<div style="line-height:1.3;"><div style="font-weight:700;color:${color};font-size:10.5px;">${usd.toFixed(2)} $</div><div style="font-weight:600;color:#b45309;font-size:9px;">${(usd*rate).toFixed(0)} ج.م</div></div>`;
         /* Build name cell with transfer + departure badges */
         let nameBadges='';
@@ -4797,13 +4797,28 @@ function App(){
           <td style="padding:7px 8px;text-align:center;font-weight:700;color:#b45309;border-bottom:1px solid #f1f5f9;">${_rowEgp.toFixed(0)}</td>
         </tr>`;
       }).join('');
+      // Province-level paid status chip(s) for the viewed half(s) — makes "paid this province" obvious
+      const _pvN=engs.length;
+      const _pvChip=(paidN,lbl)=>{
+        if(_pvN===0)return '';
+        const all=paidN>=_pvN,none=paidN===0;
+        const bg=none?'rgba(255,255,255,.22)':'#fff';
+        const col=all?'#15803D':none?'#fff':'#B45309';
+        const ic=all?'✓':none?'⏳':'◑';
+        const st=all?'مدفوع بالكامل':none?'معلّق':`مدفوع ${paidN}/${_pvN}`;
+        return `<span style="background:${bg};color:${col};font-size:9.5px;padding:2px 9px;border-radius:100px;font-weight:800;white-space:nowrap;">${ic} ${lbl}: ${st}</span>`;
+      };
+      let _pvPaid='';
+      if(_showH1)_pvPaid+=_pvChip(engs.filter(e=>isP1(e)).length,'النص الأول');
+      if(_showH2)_pvPaid+=_pvChip(engs.filter(e=>isP2(e)).length,'النص التاني');
       return `
       <div style="margin-bottom:20px;border-radius:10px;overflow:hidden;border:1.5px solid ${border};box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
         <div style="background:linear-gradient(135deg,${color} 0%,${color}dd 100%);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="width:8px;height:8px;border-radius:50%;background:#fff;opacity:.8;"></div>
             <span style="color:#fff;font-weight:700;font-size:13px;">${prov}</span>
             <span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;padding:2px 8px;border-radius:100px;">${engs.length} مهندس</span>
+            ${_pvPaid}
           </div>
           <div style="text-align:left;color:#fff;">
             <span style="font-weight:700;font-size:12px;">${T.tot.toFixed(2)} $</span>
@@ -4818,10 +4833,10 @@ function App(){
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:right;">التخصص</th>
               ${_showH1?`<th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">1-15</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 1 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 1</th>`:''}
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">حالة 1</th>`:''}
               ${_showH2?`<th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:42px;">16-${dim}</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:58px;">إعاشة 2 ($)</th>
-              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:38px;">حالة 2</th>`:''}
+              <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:62px;">حالة 2</th>`:''}
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:48px;" title="أيام قديمة من شهور سابقة (يدوي)">أيام قديمة</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:64px;">إجمالى ($)</th>
               <th style="padding:7px 8px;font-weight:700;color:${color};border-bottom:2px solid ${border};text-align:center;width:68px;">إجمالى (ج.م)</th>
@@ -6440,7 +6455,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     /* Map CITY_CFG to live data so report uses real numbers */
     const CITY_META={
       derna:   {accent:'#3B82F6',soft:'#DBEAFE',deep:'#1E40AF',gradFrom:'#1E40AF',gradTo:'#3B82F6',officeLabel:'OFFICE I'},
-      bayda:   {accent:'#8B5CF6',soft:'#EDE9FE',deep:'#5B21B6',gradFrom:'#5B21B6',gradTo:'#8B5CF6',officeLabel:'HEADQUARTERS · المكتب الرئيسى'},
+      bayda:   {accent:'#8B5CF6',soft:'#EDE9FE',deep:'#5B21B6',gradFrom:'#5B21B6',gradTo:'#8B5CF6',officeLabel:'OFFICE II'},
       benghazi:{accent:'#F59E0B',soft:'#FEF3C7',deep:'#92400E',gradFrom:'#92400E',gradTo:'#F59E0B',officeLabel:'OFFICE III'},
       tabrouk: {accent:'#10B981',soft:'#DCFCE7',deep:'#166534',gradFrom:'#166534',gradTo:'#10B981',officeLabel:'OFFICE IV'},
     };
