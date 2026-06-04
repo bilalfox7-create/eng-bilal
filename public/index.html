@@ -4693,7 +4693,7 @@ function App(){
     const PC=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     const PL=["#eff6ff","#f0fdf4","#fffbeb","#f5f3ff"];
     const PB=["#bfdbfe","#bbf7d0","#fde68a","#ddd6fe"];
-    const logoHtml=logo?`<img src="${logo}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:2px solid rgba(255,255,255,.2);" />`:'<div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;">🏗️</div>';
+    const logoHtml=`<img src="${logo||location.origin+'/logo.jpg'}" style="width:64px;height:64px;object-fit:contain;border-radius:10px;border:2px solid rgba(255,255,255,.2);background:#fff;" />`;
     const provColors=["#1d4ed8","#15803d","#b45309","#6d28d9"];
     /* If monthKey override is given and differs from active month, build local bundle */
     const _useOverride=monthKey&&monthKey!==ak&&months[monthKey];
@@ -5483,7 +5483,7 @@ tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
 
 <div class="report-hdr">
   <div class="report-hdr-l">
-    ${logo?`<img src="${logo}" alt="logo"/>`:''}
+    <img src="${logo||location.origin+'/logo.jpg'}" alt="logo"/>
     <div>
       <h1>📊 تقرير العهدة والمصروفات</h1>
       <div class="sub">${cfg.company||'شركة المشاريع الليبية'}</div>
@@ -5822,7 +5822,7 @@ ${provRows.length>1?`
        (skip att rows whose engineerId is already covered by a request) */
     const _reqEngIds=new Set(_onLeaveNowReq.map(l=>l.engineerId));
     const onLeaveNow=[..._onLeaveNowReq,..._onLeaveNowAtt.filter(r=>!_reqEngIds.has(r.engineerId))];
-    const logoSrc=logo||'';
+    const logoSrc=logo||location.origin+'/logo.jpg';
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>التقرير الشهري الشامل — ${monthLabel}</title>
 <style>
@@ -6169,7 +6169,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 
   const _pdfHeaderHtml=(title,subtitle)=>{
     const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
-    const logoHtml=logo?`<img src="${logo}" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #BFDBFE"/>`:'<div style="width:60px;height:60px;border-radius:8px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:24px">🏗️</div>';
+    const logoHtml=`<img src="${logo||location.origin+'/logo.jpg'}" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #BFDBFE;background:#fff"/>`;
     return `<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border:1px solid #BFDBFE;border-radius:10px;margin-bottom:16px">
       ${logoHtml}
       <div style="flex:1">
@@ -7920,7 +7920,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
                   h("div",{className:"uh-logo-box"},
                     logo
                       ?h("img",{src:logo,alt:"الرائد",className:"uh-logo-img"})
-                      :h("div",{className:"uh-logo-fallback"},"🏗️")
+                      :h("img",{src:"/logo.jpg",alt:"الرائد",className:"uh-logo-img"})
                   ),
                   h("div",{className:"uh-brand-text"},
                     h("div",{className:"uh-brand-title"},"شركة الرائد للاستشارات الهندسية"),
@@ -9583,7 +9583,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   .leg-box{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;border:1px solid}
 </style></head><body>
 <div class="page-hdr">
-  <div class="hdr-logo">${logo?`<img src="${logo}" alt="logo"/>`:'<div style="width:54px;height:54px;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:20px">🏢</div>'}</div>
+  <div class="hdr-logo"><img src="${logo||location.origin+'/logo.jpg'}" alt="logo"/></div>
   <div>
     <div class="hdr-title">${cfg.company}</div>
     <div class="hdr-sub">كشف الحضور والانصراف — ${attProv} — ${mn} ${cfg.year}</div>
