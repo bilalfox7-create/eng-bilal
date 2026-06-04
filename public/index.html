@@ -4678,9 +4678,10 @@ function App(){
     const _data=_useOverride?(months[monthKey].data||{}):data;
     const _cfg=_useOverride?(months[monthKey].cfg||cfg):cfg;
     const _mn=_useOverride?MONTHS[(_cfg.month||1)-1]:mn;
-    const _totals=_useOverride?PROVS.map(p=>(_data[p]||[]).reduce((a,e)=>{const c=calc(e,_cfg.rate,_cfg.egp);return{n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};},{n:0,a1:0,a2:0,tot:0,egp:0})):totals;
+    const _provs=isProvince?PROVS.filter(p=>p===userProv):PROVS; /* RP1: province user's PDF shows only own province (matches screen) */
+    const _totals=_useOverride?_provs.map(p=>(_data[p]||[]).reduce((a,e)=>{const c=calc(e,_cfg.rate,_cfg.egp);return{n:a.n+1,a1:a.a1+c.a1,a2:a.a2+c.a2,tot:a.tot+c.tot,egp:a.egp+c.egp};},{n:0,a1:0,a2:0,tot:0,egp:0})):totals;
     const _G=_useOverride?_totals.reduce((a,t)=>({n:a.n+t.n,a1:a.a1+t.a1,a2:a.a2+t.a2,tot:a.tot+t.tot,egp:a.egp+t.egp}),{n:0,a1:0,a2:0,tot:0,egp:0}):G;
-    const _allE=_useOverride?PROVS.flatMap(p=>(_data[p]||[]).map(e=>({...e,prov:p}))):allE;
+    const _allE=_useOverride?_provs.flatMap(p=>(_data[p]||[]).map(e=>({...e,prov:p}))):allE;
     const _exp=_useOverride?(months[monthKey].expenses||{custody:[],items:[],transfers:[]}):null;
     const _custody=_useOverride?(_exp.custody||[]):custody;
     const _expItems=_useOverride?(_exp.items||[]):expItems;
@@ -4702,10 +4703,10 @@ function App(){
     /* Build engsByProv with transfer-aware split — engineers transferred during the month appear in BOTH old and new prov with d1/d2 split */
     const _M=_cfg.month||1, _Y=_cfg.year||new Date().getFullYear();
     const _engsByProv={};
-    PROVS.forEach(p=>{_engsByProv[p]=engsInProvDuringMonth(p,_Y,_M,_data);});
+    _provs.forEach(p=>{_engsByProv[p]=engsInProvDuringMonth(p,_Y,_M,_data);});
     /* Recompute prov totals from split engineers so each prov gets its own portion.
        Includes manual oldDays (e.extra) — but only for non-split engineers (split rows show extra=0). */
-    const _totalsSplit=PROVS.map(p=>{
+    const _totalsSplit=_provs.map(p=>{
       const list=_engsByProv[p]||[];
       const dr=(+_cfg.rate||300)/30;
       return list.reduce((a,e)=>{
@@ -4721,7 +4722,7 @@ function App(){
     /* _G now reflects the split totals — keep variable name for the rest of the template */
     const _Gold=_G; /* preserved if ever needed */
     Object.assign(_G,_Gsplit);
-    const provRows=PROVS.map((prov,pi)=>{
+    const provRows=_provs.map((prov,pi)=>{
       const engs=_engsByProv[prov]||[];const T=_totalsSplit[pi];
       const color=PC[pi];const light=PL[pi];const border=PB[pi];
       if(engs.length===0)return'';
@@ -4830,11 +4831,11 @@ function App(){
     }).join('');
 
     /* totalDays should sum the EFFECTIVE d1/d2 each engineer contributes to each prov (so split engineers double-counted correctly) */
-    const totalDays1=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
+    const totalDays1=_provs.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
       const isSplit=!!e.needsSplit;
       return a+(isSplit?e.d1Split:(+e.d1||0));
     },0),0);
-    const totalDays2=PROVS.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
+    const totalDays2=_provs.reduce((s,p)=>s+(_engsByProv[p]||[]).reduce((a,e)=>{
       const isSplit=!!e.needsSplit;
       return a+(isSplit?e.d2Split:(+e.d2||0));
     },0),0);
