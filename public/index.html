@@ -4008,11 +4008,11 @@ function App(){
   const togglePaid1=(p,id)=>togglePaidHalf(p,id,1);
   const togglePaid2=(p,id)=>togglePaidHalf(p,id,2);
 
-  const markAllPaid=(paid,half)=>{
+  const markAllPaid=(paid,half,onlyProv)=>{
     if(lockGuard())return;
     const nd=dc(dataRaw);
-    /* Province user only marks their own province's engineers */
-    const provsScope=isProvince?[userProv].filter(Boolean):PROVS;
+    /* onlyProv → mark just that province; else province user marks own, admin marks all */
+    const provsScope=onlyProv?[onlyProv]:(isProvince?[userProv].filter(Boolean):PROVS);
     provsScope.forEach(p=>{nd[p]=(nd[p]||[]).map(e=>{
       if(e.egyptTransfer)return e;
       const cur1=isP1(e),cur2=isP2(e);
@@ -8862,6 +8862,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
                 h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"prov-dot",style:{background:color}}),h("span",{className:"prov-name"},prov),h("span",{className:"prov-count"},`(${engs.length} مهندس)`)),
                 h("div",{style:{display:"flex",gap:6,alignItems:"center"}},
                   h("span",{style:{fontSize:11,fontWeight:600,color:"var(--sub)"}},f$(T.tot)),
+                  isAdmin&&h("button",{className:"btn green",style:{padding:"4px 10px",fontSize:11},title:"تأشير مهندسي المحافظة كمدفوع (النصف المعروض)",onClick:()=>markAllPaid(true,halfView===1?1:halfView===2?2:'both',prov)},h(Ic,{n:"paid",sz:12}),"تأشير"),
                   isAdmin&&h("button",{className:"btn",style:{padding:"4px 10px",fontSize:11},onClick:()=>{setForm({prov,name:"",spec:"",d1:0,d2:0,id:null,arrivalDate:""});setModal("form");}},h(Ic,{n:"plus",sz:12}),"إضافة")
                 )
               ),
