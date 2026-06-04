@@ -3512,6 +3512,28 @@ function App(){
     const updated={...mkMonthBase(),data:nd,savedAt:null};
     setMonths(prev=>({...prev,[ak]:updated}));
     pendingRef.current[ak]=updated;flushSaves();
+    /* DS5: stamp the transfer onto the engineer's record in OTHER loaded months that include or
+       follow the transfer date, so engProvAtDate (date-aware via transfers[]) resolves the right
+       province per day in every month — not just the active one. Updated in place (prov+transfers[]);
+       engSegmentsInMonth does the per-date split. Months entirely before the transfer are untouched. */
+    const _tMonth=dateStr.slice(0,7);
+    const _prop={};
+    Object.keys(months).forEach(key=>{
+      if(key==='leaves'||key===ak||key<_tMonth)return;
+      const mm=months[key];if(!mm?.data)return;
+      let touched=false;const nd2={};
+      Object.keys(mm.data).forEach(p=>{
+        nd2[p]=(mm.data[p]||[]).map(e=>{
+          if(e.id!==engId)return e;
+          const dup=(e.transfers||[]).some(t=>t.date===dateStr&&t.from===fromProv&&t.to===toProv);
+          if(dup&&e.prov===toProv)return e;
+          touched=true;
+          return{...e,prov:toProv,transfers:dup?(e.transfers||[]):[...(e.transfers||[]),transferEntry]};
+        });
+      });
+      if(touched)_prop[key]={...mm,data:nd2,savedAt:null};
+    });
+    if(Object.keys(_prop).length){setMonths(prev=>({...prev,..._prop}));Object.entries(_prop).forEach(([k,v])=>queueSave(k,v));}
     logActivity('نقل مهندس',`${engRec.name} — من ${fromProv.replace('محافظة ','')} إلى ${toProv.replace('محافظة ','')} بتاريخ ${dateStr}`);
     msg(`تم نقل ${engRec.name} إلى ${toProv}`);
     setModal(null);
