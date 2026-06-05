@@ -107,15 +107,14 @@ router.put('/months/:key', async (req, res) => {
       existingData[prov] = merged;
     }
 
-    // Replace attendance for engineers in their province (incl. newly added)
-    // so adds/edits/clears propagate; other engineers untouched.
+    // Update attendance for THIS province's engineers from the payload.
+    // STALE-TAB SAFETY: only SET attendance the client actually sent; never
+    // DELETE an engineer's attendance just because it's absent from this save
+    // — an old/stale tab must not be able to wipe newer attendance. A real
+    // clear still propagates: the client sends {} (empty, defined) for it.
     const provEngIds = new Set((existingData[prov] || []).map(e => e.id));
     provEngIds.forEach(engId => {
-      if (inAtt[engId] !== undefined) {
-        existingAtt[engId] = inAtt[engId];
-      } else {
-        delete existingAtt[engId];
-      }
+      if (inAtt[engId] !== undefined) existingAtt[engId] = inAtt[engId];
     });
 
     /* ── Expenses: merge THIS province's custody + items (matched by `prov`),
