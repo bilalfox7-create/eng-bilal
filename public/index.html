@@ -4812,8 +4812,8 @@ function App(){
       if(_showH1)_pvPaid+=_pvChip(engs.filter(e=>isP1(e)).length,'النص الأول');
       if(_showH2)_pvPaid+=_pvChip(engs.filter(e=>isP2(e)).length,'النص التاني');
       return `
-      <div style="margin-bottom:20px;border-radius:10px;overflow:hidden;border:1.5px solid ${border};box-shadow:0 2px 8px rgba(0,0,0,.06);break-inside:avoid;">
-        <div style="background:linear-gradient(135deg,${color} 0%,${color}dd 100%);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="margin-bottom:12px;border-radius:10px;border:1.5px solid ${border};box-shadow:0 2px 8px rgba(0,0,0,.06);">
+        <div style="background:${color};padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-radius:9px 9px 0 0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="width:8px;height:8px;border-radius:50%;background:#fff;opacity:.8;"></div>
             <span style="color:#fff;font-weight:700;font-size:13px;">${prov}</span>
@@ -4905,6 +4905,7 @@ function App(){
   @page{size:A4;margin:12mm 10mm}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;line-height:1.5}
+  thead{display:table-header-group}tr{page-break-inside:avoid}
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}
   .print-bar{position:fixed;top:0;left:0;right:0;background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.08)}
   .print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:9px 24px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35);display:flex;align-items:center;gap:8px}
@@ -4943,7 +4944,7 @@ function App(){
   </div>
 
   <!-- gradient bar -->
-  <div style="height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ec4899);margin-bottom:14px;border-radius:0 0 4px 4px;"></div>
+  <div style="height:4px;background:linear-gradient(90deg,#D4A538,#0F2659);margin-bottom:14px;border-radius:0 0 4px 4px;"></div>
 
   <!-- ═══ SUMMARY CARDS ═══ -->
   <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -4995,9 +4996,10 @@ function App(){
   <div style="margin-top:24px;padding:16px 20px;border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;">
       <div style="text-align:center;">
-        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:40px;">المحاسب / المعد</div>
+        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px;">المُعِد</div>
+        <div style="font-size:12px;color:#0F2659;font-weight:800;margin-bottom:22px;">Bilal A.Ali</div>
         <div style="border-bottom:1.5px solid #94a3b8;"></div>
-        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع</div>
+        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">التوقيع</div>
       </div>
       <div style="text-align:center;">
         <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:40px;">المراجع</div>
@@ -5017,7 +5019,7 @@ function App(){
   <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;font-size:9px;color:#94a3b8;">
     نظام إعاشات المهندسين · ${_cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
   </div>
-  <div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
+  <div style="text-align:center;font-size:10px;font-weight:800;letter-spacing:.4px;margin-top:6px;color:#B8860B;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 
 </div>
 </body></html>`;
@@ -5408,18 +5410,19 @@ function App(){
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>تقرير العهدة والمصروفات — ${monthLabel}</title>
 <style>
-@page{size:A4 portrait;margin:12mm}
+@page{size:A4 portrait;margin:12mm 10mm}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI','Tahoma',Arial,sans-serif;direction:rtl;color:#1F2937;background:#fff;font-size:11px;line-height:1.5;padding:18px}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0}.no-print{display:none!important}}
 button.no-print{position:fixed;top:12px;left:12px;z-index:99;padding:10px 20px;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,.3)}
-.report-hdr{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2563EB;padding-bottom:14px;margin-bottom:18px}
+.report-hdr{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0A0E1A 0%,#0F2659 55%,#1A2238 100%);color:#fff;padding:16px 22px;border-radius:14px;margin-bottom:18px;position:relative;overflow:hidden}
+.report-hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#D4A538,#0F2659)}
 .report-hdr-l{display:flex;align-items:center;gap:14px}
-.report-hdr img{max-width:75px;max-height:75px}
-.report-hdr h1{margin:0;font-size:22px;font-weight:800;color:#1F2937}
-.report-hdr .sub{font-size:13px;color:#666;margin-top:4px}
-.report-hdr .sub-2{font-size:11px;color:#9CA3AF;margin-top:3px}
-.report-hdr-r{text-align:left;font-size:11px;color:#666}
+.report-hdr img{width:62px;height:62px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;border:2px solid rgba(212,165,56,.5)}
+.report-hdr h1{margin:0;font-size:23px;font-weight:900;color:#fff}
+.report-hdr .sub{font-size:12.5px;color:#D4A538;margin-top:5px;font-weight:700}
+.report-hdr .sub-2{font-size:11px;color:#C9D4E8;margin-top:3px}
+.report-hdr-r{text-align:left;font-size:11px;color:#C9D4E8}
 .filter-bar{padding:8px 14px;background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(167,139,250,.05));border:1px solid rgba(96,165,250,.2);border-radius:8px;font-size:11px;color:#374151;margin-bottom:16px}
 .filter-bar b{color:#2563EB}
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
@@ -5432,8 +5435,9 @@ button.no-print{position:fixed;top:12px;left:12px;z-index:99;padding:10px 20px;b
 .kpi-lbl{font-size:10px;font-weight:700;color:#6B7280;margin-bottom:4px}
 .kpi-val{font-size:14px;font-weight:800;color:#111827;line-height:1.3}
 .kpi-val-sm{font-size:12px;font-weight:700;color:#374151;margin-top:2px}
-.section{margin-bottom:18px;page-break-inside:avoid}
-.section h2{font-size:14px;font-weight:800;color:#1F2937;border-right:4px solid #2563EB;padding:7px 12px;margin:0 0 8px;background:#F3F4F6;border-radius:4px;display:flex;justify-content:space-between;align-items:center}
+.section{margin-bottom:14px}
+thead{display:table-header-group}tr{page-break-inside:avoid}
+.section h2{font-size:14px;font-weight:800;color:#0F2659;border-right:5px solid #D4A538;padding:7px 13px;margin:0 0 9px;background:linear-gradient(90deg,#F4F1E8,#F7FAFF);border-radius:6px;display:flex;justify-content:space-between;align-items:center;page-break-after:avoid}
 .section h2.purple{border-right-color:#A78BFA}
 .section h2.gold{border-right-color:#FCD34D}
 .section h2.blue{border-right-color:#3B82F6}
@@ -5445,7 +5449,7 @@ button.no-print{position:fixed;top:12px;left:12px;z-index:99;padding:10px 20px;b
 .section h2.green .badge{background:#10B981}
 table{width:100%;border-collapse:collapse;font-size:10.5px}
 th,td{border:1px solid #E5E7EB;padding:6px 8px;text-align:right;vertical-align:middle}
-th{background:#F9FAFB;font-weight:700;color:#374151;font-size:10px}
+th{background:#0F2659;font-weight:700;color:#F5E6C5;font-size:10px}
 tbody tr:nth-child(even){background:#FAFBFC}
 tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
 .tag{display:inline-block;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700}
@@ -5492,7 +5496,7 @@ tfoot td{font-weight:800;background:#F3F4F6;color:#1F2937}
   </div>
   <div class="report-hdr-r">
     <div>طُبع في:</div>
-    <div style="font-weight:700;color:#374151;margin-top:2px">${today}</div>
+    <div style="font-weight:700;color:#fff;margin-top:2px">${today}</div>
   </div>
 </div>
 
@@ -5676,7 +5680,7 @@ ${provRows.length>1?`
 </div>`:''}
 
 <div class="sig-row">
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المسؤول المالى</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المُعِد</div><div style="font-size:11px;font-weight:800;color:#0F2659;margin-top:2px">Bilal A.Ali</div></div>
   <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المراجع</div></div>
   <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المدير</div></div>
 </div>
@@ -5684,7 +5688,7 @@ ${provRows.length>1?`
 <div class="footer">
   تم إنشاء هذا التقرير تلقائياً من نظام إدارة مشروعات ليبيا — ${cfg.company||''} · ${today}
 </div>
-<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
+<div style="text-align:center;font-size:10px;font-weight:800;letter-spacing:.4px;margin-top:6px;color:#B8860B;">© Bilal A.Ali ${new Date().getFullYear()}</div>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -5826,51 +5830,62 @@ ${provRows.length>1?`
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <title>التقرير الشهري الشامل — ${monthLabel}</title>
 <style>
-@page{size:A4;margin:14mm}
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+@page{size:A4;margin:12mm 10mm}
 *{box-sizing:border-box}
-body{font-family:'Segoe UI','Tahoma',Arial,sans-serif;direction:rtl;color:#222;margin:0;padding:18px;background:#fff;line-height:1.5}
-.report-hdr{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2563EB;padding-bottom:14px;margin-bottom:18px}
+body{font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1A2238;margin:0;padding:14px 0;background:#fff;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.report-hdr{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#0A0E1A 0%,#0F2659 55%,#1A2238 100%);color:#F5E6C5;padding:16px 22px;border-radius:14px;margin:0 10px 18px;box-shadow:0 6px 20px rgba(10,14,26,.25);position:relative;overflow:hidden}
+.report-hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#D4A538,#0F2659)}
 .report-hdr-l{display:flex;align-items:center;gap:14px}
-.report-hdr img{max-width:75px;max-height:75px}
-.report-hdr h1{margin:0;font-size:22px;font-weight:800;color:#1F2937}
-.report-hdr .sub{font-size:13px;color:#666;margin-top:4px}
-.report-hdr-r{text-align:left;font-size:11px;color:#666}
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
-.kpi{padding:12px 14px;border-radius:10px;border:2px solid;background:#fafbff}
-.kpi.blue{border-color:#60A5FA;background:#EFF6FF}
-.kpi.green{border-color:#34D399;background:#ECFDF5}
-.kpi.red{border-color:#F87171;background:#FEF2F2}
-.kpi.gold{border-color:#FCD34D;background:#FFFBEB}
-.kpi-lbl{font-size:10px;font-weight:700;color:#6B7280;margin-bottom:4px}
-.kpi-val{font-size:18px;font-weight:800;color:#111827}
-.kpi-sub{font-size:10px;color:#6B7280;margin-top:3px}
-.section{margin-bottom:22px;page-break-inside:avoid}
-.section h2{font-size:15px;font-weight:800;color:#1F2937;border-right:4px solid #2563EB;padding:6px 12px;margin:0 0 10px;background:#F3F4F6;border-radius:4px}
+.report-hdr img{width:62px;height:62px;object-fit:contain;background:#fff;border-radius:10px;padding:4px;border:2px solid rgba(212,165,56,.5)}
+.report-hdr h1{margin:0;font-size:24px;font-weight:900;color:#fff;letter-spacing:.3px}
+.report-hdr .sub{font-size:12.5px;color:#D4A538;margin-top:5px;font-weight:700}
+.report-hdr-r{text-align:left;font-size:11px;color:#C9D4E8;line-height:1.8}
+.report-hdr-r .badge{display:inline-block;background:rgba(212,165,56,.18);border:1px solid rgba(212,165,56,.55);color:#F5E6C5;padding:3px 11px;border-radius:100px;font-weight:700;font-size:10.5px;margin-bottom:6px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 10px 18px}
+.kpi{padding:13px 15px;border-radius:12px;border:1px solid #E3E8F0;background:linear-gradient(135deg,#FFFFFF,#F7FAFF);box-shadow:0 2px 8px rgba(15,38,89,.06);position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;right:0;width:5px;height:100%;background:#0F2659}
+.kpi.blue::before{background:#2563EB}
+.kpi.green::before{background:#059669}
+.kpi.red::before{background:#DC2626}
+.kpi.gold::before{background:#D4A538}
+.kpi-lbl{font-size:10px;font-weight:700;color:#64748B;margin-bottom:5px}
+.kpi-val{font-size:20px;font-weight:900;color:#0F2659}
+.kpi-sub{font-size:10px;color:#64748B;margin-top:3px}
+.section{margin:0 10px 15px}
+.section h2{font-size:14px;font-weight:800;color:#0F2659;border-right:5px solid #D4A538;padding:7px 13px;margin:0 0 9px;background:linear-gradient(90deg,#F4F1E8,#F7FAFF);border-radius:6px;page-break-after:avoid}
 table{width:100%;border-collapse:collapse;font-size:11px}
-th,td{border:1px solid #D1D5DB;padding:6px 8px;text-align:right}
-th{background:#F9FAFB;font-weight:700;color:#374151}
-tfoot td{font-weight:800;background:#F3F4F6}
+thead{display:table-header-group}
+tr{page-break-inside:avoid}
+th,td{border:1px solid #E2E8F0;padding:6px 9px;text-align:right}
+th{background:#0F2659;font-weight:700;color:#F5E6C5}
+tfoot td{font-weight:800;background:#F4F1E8;color:#0F2659}
 .prov-tag{display:inline-block;padding:1px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#EFF6FF;color:#2563EB}
 .paid-yes{color:#059669;font-weight:700}
 .paid-no{color:#D97706;font-weight:700}
 .rent-paid{background:#ECFDF5;color:#059669;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
 .rent-due{background:#FFFBEB;color:#D97706;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
 .rent-overdue{background:#FEF2F2;color:#DC2626;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
-.empty{padding:14px;text-align:center;color:#9CA3AF;font-style:italic;font-size:11px}
-.footer{margin-top:24px;padding-top:10px;border-top:1px solid #D1D5DB;font-size:10px;color:#9CA3AF;text-align:center}
-@media print{button.no-print{display:none}}
-button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#2563EB;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px}
+.empty{padding:7px 12px;text-align:right;color:#94A3B8;font-style:italic;font-size:10.5px;background:#F8FAFC;border-radius:6px}
+.sig-row{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:22px 10px 0;page-break-inside:avoid}
+.sig-box{text-align:center;font-size:11px}
+.sig-box .role{color:#64748B;font-weight:700;margin-bottom:30px}
+.sig-box .name{border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659}
+.footer{margin:18px 10px 0;padding:11px 16px;border-radius:10px 10px 0 0;border-top:3px solid #D4A538;font-size:10px;background:#0A0E1A;color:#C9D4E8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.footer .credit{font-weight:800;color:#D4A538}
+@media print{button.no-print{display:none}body{padding:0}}
+button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#0F2659;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px}
 </style></head><body>
 <button class="no-print" onclick="window.print()">🖨 طباعة / حفظ PDF</button>
 <div class="report-hdr">
   <div class="report-hdr-l">
-    ${logoSrc?`<img src="${logoSrc}" alt="logo"/>`:''}
+    <img src="${logoSrc}" alt="logo"/>
     <div>
       <h1>التقرير الشهري الشامل</h1>
-      <div class="sub">${_cfg.company||'شركة المشاريع الليبية'} — ${monthLabel}</div>
+      <div class="sub">${_cfg.company||'شركة الرائد للاستشارات الهندسية'} · ${monthLabel}</div>
     </div>
   </div>
-  <div class="report-hdr-r">طُبع في: ${today}</div>
+  <div class="report-hdr-r"><div class="badge">تقرير إداري</div><br>صدر في: ${today}</div>
 </div>
 
 ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradient(135deg,#FEF2F2,#FFE4E6);border:2px solid #F87171;border-radius:10px;display:flex;align-items:center;gap:14px">
@@ -6138,10 +6153,16 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   })()}
 </div>
 
-<div class="footer">
-  تم إنشاء هذا التقرير تلقائياً بواسطة نظام إدارة مشروعات ليبيا — ${_cfg.company||''}
+<div class="sig-row">
+  <div class="sig-box"><div class="role">أعدّه</div><div class="name">Bilal A.Ali</div></div>
+  <div class="sig-box"><div class="role">راجعه</div><div class="name">&nbsp;</div></div>
+  <div class="sig-box"><div class="role">اعتمده</div><div class="name">&nbsp;</div></div>
 </div>
-<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:6px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1;">© Bilal A.Ali ${new Date().getFullYear()}</div>
+<div class="footer">
+  <span>${_cfg.company||'شركة الرائد للاستشارات الهندسية'}</span>
+  <span>تقرير شهري شامل · ${monthLabel}</span>
+  <span class="credit">© Bilal A.Ali ${new Date().getFullYear()}</span>
+</div>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -6169,21 +6190,24 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 
   const _pdfHeaderHtml=(title,subtitle)=>{
     const today=new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
-    const logoHtml=`<img src="${logo||location.origin+'/logo.jpg'}" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #BFDBFE;background:#fff"/>`;
-    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border:1px solid #BFDBFE;border-radius:10px;margin-bottom:16px">
-      ${logoHtml}
-      <div style="flex:1">
-        <div style="font-size:18px;font-weight:900;color:#1E3A8A;line-height:1.3">${title}</div>
-        <div style="font-size:11px;color:#3B82F6;font-weight:700;margin-top:3px">${subtitle}</div>
-        <div style="font-size:10px;color:#64748B;margin-top:3px">${cfg.company||'شركة الرائد للاستشارات الهندسية'} · صدر: ${today}</div>
+    const logoHtml=`<img src="${logo||location.origin+'/logo.jpg'}" style="width:60px;height:60px;object-fit:contain;border-radius:10px;padding:4px;border:2px solid rgba(212,165,56,.5);background:#fff"/>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;background:linear-gradient(135deg,#0A0E1A 0%,#0F2659 55%,#1A2238 100%);border-radius:14px;margin-bottom:18px;position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${logoHtml}
+        <div>
+          <div style="font-size:22px;font-weight:900;color:#fff;line-height:1.25">${title}</div>
+          <div style="font-size:12px;color:#D4A538;font-weight:700;margin-top:4px">${subtitle}</div>
+        </div>
       </div>
+      <div style="text-align:left;font-size:10.5px;color:#C9D4E8;line-height:1.7">${cfg.company||'شركة الرائد للاستشارات الهندسية'}<br>صدر: ${today}</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#D4A538,#0F2659)"></div>
     </div>`;
   };
 
-  const _pdfShellCss=()=>`@page{size:A4;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1e293b;font-size:11px;background:#fff;padding:18px;line-height:1.5}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:linear-gradient(135deg,#1d4ed8,#6d28d9);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(29,78,216,.35)}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #E2E8F0;padding:6px 8px;text-align:right}th{background:#F8FAFC;font-weight:800;color:#475569}.empty{padding:30px;text-align:center;color:#94A3B8;font-style:italic;font-size:12px;border:1.5px dashed #CBD5E1;border-radius:10px;margin:20px 0}.section{margin-bottom:18px}.section-title{font-size:14px;font-weight:900;color:#1E3A8A;padding:8px 12px;background:#F8FAFC;border-right:4px solid #2563EB;border-radius:4px;margin-bottom:10px}`;
+  const _pdfShellCss=()=>`@page{size:A4;margin:12mm 10mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1A2238;font-size:11px;background:#fff;padding:14px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}@media print{body{padding:0}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:#0F2659;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(15,38,89,.3)}table{width:100%;border-collapse:collapse;font-size:10.5px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #E2E8F0;padding:6px 9px;text-align:right}th{background:#0F2659;font-weight:700;color:#F5E6C5}tfoot td{font-weight:800;background:#F4F1E8;color:#0F2659}.empty{padding:8px 12px;text-align:right;color:#94A3B8;font-style:italic;font-size:10.5px;background:#F8FAFC;border-radius:6px;margin:4px 0}.section{margin:0 0 14px}.section-title{font-size:14px;font-weight:800;color:#0F2659;padding:7px 13px;background:linear-gradient(90deg,#F4F1E8,#F7FAFF);border-right:5px solid #D4A538;border-radius:6px;margin-bottom:9px;page-break-after:avoid}`;
 
   /* ── Developer signature for PDFs (inline-styled for portability across all PDF templates) ── */
-  const _devSigPdf=()=>`<div style="text-align:center;font-family:'Poppins','Cairo',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;margin-top:10px;padding:6px 0;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:#6366f1">© Bilal A.Ali ${new Date().getFullYear()}</div>`;
+  const _devSigPdf=()=>`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:22px 4mm 0;page-break-inside:avoid;font-size:11px;text-align:center"><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">أعدّه</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">Bilal A.Ali</div></div><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">راجعه</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">&nbsp;</div></div><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">اعتمده</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">&nbsp;</div></div></div><div style="margin:16px 4mm 0;padding:11px 16px;border-radius:10px 10px 0 0;border-top:3px solid #D4A538;font-size:10px;background:#0A0E1A;color:#C9D4E8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span>${cfg.company||'شركة الرائد للاستشارات الهندسية'}</span><span style="font-weight:800;color:#D4A538">© Bilal A.Ali ${new Date().getFullYear()}</span></div>`;
 
   /* ── Attendance PDF (defaults to PREVIOUS month — attendance is recorded for prev month at start of current month) ── */
   const printAttendancePDF=(mode='print',monthKey=null)=>{
@@ -6703,7 +6727,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     const totalPages=3+visibleCities.length;
     const cityPagesHtml=visibleCities.map((c,i)=>cityPage(c,i,3+i,totalPages)).join('');
     /* Preparer name — prefer username, fall back to role label */
-    const preparerName=(user&&(user.username||user.role))||'admin';
+    const preparerName='Bilal A.Ali';
     const signatureBlock=`<div class="page sig-page" style="display:flex;flex-direction:column">
       <div class="page-hdr">
         <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>التواقيع والاعتمادات</h1><div class="sub">Signatures &amp; Acknowledgements</div></div></div>
@@ -6719,7 +6743,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         <div class="sig-box"><div class="sig-box-name">APPROVED BY · المُعتمِد</div><div class="sig-line tall"></div><div class="sig-role">المدير العام · ${dirName}</div></div>
       </div>
       <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
-      <div style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:9.5px;color:rgba(184,134,11,.6);letter-spacing:1.5px;margin-top:8px;font-style:italic">© Bilal A.Ali · ${_Y}</div>
+      <div style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:11px;color:#B8860B;letter-spacing:1.5px;margin-top:8px;font-style:italic">© Bilal A.Ali · ${_Y}</div>
     </div>`;
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
     <title>الهيكل التنظيمى — ${company}</title>
