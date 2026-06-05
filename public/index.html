@@ -6841,7 +6841,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   );
 
   /* ── Province page guard ──────────────────────────── */
-  if(user?.role==='province'&&!["eng","att","leaves","expenses"].includes(page)){
+  if(user?.role==='province'&&!["eng","att","leaves"].includes(page)){
     setTimeout(()=>setPage("att"),0);
   }
   /* ── Viewer page guard ─────────────────────────────── */
@@ -7716,7 +7716,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           out.push(renderItem('eng'));
           out.push(renderItem('att'));
           out.push(renderItem('leaves',pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)));
-          out.push(renderItem('expenses'));
+          if(!isProvince) out.push(renderItem('expenses')); /* province users never see العهدة والمصروفات */
 
           /* التحليلات + المشروعات */
           if(isAdmin||!isProvince){
