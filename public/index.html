@@ -6431,7 +6431,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       content=renderTable(cancelled,'❌ إجازات مرفوضة / ملغية');
       if(cancelled.length===0)content='<div class="empty">لا توجد إجازات مرفوضة</div>';
     }
-    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><style>${_pdfShellCss()}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml(title,subtitle)}${summary}${content}</body></html>`;
+    const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title><style>${_pdfShellCss()}@page{size:A4 landscape;margin:10mm}</style></head><body><div class="print-bar no-print"><button class="print-btn" onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>${_pdfHeaderHtml(title,subtitle)}${summary}${content}</body></html>`;
     _openPdfWin(html,mode);
   };
 
