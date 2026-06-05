@@ -4992,29 +4992,6 @@ function App(){
     </table>
   </div>
 
-  <!-- ═══ SIGNATURES ═══ -->
-  <div style="margin-top:24px;padding:16px 20px;border:1.5px dashed #cbd5e1;border-radius:10px;background:#f8fafc;">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;">
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px;">المُعِد</div>
-        <div style="font-size:12px;color:#0F2659;font-weight:800;margin-bottom:22px;">Bilal A.Ali</div>
-        <div style="border-bottom:1.5px solid #94a3b8;"></div>
-        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">التوقيع</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:40px;">المراجع</div>
-        <div style="border-bottom:1.5px solid #94a3b8;"></div>
-        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:8px;">اعتمد من</div>
-        <div style="font-size:10px;color:#374151;margin-bottom:22px;">التاريخ: ${new Date().toLocaleDateString('ar-EG')}</div>
-        <div style="border-bottom:1.5px solid #94a3b8;"></div>
-        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">الاسم والتوقيع والختم</div>
-      </div>
-    </div>
-  </div>
-
   <!-- footer -->
   <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;font-size:9px;color:#94a3b8;">
     نظام إعاشات المهندسين · ${_cfg.company} · ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
@@ -5679,12 +5656,6 @@ ${provRows.length>1?`
   </table>
 </div>`:''}
 
-<div class="sig-row">
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المُعِد</div><div style="font-size:11px;font-weight:800;color:#0F2659;margin-top:2px">Bilal A.Ali</div></div>
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المراجع</div></div>
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-lbl">المدير</div></div>
-</div>
-
 <div class="footer">
   تم إنشاء هذا التقرير تلقائياً من نظام إدارة مشروعات ليبيا — ${cfg.company||''} · ${today}
 </div>
@@ -5877,6 +5848,15 @@ tfoot td{font-weight:800;background:#F4F1E8;color:#0F2659}
 button.no-print{position:fixed;top:10px;left:10px;padding:8px 16px;background:#0F2659;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px}
 </style></head><body>
 <button class="no-print" onclick="window.print()">🖨 طباعة / حفظ PDF</button>
+<div style="page-break-after:always;height:255mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:linear-gradient(135deg,#0A0E1A 0%,#0F2659 55%,#1A2238 100%);border-radius:16px;margin:0 10px;color:#fff;position:relative;overflow:hidden">
+  <div style="position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#D4A538,#0F2659)"></div>
+  <img src="${logoSrc}" style="width:150px;height:150px;object-fit:contain;background:#fff;border-radius:24px;padding:12px;border:3px solid #D4A538;margin-bottom:34px"/>
+  <div style="font-size:44px;font-weight:900;color:#fff;letter-spacing:1px;line-height:1.2">التقرير الشهري الشامل</div>
+  <div style="width:130px;height:3px;background:#D4A538;margin:20px 0;border-radius:2px"></div>
+  <div style="font-size:22px;color:#D4A538;font-weight:800">${monthLabel}</div>
+  <div style="font-size:15px;color:#C9D4E8;margin-top:12px">${_cfg.company||'شركة الرائد للاستشارات الهندسية'}</div>
+  <div style="position:absolute;bottom:38px;left:0;right:0;font-size:11px;color:#8B96A8;letter-spacing:1px">صدر في ${today}</div>
+</div>
 <div class="report-hdr">
   <div class="report-hdr-l">
     <img src="${logoSrc}" alt="logo"/>
@@ -6153,11 +6133,6 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   })()}
 </div>
 
-<div class="sig-row">
-  <div class="sig-box"><div class="role">أعدّه</div><div class="name">Bilal A.Ali</div></div>
-  <div class="sig-box"><div class="role">راجعه</div><div class="name">&nbsp;</div></div>
-  <div class="sig-box"><div class="role">اعتمده</div><div class="name">&nbsp;</div></div>
-</div>
 <div class="footer">
   <span>${_cfg.company||'شركة الرائد للاستشارات الهندسية'}</span>
   <span>تقرير شهري شامل · ${monthLabel}</span>
@@ -6207,7 +6182,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
   const _pdfShellCss=()=>`@page{size:A4;margin:12mm 10mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;direction:rtl;color:#1A2238;font-size:11px;background:#fff;padding:14px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact}@media print{body{padding:0}.no-print{display:none!important}}.print-bar{position:fixed;top:8px;left:8px;z-index:99}.print-btn{background:#0F2659;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;box-shadow:0 4px 12px rgba(15,38,89,.3)}table{width:100%;border-collapse:collapse;font-size:10.5px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #E2E8F0;padding:6px 9px;text-align:right}th{background:#0F2659;font-weight:700;color:#F5E6C5}tfoot td{font-weight:800;background:#F4F1E8;color:#0F2659}.empty{padding:8px 12px;text-align:right;color:#94A3B8;font-style:italic;font-size:10.5px;background:#F8FAFC;border-radius:6px;margin:4px 0}.section{margin:0 0 14px}.section-title{font-size:14px;font-weight:800;color:#0F2659;padding:7px 13px;background:linear-gradient(90deg,#F4F1E8,#F7FAFF);border-right:5px solid #D4A538;border-radius:6px;margin-bottom:9px;page-break-after:avoid}`;
 
   /* ── Developer signature for PDFs (inline-styled for portability across all PDF templates) ── */
-  const _devSigPdf=()=>`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin:22px 4mm 0;page-break-inside:avoid;font-size:11px;text-align:center"><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">أعدّه</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">Bilal A.Ali</div></div><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">راجعه</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">&nbsp;</div></div><div><div style="color:#64748B;font-weight:700;margin-bottom:28px">اعتمده</div><div style="border-top:1.5px solid #0F2659;padding-top:6px;font-weight:800;color:#0F2659">&nbsp;</div></div></div><div style="margin:16px 4mm 0;padding:11px 16px;border-radius:10px 10px 0 0;border-top:3px solid #D4A538;font-size:10px;background:#0A0E1A;color:#C9D4E8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span>${cfg.company||'شركة الرائد للاستشارات الهندسية'}</span><span style="font-weight:800;color:#D4A538">© Bilal A.Ali ${new Date().getFullYear()}</span></div>`;
+  const _devSigPdf=()=>`<div style="margin:22px 4mm 0;padding:11px 16px;border-radius:10px 10px 0 0;border-top:3px solid #D4A538;font-size:10px;background:#0A0E1A;color:#C9D4E8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span>${cfg.company||'شركة الرائد للاستشارات الهندسية'}</span><span style="font-weight:800;color:#D4A538">© Bilal A.Ali ${new Date().getFullYear()}</span></div>`;
 
   /* ── Attendance PDF (defaults to PREVIOUS month — attendance is recorded for prev month at start of current month) ── */
   const printAttendancePDF=(mode='print',monthKey=null)=>{
@@ -6736,11 +6711,6 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       <div class="thanks-block">
         <div class="thanks-title">A Note from the Director</div>
         <div class="thanks-text">هذا الهيكل التنظيمى يُعبّر عن جهد متراكم وتنظيم دقيق لإدارة مشاريع ${company} فى ليبيا. كل مهندس فى هذا التقرير يُمثّل جزءاً من رؤية أكبر — تقديم خدمات استشارية هندسية بأعلى مستوى من الجودة والاحترافية. شكراً لكل عضو فى الفريق على إخلاصه وعمله المتواصل.</div>
-      </div>
-      <div class="sig-row">
-        <div class="sig-box"><div class="sig-box-name">PREPARED BY · المُعِد</div><div class="sig-filled">${preparerName}</div><div class="sig-line"></div><div class="sig-role">إدارة المشروعات</div></div>
-        <div class="sig-box"><div class="sig-box-name">REVIEWED BY · المُراجع</div><div class="sig-line tall"></div><div class="sig-role">إدارة الجودة</div></div>
-        <div class="sig-box"><div class="sig-box-name">APPROVED BY · المُعتمِد</div><div class="sig-line tall"></div><div class="sig-role">المدير العام · ${dirName}</div></div>
       </div>
       <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
       <div style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:11px;color:#B8860B;letter-spacing:1.5px;margin-top:8px;font-style:italic">© Bilal A.Ali · ${_Y}</div>
