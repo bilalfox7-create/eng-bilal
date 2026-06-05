@@ -4638,17 +4638,19 @@ function App(){
     const xRate=LIVE_EGP||0;
     const rows=[[`كشف إعاشات – ${mn} ${cfg.year}`],[cfg.company],[`الإعاشة الشهرية: ${cfg.rate}$  |  سعر الصرف: ${xRate.toFixed(2)} ج.م`],[],["م","الاسم","التخصص","المحافظة","أيام 1-15","إعاشة 1($)","أيام 16-30","إعاشة 2($)","أيام قديمة","إجمالى($)","إجمالى(ج.م)"]];
     let n=1;
-    PROVS.forEach((p,pi)=>{
+    /* Province user exports ONLY their own province (no cross-province leak); totals from the same scope */
+    const _xprovs=isProvince?[userProv].filter(Boolean):PROVS;
+    let gA1=0,gA2=0,gTot=0,gEgp=0,gOld=0;
+    _xprovs.forEach((p)=>{
       rows.push(["◆ "+p]);
       /* Skip engineers who departed before this month — they aren't in Libya anymore */
       const provEngs=(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month));
-      provEngs.forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+e.extra||0,+c.tot.toFixed(2),+c.egp.toFixed(2)]);});
-      const T=totals[pi];
-      const Told=provEngs.reduce((s,e)=>s+(+e.extra||0),0);
-      rows.push(["","","","إجمالى "+p,"",+T.a1.toFixed(2),"",+T.a2.toFixed(2),Told,+T.tot.toFixed(2),+T.egp.toFixed(2)]);rows.push([]);
+      let tA1=0,tA2=0,tTot=0,tEgp=0,tOld=0;
+      provEngs.forEach(e=>{const c=calc(e,cfg.rate,cfg.egp);rows.push([n++,e.name,e.spec,p,e.d1,+c.a1.toFixed(2),e.d2,+c.a2.toFixed(2),+e.extra||0,+c.tot.toFixed(2),+c.egp.toFixed(2)]);tA1+=c.a1;tA2+=c.a2;tTot+=c.tot;tEgp+=c.egp;tOld+=+e.extra||0;});
+      rows.push(["","","","إجمالى "+p,"",+tA1.toFixed(2),"",+tA2.toFixed(2),tOld,+tTot.toFixed(2),+tEgp.toFixed(2)]);rows.push([]);
+      gA1+=tA1;gA2+=tA2;gTot+=tTot;gEgp+=tEgp;gOld+=tOld;
     });
-    const Gold=PROVS.reduce((s,p)=>s+(data[p]||[]).filter(e=>!isDepartedBeforeMonth(e,cfg.year,cfg.month)).reduce((s2,e)=>s2+(+e.extra||0),0),0);
-    rows.push(["","","","الإجمالى الكلى","",+G.a1.toFixed(2),"",+G.a2.toFixed(2),Gold,+G.tot.toFixed(2),+G.egp.toFixed(2)]);
+    rows.push(["","","","الإجمالى الكلى","",+gA1.toFixed(2),"",+gA2.toFixed(2),gOld,+gTot.toFixed(2),+gEgp.toFixed(2)]);
     const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:4},{wch:28},{wch:22},{wch:20},{wch:9},{wch:16},{wch:9},{wch:16},{wch:11},{wch:14},{wch:18}];
     XLSX.utils.book_append_sheet(wb,ws,"الإعاشات");XLSX.writeFile(wb,`اعاشات_${mn}_${cfg.year}.xlsx`);msg("تم تصدير Excel ✓");
   };
