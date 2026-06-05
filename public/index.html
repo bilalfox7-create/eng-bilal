@@ -9754,8 +9754,8 @@ table{border-collapse:collapse;width:100%;font-size:10px;margin-bottom:8px}
 <div class="hdr"><img src="${logo||location.origin+'/logo.jpg'}" style="width:44px;height:44px;border-radius:8px;object-fit:contain;background:#fff;padding:2px"/>
 <div><div class="hdr-t">${mCfg.company||cfg.company} — سجل الحضور والانصراف</div>
 <div class="hdr-s">${label} · تم الإنشاء: ${new Date().toLocaleDateString('ar-EG')}</div></div></div>
-${PROVS.map(prov=>{
-  /* Hide engineers who departed strictly before this saved month */
+${(isProvince?[userProv]:PROVS).map(prov=>{
+  /* Province user sees ONLY their own province in this السجل print (no cross-province leak) */
   const engs=(mData[prov]||[]).filter(e=>!isDepartedBeforeMonth(e,y,m));
   if(engs.length===0)return'';
   /* aggregations per province للـ header chip */
