@@ -29,7 +29,7 @@ router.use((req, res, next) => {
 
 const adminOnly = (req, res, next) => {
   const role = req.session.user.role || 'admin'; // NULL/undefined = old session = admin
-  if (role !== 'admin') return res.status(403).json({ error: 'للأدمن فقط' });
+  if (role !== 'admin' && role !== 'hr') return res.status(403).json({ error: 'للأدمن فقط' }); // HR = full admin (Bilal's decision)
   next();
 };
 
@@ -60,7 +60,7 @@ router.put('/months/:key', async (req, res) => {
   const user = req.session.user;
 
   /* ── Viewer + HR: read-only ── */
-  if (user.role === 'viewer' || user.role === 'hr') return res.status(403).json({ error: 'للقراءة فقط' });
+  if (user.role === 'viewer') return res.status(403).json({ error: 'للقراءة فقط' }); // HR can now edit (full admin)
 
   /* ── Province user: merge-only update ── */
   if (user.role === 'province') {

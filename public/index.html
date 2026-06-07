@@ -2340,6 +2340,7 @@ function App(){
   useEffect(()=>{
     fetch("/auth/me").then(r=>r.json()).then(u=>{
       if(!u.username){setLoaded(true);return;}
+      if(u.role==='hr')u.role='admin'; /* HR has full admin permissions (Bilal's decision) */
       setUser(u);
       if(u.province)setAttProv(u.province);
       if(u.role==='province')setPage("att");
@@ -2561,6 +2562,7 @@ function App(){
       const r=await fetch("/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(loginForm)});
       const d=await r.json();
       if(!r.ok){setLoginError(d.error||"خطأ في تسجيل الدخول");return;}
+      if(d.role==='hr')d.role='admin'; /* HR has full admin permissions (Bilal's decision) */
       setUser(d);
       if(d.mustChangePwd)setMustChangePwd(true);
       if(d.province)setAttProv(d.province);
@@ -11218,7 +11220,24 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
         ATT_CYCLE.filter(s=>s!==null&&s!=='TXR').map(s=>
           h("button",{key:s,className:"att-popup-btn",style:{background:ATT_BG[s],color:ATT_COL[s]},
             onClick:()=>{
-              (data[attProv]||[]).forEach(eng=>{attSetStatus(eng.id,dayPopup.day,s);});
+              /* Bulk-set the WHOLE province for this day in ONE state update.
+                 (Old code looped attSetStatus → each call rebuilt from a stale base
+                  and overwrote the last via setMonths, so only 1 engineer stuck.) */
+              if(attLockGuard()){setDayPopup(null);return;}
+              const D=dayPopup.day;
+              const existing=mkAttMonthBase();
+              const na=JSON.parse(JSON.stringify(existing.attendance||{}));
+              const list=engsInProvDuringMonth(attProv,attCfg.year,attCfg.month,attData);
+              list.forEach(eng=>{
+                /* Respect the same read-only locks as individual cells */
+                if(eng.daysInProvSet&&!eng.daysInProvSet.has(D))return;            /* not in this prov that day */
+                if(getEgyptLeaveAutoState(eng,attCfg.year,attCfg.month,D))return;  /* on Egypt leave → read-only */
+                if(eng.arrivalDate){const arr=new Date(eng.arrivalDate);arr.setHours(0,0,0,0);if(new Date(attCfg.year,attCfg.month-1,D)<arr)return;} /* before arrival → read-only */
+                if(!na[eng.id])na[eng.id]={};
+                na[eng.id][D]={...(na[eng.id][D]||{}),s};
+              });
+              const upd={...existing,attendance:na};
+              setMonths(p=>({...p,[attKey]:upd}));queueSave(attKey,upd);
               setDayPopup(null);
             }
           },
