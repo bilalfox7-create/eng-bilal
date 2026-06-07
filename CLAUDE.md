@@ -41,7 +41,7 @@
 - **الباك إند:** Express 4 + `@libsql/client` (async).
   - `db.js` — اتصال libSQL + دوال async: `get/all/run/exec/batchWrite` + `initDb()` (إنشاء الجداول + بذر المستخدمين).
   - `routes/auth.js` — login/logout/me/change-password (bcryptjs + sessions + rate limiter).
-  - `routes/api.js` — months CRUD، leaves، org-chart، logo، fixed-rents، users، activity، backups، `github-backup`. كله async/await. صلاحيات: admin (كامل) / province (تعديل محافظته بس — merge) / viewer+hr (قراءة فقط).
+  - `routes/api.js` — months CRUD، leaves، org-chart، logo، fixed-rents، users، activity، backups، `github-backup`. كله async/await. صلاحيات: admin (كامل) / **hr (= admin كامل تمامًا — قرار بلال؛ الكلاينت بيطبّع `role hr→admin` عند login/me، والسيرفر `adminOnly` بيسمح لـ hr + فحص القراءة-فقط في `PUT /months` مابيمنعش hr)** / province (تعديل محافظته بس — merge) / viewer (قراءة فقط).
   - `server.js` — express + static + sessions + routes + `app.get('*')→index.html` + بدء async (`await initDb()` ثم listen) + نسخة احتياطية تلقائية كل 24 ساعة (محلي + GitHub).
   - `github-backup.js` — يبني JSON من جدول `months` ويرفعه لـ `backup-latest.json` عبر GitHub Contents API (PUT بـ base64 + sha؛ throttle 5 دقايق إلا `force`).
   - `scripts/check-index.cjs` — فحص parse لـ `public/index.html` (بيستخدمه الـ pre-commit hook).
