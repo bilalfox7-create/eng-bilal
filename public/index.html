@@ -1820,6 +1820,8 @@ const calcArrivalDays=(arrivalDateStr,year,month)=>{
 const mkKey=(m,y)=>`${y}-${String(m).padStart(2,'0')}`;
 const dc=o=>JSON.parse(JSON.stringify(o));
 const now=new Date();
+/* فرق توقيت السيرفر عن الجهاز (مللي ثانية) — بيتحسب من ترويسة HTTP Date، عشان الموقع ياخد التاريخ من السيرفر مش من ساعة الكمبيوتر (اللى ممكن تكون متظبطة غلط) */
+let serverOffset=0, serverSynced=false;
 
 /* ── SVG Icons ──────────────────────────────────────────── */
 const IC={
@@ -3208,13 +3210,26 @@ function App(){
 
   /* ── Live clock — tick every second for the unified header ── */
   useEffect(()=>{
-    const tick=()=>setClockNow(new Date());
+    /* الوقت من السيرفر (ترويسة HTTP Date) مش من ساعة الكمبيوتر — يضمن التاريخ صح حتى لو ساعة الجهاز متظبطة غلط */
+    const tick=()=>setClockNow(new Date(Date.now()+serverOffset));
+    const sync=()=>fetch('/auth/me',{cache:'no-store'})
+      .then(r=>{const d=r.headers.get('date');if(d){const t=new Date(d).getTime();if(!isNaN(t))serverOffset=t-Date.now();}})
+      .catch(()=>{})
+      .finally(()=>{
+        const sNow=new Date(Date.now()+serverOffset);setClockNow(sNow);
+        if(!serverSynced){
+          serverSynced=true;
+          /* لو ساعة الجهاز غلط لدرجة غيّرت الشهر → صحّح الشهر الافتراضى مرة واحدة (طالما المستخدم لسه ماغيّرهوش) */
+          const sKey=mkKey(sNow.getMonth()+1,sNow.getFullYear()),cKey=mkKey(new Date().getMonth()+1,new Date().getFullYear());
+          if(sKey!==cKey){setAttKey(k=>k===cKey?sKey:k);setAk(k=>k===cKey?sKey:k);}
+        }
+      });
+    sync(); /* عند الفتح */
     const id=setInterval(tick,1000);
-    /* تاب رجع للمقدمة بعد ما كان مفتوح من أيام → حدّث التاريخ فورًا (مايفضلش متجمّد على يوم قديم) */
-    const onVis=()=>{if(!document.hidden)tick();};
+    const onVis=()=>{if(!document.hidden)sync();}; /* تاب رجع للمقدمة → أعِد المزامنة مع السيرفر (مايفضلش متجمّد) */
     document.addEventListener('visibilitychange',onVis);
-    window.addEventListener('focus',tick);
-    return()=>{clearInterval(id);document.removeEventListener('visibilitychange',onVis);window.removeEventListener('focus',tick);};
+    window.addEventListener('focus',sync);
+    return()=>{clearInterval(id);document.removeEventListener('visibilitychange',onVis);window.removeEventListener('focus',sync);};
   },[]);
 
   const engProfileData=useMemo(()=>{
