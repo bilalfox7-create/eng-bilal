@@ -2232,7 +2232,7 @@ function App(){
   const [libCardMonth,setLibCardMonth]=useState({comprehensive:'',attendance:'',disbursement:'',expenses:''});
   const [customRepForm,setCustomRepForm]=useState({fromDate:'',toDate:'',prov:'all',type:'all'});
   const [cmpModal,setCmpModal]=useState(null);
-  const [attKey,setAttKey]=useState(()=>{const m=now.getMonth(),y=now.getFullYear();return m===0?mkKey(12,y-1):mkKey(m,y);});
+  const [attKey,setAttKey]=useState(mkKey(now.getMonth()+1,now.getFullYear())); /* الشهر الحالى (كان بياخد الشهر اللى فات بالغلط) */
   const [cmpKeys,setCmpKeys]=useState([]);
   const [engProfile,setEngProfile]=useState(null);
   const [epTab,setEpTab]=useState('info');
@@ -3208,8 +3208,13 @@ function App(){
 
   /* ── Live clock — tick every second for the unified header ── */
   useEffect(()=>{
-    const id=setInterval(()=>setClockNow(new Date()),1000);
-    return()=>clearInterval(id);
+    const tick=()=>setClockNow(new Date());
+    const id=setInterval(tick,1000);
+    /* تاب رجع للمقدمة بعد ما كان مفتوح من أيام → حدّث التاريخ فورًا (مايفضلش متجمّد على يوم قديم) */
+    const onVis=()=>{if(!document.hidden)tick();};
+    document.addEventListener('visibilitychange',onVis);
+    window.addEventListener('focus',tick);
+    return()=>{clearInterval(id);document.removeEventListener('visibilitychange',onVis);window.removeEventListener('focus',tick);};
   },[]);
 
   const engProfileData=useMemo(()=>{
@@ -8018,8 +8023,8 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 
         /* ══ DASHBOARD ══ */
         page==="dash"&&(()=>{
-          const greet=(()=>{const h=now.getHours();return h<12?'صباح الخير':h<18?'مساء الخير':'مساء الخير';})();
-          const todayStr=now.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+          const greet=(()=>{const h=clockNow.getHours();return h<12?'صباح الخير':h<18?'مساء الخير':'مساء الخير';})();
+          const todayStr=clockNow.toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
           /* ── KPIs اليوم (حاضرون / إجازة مرضية / فى مصر) ──────────────
              القواعد:
              1. استخدم بيانات الشهر الحالى — مش attKey (شهر التحضير).
@@ -8030,12 +8035,12 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
              ── تغيير: "فى إجازة" بقت "إجازة مرضية" بس (SL).
              الإجازة العادية والطارئة اتشالت من النظام، اللى بياخد إجازة
              بينزل مصر فبيظهر فى "فى مصر". الكارت ده دلوقتى للمرضى فقط. */
-          const isFridayToday=now.getDay()===5;
-          const todayMonthKey=mkKey(now.getMonth()+1,now.getFullYear());
+          const isFridayToday=clockNow.getDay()===5;
+          const todayMonthKey=mkKey(clockNow.getMonth()+1,clockNow.getFullYear());
           const todayMonthData=months[todayMonthKey];
           const attDataToday=todayMonthData?.attendance||{};
           let presN=0,sickN=0,egN=0;
-          const today=now.getDate();
+          const today=clockNow.getDate();
           const todayDateStr=todayYmd();
           if(!isFridayToday){
             PROVS.forEach(p=>(todayMonthData?.data?.[p]||[]).forEach(e=>{
@@ -9449,8 +9454,8 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             return overlap[0];
           };
           const isWknd=d=>new Date(cfg.year,cfg.month-1,d).getDay()===5; /* الجمعة فقط */
-          const isToday=d=>d===now.getDate()&&cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear();
-          const todayD=cfg.month===now.getMonth()+1&&cfg.year===now.getFullYear()?now.getDate():null;
+          const isToday=d=>d===clockNow.getDate()&&cfg.month===clockNow.getMonth()+1&&cfg.year===clockNow.getFullYear();
+          const todayD=cfg.month===clockNow.getMonth()+1&&cfg.year===clockNow.getFullYear()?clockNow.getDate():null;
           const toggleSel=id=>setAttSelected(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
           const selAll=()=>setAttSelected(new Set(provEngs.map(e=>e.id)));
           const selNone=()=>setAttSelected(new Set());
