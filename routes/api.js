@@ -105,6 +105,22 @@ router.put('/months/:key', async (req, res) => {
       const merged = existingArr.map(e => incomingById.has(e.id) ? { ...e, ...incomingById.get(e.id) } : e);
       for (const e of incomingList) if (!existingIds.has(e.id)) merged.push(e);
       existingData[prov] = merged;
+      /* Return-request decision authority: a province may CREATE/edit a PENDING returnRequest
+         on its own engineers, but never set/flip the admin decision (status approved/rejected,
+         decidedBy/decidedAt). Force those from the existing DB row (stale-tab / tamper safe). */
+      const _exById = new Map(existingArr.map(e => [e.id, e]));
+      existingData[prov] = existingData[prov].map(eng => {
+        if (!Array.isArray(eng.egyptLeaves)) return eng;
+        const _ex = _exById.get(eng.id);
+        const fixed = eng.egyptLeaves.map(l => {
+          if (!l || !l.returnRequest) return l;
+          const _exLeave = (_ex && Array.isArray(_ex.egyptLeaves)) ? _ex.egyptLeaves.find(x => x && x.id === l.id) : null;
+          const _exRR = _exLeave && _exLeave.returnRequest;
+          if (_exRR) return { ...l, returnRequest: { ...l.returnRequest, status: _exRR.status, decidedBy: _exRR.decidedBy, decidedAt: _exRR.decidedAt } };
+          return { ...l, returnRequest: { ...l.returnRequest, status: 'pending', decidedBy: null, decidedAt: null } };
+        });
+        return { ...eng, egyptLeaves: fixed };
+      });
     }
 
     // Update attendance for THIS province's engineers from the payload.
