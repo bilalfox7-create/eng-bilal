@@ -459,6 +459,34 @@ router.put('/provinces', adminOnly, async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Projects (المشاريع) — flexible per-province list, app-level config ──
+   مخزّنة فى app_config كـ {اسم المحافظة: [أسماء المشاريع]}. لو مش متخزّنة → {} (الفرونت
+   بيستخدم DEFAULT_PROJECTS). تعديل القائمة لا يمس أى بيانات إعاشة/حضور. */
+router.get('/projects', async (_req, res) => {
+  const row = await get("SELECT value FROM app_config WHERE key = 'projects'");
+  let projects = {};
+  try { if (row) projects = JSON.parse(row.value) || {}; } catch { projects = {}; }
+  if (typeof projects !== 'object' || Array.isArray(projects)) projects = {};
+  res.json({ projects });
+});
+
+router.put('/projects', adminOnly, async (req, res) => {
+  const { projects } = req.body;
+  if (!projects || typeof projects !== 'object' || Array.isArray(projects)) return res.status(400).json({ error: 'بيانات غير صالحة' });
+  const clean = {};
+  for (const k of Object.keys(projects)) {
+    const prov = String(k || '').trim(); if (!prov) continue;
+    const arr = Array.isArray(projects[k]) ? projects[k] : [];
+    const list = []; for (const p of arr) { const v = String(p == null ? '' : p).trim(); if (v && !list.includes(v)) list.push(v); }
+    clean[prov] = list;
+  }
+  await run(`
+    INSERT INTO app_config (key, value) VALUES ('projects', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `, [JSON.stringify(clean)]);
+  res.json({ ok: true });
+});
+
 /* ── User management — admin only ───────────────────── */
 
 router.get('/users', adminOnly, async (_req, res) => {

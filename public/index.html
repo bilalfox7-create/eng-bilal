@@ -1951,6 +1951,8 @@ const PROJ_DATA={
     "صيانة وتطوير محطة معالجة طبرق ومحطات الرفع"
   ]
 };
+/* المشاريع الافتراضية مفهرسة باسم المحافظة (الأساس للقايمة المرنة projectsCfg) */
+const DEFAULT_PROJECTS={};CITY_CFG.forEach(c=>{DEFAULT_PROJECTS[c.prov]=PROJ_DATA[c.id]||[];});
 
 function buildOrgFromBase(){
   return {
@@ -2035,7 +2037,7 @@ function OcOrgChart(props){
     const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
     const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
     const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
-    const projs=PROJ_DATA[cfgC.id]||cityOrg.projects||[];
+    const projs=(props.projectsCfg&&props.projectsCfg[cfgC.prov])||DEFAULT_PROJECTS[cfgC.prov]||cityOrg.projects||PROJ_DATA[cfgC.id]||[];
     /* attendance % across all engineers in city */
     const pcts=engs.map(function(e){return ocAttPct(e.id,att,cfgMonth,cfgYear);});
     const avgAtt=pcts.length>0?Math.round(pcts.reduce(function(a,b){return a+b;},0)/pcts.length):0;
@@ -2222,6 +2224,7 @@ function App(){
   /* المحافظات: قايمة مرنة — تبدأ بالافتراضى (نفس الـ4 وبنفس الترتيب) وتتوسّع من الإعدادات بدون لمس الكود.
      لو provincesCfg فاضى → PROVS = DEFAULT_PROVS بالظبط (سلوك مطابق ١٠٠٪ للقديم). */
   const [provincesCfg,setProvincesCfg]=useState([]);
+  const [projectsCfg,setProjectsCfg]=useState({}); /* {اسم المحافظة: [مشاريع]} — مرن، الافتراضى DEFAULT_PROJECTS */
   const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
   useEffect(()=>{
     document.documentElement.classList.toggle("light",!dark);
@@ -2238,6 +2241,8 @@ function App(){
     Object.values(months||{}).forEach(m=>{if(m&&m.data)Object.keys(m.data).forEach(p=>{if(!seen.has(p)){seen.add(p);out.push(p);}});});
     return out;
   },[provincesCfg,months]);
+  /* مشاريع المحافظة: المرنة (projectsCfg) أو الافتراضى — مع الـ4 = نفس PROJ_DATA بالظبط */
+  const getProjects=prov=>(projectsCfg&&projectsCfg[prov])||DEFAULT_PROJECTS[prov]||[];
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
   const [histYear,setHistYear]=useState(String(now.getFullYear()));
   const [orgSpecFilter,setOrgSpecFilter]=useState('all');
@@ -2308,6 +2313,7 @@ function App(){
   ]);
   const [editingRent,setEditingRent]=useState(null);
   const [editingProvs,setEditingProvs]=useState(null); /* {list:[...], newName} — مودال إدارة المحافظات */
+  const [editingProjs,setEditingProjs]=useState(null); /* {prov, list:[...], newName} — مودال إدارة المشاريع */
   const [orgData,setOrgData]=useState(null);
   const [attProv,setAttProv]=useState(PROVS[0]);
   const [saveLogs,setSaveLogs]=useState([]);
@@ -2367,6 +2373,7 @@ function App(){
       ];
       fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
       fetch("/api/provinces").then(r=>r.json()).then(d=>{if(Array.isArray(d.provinces)&&d.provinces.length)setProvincesCfg(d.provinces);}).catch(()=>{});
+      fetch("/api/projects").then(r=>r.json()).then(d=>{if(d.projects&&typeof d.projects==='object')setProjectsCfg(d.projects);}).catch(()=>{});
       if(u.role==='admin'){
         fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
@@ -2591,6 +2598,7 @@ function App(){
       ];
       fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
       fetch("/api/provinces").then(r=>r.json()).then(d=>{if(Array.isArray(d.provinces)&&d.provinces.length)setProvincesCfg(d.provinces);}).catch(()=>{});
+      fetch("/api/projects").then(r=>r.json()).then(d=>{if(d.projects&&typeof d.projects==='object')setProjectsCfg(d.projects);}).catch(()=>{});
       if(d.role==='admin'){
         fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
@@ -5355,6 +5363,12 @@ function App(){
   };
 
   /* ── Save fixed rents config + propagate prov changes to existing paid expense items ── */
+  const saveProjectsCfg=(prov,list)=>{
+    const clean=[];for(const p of (list||[])){const v=String(p||'').trim();if(v&&!clean.includes(v))clean.push(v);}
+    const next={...projectsCfg,[prov]:clean};
+    setProjectsCfg(next);
+    fetch('/api/projects',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:next})}).then(r=>r.json()).then(d=>{if(d&&d.ok){msg('✅ اتحفظت مشاريع '+prov.replace('محافظة ',''));setEditingProjs(null);}else msg((d&&d.error)||'فشل الحفظ','err');}).catch(()=>msg('فشل الاتصال بالسيرفر','err'));
+  };
   const saveProvinces=(list)=>{
     const clean=[];for(const p of list){const v=String(p||'').trim();if(v&&!clean.includes(v))clean.push(v);}
     if(!clean.length){msg('لازم محافظة واحدة على الأقل','err');return;}
@@ -6619,7 +6633,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
       const mgrOrg=cityOrg.managers&&cityOrg.managers[0];
       const mgrName=(mgrEng&&mgrEng.name)||(mgrOrg&&mgrOrg.name)||cfgC.name;
       const mgrRole=(mgrEng&&mgrEng.spec)||(mgrOrg&&mgrOrg.role)||'مدير المشروع';
-      const projects=(PROJ_DATA[cfgC.id]||cityOrg.projects||[]).map(p=>typeof p==='string'?p:(p?.name||''));
+      const projects=getProjects(cfgC.prov).map(p=>typeof p==='string'?p:(p?.name||''));
       const team=engs.filter(e=>e.id!==mgrEng?.id||!mgrEng);
       return {id:cfgC.id,name:cfgC.name,prov:provName,meta,engs,mgrName,mgrRole,projects,team};
     });
@@ -7708,6 +7722,36 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     ),
 
     /* ── FIXED RENTS SETTINGS MODAL (admin) ───────────── */
+    editingProjs&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingProjs(null);}},
+      h("div",{className:"modal",style:{width:480}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"🏗 إدارة المشاريع"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEditingProjs(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:8}},
+          h("div",{className:"info amber"},h(Ic,{n:"info",sz:14}),"اختار المحافظة وعدّل مشاريعها (إضافة/تعديل/شيل). بتظهر فى الهيكل التنظيمى وعدّاد المشاريع. لا تمس أى بيانات إعاشة أو حضور."),
+          h("div",{className:"fld"},h("label",null,"المحافظة"),
+            h("select",{value:editingProjs.prov,onChange:ev=>{const p=ev.target.value;setEditingProjs({prov:p,list:[...getProjects(p)],newName:''});}},
+              PROVS.map(p=>h("option",{key:p,value:p},p.replace('محافظة ','')))
+            )
+          ),
+          ...editingProjs.list.map((p,i)=>h("div",{key:i,style:{display:"flex",gap:8,alignItems:"center"}},
+            h("span",{style:{fontSize:10,fontWeight:800,color:"var(--sub)",width:18,textAlign:"center",flexShrink:0}},String(i+1)),
+            h("input",{value:p,onChange:ev=>setEditingProjs(e=>{const l=[...e.list];l[i]=ev.target.value;return{...e,list:l};}),style:{flex:1,padding:"7px 11px",border:"1px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}}),
+            h("button",{className:"btn-icon del",title:"شيل المشروع",onClick:()=>setEditingProjs(e=>({...e,list:e.list.filter((_,j)=>j!==i)}))},h(Ic,{n:"del",sz:12}))
+          )),
+          h("div",{style:{display:"flex",gap:8,marginTop:4}},
+            h("input",{placeholder:"اسم المشروع الجديد",value:editingProjs.newName||'',onChange:ev=>setEditingProjs(e=>({...e,newName:ev.target.value})),onKeyDown:ev=>{if(ev.key==='Enter'){ev.preventDefault();const v=(editingProjs.newName||'').trim();if(!v)return;setEditingProjs(e=>({...e,list:[...e.list,v],newName:''}));}},style:{flex:1,padding:"8px 12px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:13,fontFamily:"inherit"}}),
+            h("button",{className:"btn blue",style:{whiteSpace:"nowrap"},onClick:()=>{const v=(editingProjs.newName||'').trim();if(!v)return;setEditingProjs(e=>({...e,list:[...e.list,v],newName:''}));}},h(Ic,{n:"plus",sz:12}),"أضف")
+          ),
+          h("div",{style:{fontSize:11,color:"var(--sub)",textAlign:"left"}},editingProjs.list.length+" مشروع")
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setEditingProjs(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:()=>saveProjectsCfg(editingProjs.prov,editingProjs.list)},"💾 حفظ مشاريع المحافظة")
+        )
+      )
+    ),
     editingProvs&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingProvs(null);}},
       h("div",{className:"modal",style:{width:460}},
         h("div",{className:"modal-hdr"},
@@ -8093,7 +8137,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           const ICONS={dash:'📊',eng:'📋',att:'✅',leaves:'✈️',expenses:'💰',stats:'📈',hist:'🕐',compare:'⚖️',report:'📄',org:'🏢',backup:'💾',activity:'📜'};
           const pageIcon=ICONS[page]||'📌';
           /* Project count from orgData.cities aggregated */
-          const projectCount=(orgData?.cities||[]).reduce((a,c)=>a+(c.projects?.length||0),0);
+          const projectCount=CITY_CFG.reduce((a,c)=>a+getProjects(c.prov).length,0);
           /* Live time formatting */
           const pad=n=>String(n).padStart(2,'0');
           const timeStr=`${pad(clockNow.getHours())}:${pad(clockNow.getMinutes())}`;
@@ -10904,7 +10948,8 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                 ),
                 "مستخدمو المحافظات"
               ),
-              h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+              h("div",{style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}},
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11},onClick:()=>setEditingProjs({prov:PROVS[0],list:[...getProjects(PROVS[0])],newName:''})},h(Ic,{n:"plus",sz:12}),"🏗 إدارة المشاريع"),
                 h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11},onClick:()=>setEditingProvs({list:[...PROVS],newName:''})},h(Ic,{n:"plus",sz:12}),"🏛 إدارة المحافظات"),
                 h("span",{className:"card-badge"},provUsers.length+" مستخدم")
               )
@@ -11117,7 +11162,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
 
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
-        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,onPrintReady:fn=>{orgPrintRef.current=fn;},onMainPrint:()=>printOrgPDF('print')})
+        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,projectsCfg:projectsCfg,onPrintReady:fn=>{orgPrintRef.current=fn;},onMainPrint:()=>printOrgPDF('print')})
       ),
 
       /* ── ENGINEER PROFILE MODAL ────────────────────────── */
