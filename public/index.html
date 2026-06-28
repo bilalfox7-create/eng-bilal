@@ -3815,12 +3815,18 @@ function App(){
   };
   const submitReturnRequest=()=>{
     const f=returnReqForm;if(!f)return;
-    if(!isProvince){msg('طلبات العودة من المحافظات فقط','err');return;}
-    if(f.prov!==userProv){msg('يمكنك طلب عودة لمهندسى محافظتك فقط','err');return;}
     if(!f.expectedReturn){msg('اختار تاريخ العودة المتوقع','err');return;}
-    _writeReturnReqField(f.engId,f.leaveId,()=>({status:'pending',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:user?.username||'',requestedProv:userProv,requestedAt:new Date().toISOString(),decidedBy:null,decidedAt:null}));
-    logActivity('طلب عودة من إجازة',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
-    msg(`📨 تم إرسال طلب عودة ${f.engName} للإدارة`);
+    if(isProvince){
+      if(f.prov!==userProv){msg('يمكنك طلب عودة لمهندسى محافظتك فقط','err');return;}
+      _writeReturnReqField(f.engId,f.leaveId,()=>({status:'pending',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:user?.username||'',requestedProv:userProv,requestedAt:new Date().toISOString(),decidedBy:null,decidedAt:null}));
+      logActivity('طلب عودة من إجازة',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
+      msg(`📨 تم إرسال طلب عودة ${f.engName} للإدارة`);
+    }else if(isAdmin){
+      const u=user?.username||'admin';
+      _writeReturnReqField(f.engId,f.leaveId,rr=>rr?{...rr,expectedReturn:f.expectedReturn,note:f.note||rr.note||''}:{status:'approved',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:u,requestedProv:f.prov||null,requestedAt:new Date().toISOString(),decidedBy:u,decidedAt:new Date().toISOString()});
+      logActivity('تحديد عودة (إدارة)',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
+      msg(`✅ تم حفظ تاريخ عودة ${f.engName} (${f.expectedReturn})`);
+    }else{msg('غير مصرّح بهذا الإجراء','err');return;}
     setModal(null);setReturnReqForm(null);
   };
   const decideReturnRequest=(engId,leaveId,decision)=>{
@@ -7544,7 +7550,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         const ex=f.existing;
         return h("div",{className:"modal",style:{width:480}},
           h("div",{className:"modal-hdr"},
-            h("h3",null,"📨 طلب عودة من إجازة مصر"),
+            h("h3",null,isProvince?"📨 طلب عودة من إجازة مصر":"📝 تحديد تاريخ العودة المتوقعة"),
             h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setReturnReqForm(null);}},h(Ic,{n:"del",sz:12}))
           ),
           h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
@@ -7558,11 +7564,11 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             h("div",{className:"fld"},h("label",null,"ملاحظات (اختيارى)"),
               h("textarea",{rows:2,placeholder:"أى تفاصيل عن العودة...",style:{resize:"vertical",fontFamily:"inherit"},value:f.note,onChange:ev=>setReturnReqForm(p=>({...p,note:ev.target.value}))})
             ),
-            h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"ده طلب توثيقى للإدارة عشان يتحجزله — مابيغيّرش الحضور. العودة الفعلية تتسجّل من زر «تسجيل العودة» لما يرجع فعلاً.")
+            h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),(isProvince?"ده طلب توثيقى للإدارة عشان يتحجزله":"ده توثيق لتاريخ العودة عشان الحجز")+" — مابيغيّرش الحضور. العودة الفعلية تتسجّل من زر «تسجيل العودة» لما يرجع فعلاً.")
           ),
           h("div",{className:"modal-ftr"},
             h("button",{className:"btn",onClick:()=>{setModal(null);setReturnReqForm(null);}},"إلغاء"),
-            h("button",{className:"btn",style:{background:"linear-gradient(135deg,#D4A538,#b8860b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(212,165,56,.4)"},onClick:submitReturnRequest},ex&&ex.status!=='pending'?"📨 إرسال طلب جديد":"📨 إرسال الطلب للإدارة")
+            h("button",{className:"btn",style:{background:"linear-gradient(135deg,#D4A538,#b8860b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(212,165,56,.4)"},onClick:submitReturnRequest},isProvince?(ex&&ex.status!=='pending'?"📨 إرسال طلب جديد":"📨 إرسال الطلب للإدارة"):"✅ حفظ تاريخ العودة")
           )
         );
       })(),
@@ -10466,7 +10472,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                           h("td",{className:"l",style:{fontWeight:700}},r.engineerName),
                           h("td",{className:"l"},(r.prov||'').replace('محافظة ','')),
                           h("td",{style:{textAlign:"center"}},r.travelDate||'—'),
-                          h("td",{style:{textAlign:"center",fontWeight:700}},(rr&&rr.expectedReturn)||'—'),
+                          h("td",{style:{textAlign:"center"}},h("button",{onClick:()=>{setReturnReqForm({engId:r.engineerId,leaveId:r.leaveId,engName:r.engineerName,prov:r.prov,expectedReturn:(rr&&rr.expectedReturn)||'',note:(rr&&rr.note)||'',existing:rr||null});setModal('return-req');},title:"تحديد/تعديل تاريخ العودة المتوقعة",style:{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",border:(rr&&rr.expectedReturn)?"1px solid rgba(212,165,56,.4)":"1px dashed rgba(212,165,56,.55)",background:(rr&&rr.expectedReturn)?"rgba(212,165,56,.12)":"transparent",color:"#D4A538"}},(rr&&rr.expectedReturn)?rr.expectedReturn:"➕ تحديد")),
                           h("td",{style:{textAlign:"center"}},pill),
                           h("td",{style:{textAlign:"center"}},rr&&rr.status==='pending'?h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
                             h("button",{onClick:()=>decideReturnRequest(r.engineerId,r.leaveId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
