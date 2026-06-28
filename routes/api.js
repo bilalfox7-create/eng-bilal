@@ -107,19 +107,15 @@ router.put('/months/:key', async (req, res) => {
       existingData[prov] = merged;
       /* Return-request decision authority: a province may CREATE/edit a PENDING returnRequest
          on its own engineers, but never set/flip the admin decision (status approved/rejected,
-         decidedBy/decidedAt). Force those from the existing DB row (stale-tab / tamper safe). */
+         decidedBy/decidedAt). Force those from the existing DB row (stale-tab / tamper safe).
+         returnRequest lives on the engineer object (engineer-level, decoupled from egyptLeaves). */
       const _exById = new Map(existingArr.map(e => [e.id, e]));
       existingData[prov] = existingData[prov].map(eng => {
-        if (!Array.isArray(eng.egyptLeaves)) return eng;
+        if (!eng || !eng.returnRequest) return eng;
         const _ex = _exById.get(eng.id);
-        const fixed = eng.egyptLeaves.map(l => {
-          if (!l || !l.returnRequest) return l;
-          const _exLeave = (_ex && Array.isArray(_ex.egyptLeaves)) ? _ex.egyptLeaves.find(x => x && x.id === l.id) : null;
-          const _exRR = _exLeave && _exLeave.returnRequest;
-          if (_exRR) return { ...l, returnRequest: { ...l.returnRequest, status: _exRR.status, decidedBy: _exRR.decidedBy, decidedAt: _exRR.decidedAt } };
-          return { ...l, returnRequest: { ...l.returnRequest, status: 'pending', decidedBy: null, decidedAt: null } };
-        });
-        return { ...eng, egyptLeaves: fixed };
+        const _exRR = _ex && _ex.returnRequest;
+        if (_exRR) return { ...eng, returnRequest: { ...eng.returnRequest, status: _exRR.status, decidedBy: _exRR.decidedBy, decidedAt: _exRR.decidedAt } };
+        return { ...eng, returnRequest: { ...eng.returnRequest, status: 'pending', decidedBy: null, decidedAt: null } };
       });
     }
 

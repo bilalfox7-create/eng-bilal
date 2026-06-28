@@ -2276,7 +2276,7 @@ function App(){
   const [egyptTransferForm,setEgyptTransferForm]=useState({engId:'',date:'',notes:''});
   /* Egypt leave/return modal — type='depart' for departure, type='return' for return */
   const [egyptLeaveForm,setEgyptLeaveForm]=useState({engId:'',type:'depart',date:'',notes:''});
-  const [returnReqForm,setReturnReqForm]=useState(null); /* طلب عودة: {engId,leaveId,engName,prov,expectedReturn,note,existing} */
+  const [returnReqForm,setReturnReqForm]=useState(null); /* طلب عودة (مستوى المهندس): {engId,engName,prov,expectedReturn,note,existing} */
   const [returnSel,setReturnSel]=useState(()=>new Set()); /* engineerIds المختارين للـPDF — مؤقت في الذاكرة (لا يُكتب في القاعدة) */
   /* Permanent-departure modal: engineer leaves Libya for good (e.g. moves to Egypt projects).
      form = { engId, engName, departedAt: 'YYYY-MM-DD' or '' to clear } */
@@ -3166,25 +3166,29 @@ function App(){
   },[isAdmin,isProvince,userProv,monthStatus,provTaskStatus,mn,cfg.year,dueRentsToday,aggBalance]);
 
   /* ── Unified notifications (bell dropdown) ───────────── */
+  /* مين "فى مصر النهارده" — مأخوذ من الحضور (المصدر الصح): إجازة مصر المحجوزة (EGL، cross-month)
+     أو خلية النهارده متعلّمة "فى مصر" يدوى (s==='EG'). نفس منطق KPI «فى مصر» فى الداشبورد. */
   const egyptOnLeaveNow=useMemo(()=>{
-    const t=new Date(),pad=n=>String(n).padStart(2,'0');
-    const todayStr=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
-    const out=[],seen=new Set();
-    Object.values(months).forEach(m=>{
-      if(!m?.data)return;
-      Object.entries(m.data).forEach(([prov,provEngs])=>(provEngs||[]).forEach(e=>{
-        if(seen.has(e.id))return;
-        (e.egyptLeaves||[]).forEach(l=>{
-          if(seen.has(e.id))return;
-          if(l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr)){
-            seen.add(e.id);
-            out.push({engineerId:e.id,engineerName:e.name||'—',prov,leaveId:l.id,travelDate:l.departureDate,returnDate:l.returnDate||null,returnRequest:l.returnRequest||null});
-          }
-        });
+    const t=clockNow||new Date(),pad=n=>String(n).padStart(2,'0');
+    const ty=t.getFullYear(),tm=t.getMonth()+1,td=t.getDate();
+    const todayStr=`${ty}-${pad(tm)}-${pad(td)}`;
+    const curMonth=months[`${ty}-${pad(tm)}`];
+    const att=curMonth?.attendance||{};
+    const out=[];
+    if(curMonth?.data){
+      Object.entries(curMonth.data).forEach(([prov,provEngs])=>(provEngs||[]).forEach(e=>{
+        if(e.departedAt&&e.departedAt<=todayStr)return; /* غادر نهائياً → مش عائد */
+        const onLeave=getEgyptLeaveAutoState(e,ty,tm,td)==='EGL';
+        const egCell=!!(att[e.id]&&att[e.id][td]&&att[e.id][td].s==='EG');
+        if(!onLeave&&!egCell)return; /* مش فى مصر النهارده */
+        const activeLeave=(e.egyptLeaves||[]).find(l=>l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr));
+        let travelDate=activeLeave?activeLeave.departureDate:null;
+        if(!travelDate){const egDays=Object.keys(att[e.id]||{}).map(Number).filter(d=>att[e.id][d]&&att[e.id][d].s==='EG'&&d<=td).sort((a,b)=>a-b);if(egDays.length)travelDate=`${ty}-${pad(tm)}-${pad(egDays[0])}`;}
+        out.push({engineerId:e.id,engineerName:e.name||'—',prov,travelDate,returnDate:activeLeave?(activeLeave.returnDate||null):null,via:onLeave?'leave':'att',returnRequest:e.returnRequest||(activeLeave&&activeLeave.returnRequest)||null});
       }));
-    });
+    }
     return out;
-  },[months]);
+  },[months,clockNow]);
   const pendingReturnReqs=useMemo(()=>isProvince?[]:egyptOnLeaveNow.filter(r=>r.returnRequest&&r.returnRequest.status==='pending'),[egyptOnLeaveNow,isProvince]);
   const myDecidedReturnReqs=useMemo(()=>!isProvince?[]:egyptOnLeaveNow.filter(r=>r.prov===userProv&&r.returnRequest&&['approved','rejected'].includes(r.returnRequest.status)),[egyptOnLeaveNow,isProvince,userProv]);
   const allNotifications=useMemo(()=>{
@@ -3771,9 +3775,9 @@ function App(){
             const newLeaves=(e.egyptLeaves||[]).map(l=>l.id===active.id?{...l,returnDate,returnNotes:notes||'',returnAt:new Date().toISOString(),returnRequest:undefined}:l);
             touched=true;
             if(k===ak){
-              return{...e,egyptLeaves:newLeaves,d1:newD1,d2:newD2};
+              return{...e,egyptLeaves:newLeaves,d1:newD1,d2:newD2,returnRequest:undefined};
             }else{
-              return{...e,egyptLeaves:newLeaves};
+              return{...e,egyptLeaves:newLeaves,returnRequest:undefined};
             }
           });
         });
@@ -3791,10 +3795,11 @@ function App(){
     setEgyptLeaveForm({engId:'',date:'',notes:''});
   };
 
-  /* ── Egypt-leave RETURN REQUESTS (طلب عودة) — طبقة طلب + موافقة فوق إجازة مصر.
-     بتتخزّن كحقل `returnRequest` على إدخال الإجازة المفتوح. مابتلمسش الحضور ولا
-     returnDate — العودة الفعلية لسه بتتسجّل من recordEgyptReturn زى ما هى. */
-  const _writeReturnReqField=(engId,leaveId,mutator)=>{
+  /* ── Egypt RETURN REQUESTS (طلب عودة) — طبقة طلب + موافقة فوق "فى مصر".
+     بتتخزّن كحقل `returnRequest` على المهندس نفسه (مش على سجل الإجازة) عشان تشمل
+     اللى متعلّمين "فى مصر" يدوى فى الحضور بدون تسجيل نزول. cross-month sync.
+     مابتلمسش الحضور — العودة الفعلية لسه من تعليم الحضور / recordEgyptReturn. */
+  const _writeReturnReqField=(engId,mutator)=>{
     setMonths(prev=>{
       const out={...prev};let activeUpdated=null;
       Object.keys(out).forEach(k=>{
@@ -3803,8 +3808,7 @@ function App(){
         Object.keys(md.data).forEach(p=>{
           newData[p]=(md.data[p]||[]).map(e=>{
             if(e.id!==engId)return e;
-            const newLeaves=(e.egyptLeaves||[]).map(l=>l.id===leaveId?{...l,returnRequest:mutator(l.returnRequest)}:l);
-            touched=true;return{...e,egyptLeaves:newLeaves};
+            touched=true;return{...e,returnRequest:mutator(e.returnRequest)};
           });
         });
         if(touched){out[k]={...md,data:newData,savedAt:null};if(k===ak)activeUpdated=out[k];else queueSave(k,out[k]);}
@@ -3818,20 +3822,20 @@ function App(){
     if(!f.expectedReturn){msg('اختار تاريخ العودة المتوقع','err');return;}
     if(isProvince){
       if(f.prov!==userProv){msg('يمكنك طلب عودة لمهندسى محافظتك فقط','err');return;}
-      _writeReturnReqField(f.engId,f.leaveId,()=>({status:'pending',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:user?.username||'',requestedProv:userProv,requestedAt:new Date().toISOString(),decidedBy:null,decidedAt:null}));
+      _writeReturnReqField(f.engId,()=>({status:'pending',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:user?.username||'',requestedProv:userProv,requestedAt:new Date().toISOString(),decidedBy:null,decidedAt:null}));
       logActivity('طلب عودة من إجازة',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
       msg(`📨 تم إرسال طلب عودة ${f.engName} للإدارة`);
     }else if(isAdmin){
       const u=user?.username||'admin';
-      _writeReturnReqField(f.engId,f.leaveId,rr=>rr?{...rr,expectedReturn:f.expectedReturn,note:f.note||rr.note||''}:{status:'approved',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:u,requestedProv:f.prov||null,requestedAt:new Date().toISOString(),decidedBy:u,decidedAt:new Date().toISOString()});
+      _writeReturnReqField(f.engId,rr=>rr?{...rr,expectedReturn:f.expectedReturn,note:f.note||rr.note||''}:{status:'approved',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:u,requestedProv:f.prov||null,requestedAt:new Date().toISOString(),decidedBy:u,decidedAt:new Date().toISOString()});
       logActivity('تحديد عودة (إدارة)',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
       msg(`✅ تم حفظ تاريخ عودة ${f.engName} (${f.expectedReturn})`);
     }else{msg('غير مصرّح بهذا الإجراء','err');return;}
     setModal(null);setReturnReqForm(null);
   };
-  const decideReturnRequest=(engId,leaveId,decision)=>{
+  const decideReturnRequest=(engId,decision)=>{
     if(!isAdmin){msg('قرار الطلبات للإدارة فقط','err');return;}
-    _writeReturnReqField(engId,leaveId,rr=>rr?{...rr,status:decision,decidedBy:user?.username||'admin',decidedAt:new Date().toISOString()}:rr);
+    _writeReturnReqField(engId,rr=>rr?{...rr,status:decision,decidedBy:user?.username||'admin',decidedAt:new Date().toISOString()}:rr);
     logActivity('قرار طلب عودة',`${decision==='approved'?'موافقة':'رفض'} طلب عودة (مهندس ${engId})`);
     msg(decision==='approved'?'✅ تمت الموافقة على طلب العودة':'❌ تم رفض طلب العودة');
   };
@@ -10145,10 +10149,10 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                                         },"🟢 تسجيل العودة"),
                                         isProvince&&h("button",{
                                           key:'retreq',
-                                          title:active.returnRequest?`طلب عودة: ${active.returnRequest.status==='pending'?'بانتظار الإدارة':active.returnRequest.status==='approved'?'تمت الموافقة':'مرفوض'}`:"طلب عودة من إجازة مصر",
-                                          onClick:e=>{e.stopPropagation();setReturnReqForm({engId:eng.id,leaveId:active.id,engName:eng.name,prov:attProv,expectedReturn:(active.returnRequest&&active.returnRequest.expectedReturn)||'',note:(active.returnRequest&&active.returnRequest.note)||'',existing:active.returnRequest||null});setModal('return-req');},
-                                          style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(212,165,56,.45)",background:active.returnRequest?"linear-gradient(135deg,rgba(212,165,56,.25),rgba(212,165,56,.06))":"linear-gradient(135deg,rgba(212,165,56,.14),rgba(212,165,56,.03))",color:"#D4A538",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
-                                        },active.returnRequest?"📨 طلب عودة ✓":"📨 طلب عودة"),
+                                          title:eng.returnRequest?`طلب عودة: ${eng.returnRequest.status==='pending'?'بانتظار الإدارة':eng.returnRequest.status==='approved'?'تمت الموافقة':'مرفوض'}`:"طلب عودة من إجازة مصر",
+                                          onClick:e=>{e.stopPropagation();setReturnReqForm({engId:eng.id,engName:eng.name,prov:attProv,expectedReturn:(eng.returnRequest&&eng.returnRequest.expectedReturn)||'',note:(eng.returnRequest&&eng.returnRequest.note)||'',existing:eng.returnRequest||null});setModal('return-req');},
+                                          style:{fontSize:9,padding:"2px 8px",borderRadius:5,border:"1px solid rgba(212,165,56,.45)",background:eng.returnRequest?"linear-gradient(135deg,rgba(212,165,56,.25),rgba(212,165,56,.06))":"linear-gradient(135deg,rgba(212,165,56,.14),rgba(212,165,56,.03))",color:"#D4A538",cursor:"pointer",fontFamily:"inherit",fontWeight:800,whiteSpace:"nowrap"}
+                                        },eng.returnRequest?"📨 طلب عودة ✓":"📨 طلب عودة"),
                                         editBtn
                                       );
                                     }
@@ -10472,11 +10476,11 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                           h("td",{className:"l",style:{fontWeight:700}},r.engineerName),
                           h("td",{className:"l"},(r.prov||'').replace('محافظة ','')),
                           h("td",{style:{textAlign:"center"}},r.travelDate||'—'),
-                          h("td",{style:{textAlign:"center"}},h("button",{onClick:()=>{setReturnReqForm({engId:r.engineerId,leaveId:r.leaveId,engName:r.engineerName,prov:r.prov,expectedReturn:(rr&&rr.expectedReturn)||'',note:(rr&&rr.note)||'',existing:rr||null});setModal('return-req');},title:"تحديد/تعديل تاريخ العودة المتوقعة",style:{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",border:(rr&&rr.expectedReturn)?"1px solid rgba(212,165,56,.4)":"1px dashed rgba(212,165,56,.55)",background:(rr&&rr.expectedReturn)?"rgba(212,165,56,.12)":"transparent",color:"#D4A538"}},(rr&&rr.expectedReturn)?rr.expectedReturn:"➕ تحديد")),
+                          h("td",{style:{textAlign:"center"}},h("button",{onClick:()=>{setReturnReqForm({engId:r.engineerId,engName:r.engineerName,prov:r.prov,expectedReturn:(rr&&rr.expectedReturn)||'',note:(rr&&rr.note)||'',existing:rr||null});setModal('return-req');},title:"تحديد/تعديل تاريخ العودة المتوقعة",style:{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",border:(rr&&rr.expectedReturn)?"1px solid rgba(212,165,56,.4)":"1px dashed rgba(212,165,56,.55)",background:(rr&&rr.expectedReturn)?"rgba(212,165,56,.12)":"transparent",color:"#D4A538"}},(rr&&rr.expectedReturn)?rr.expectedReturn:"➕ تحديد")),
                           h("td",{style:{textAlign:"center"}},pill),
                           h("td",{style:{textAlign:"center"}},rr&&rr.status==='pending'?h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
-                            h("button",{onClick:()=>decideReturnRequest(r.engineerId,r.leaveId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
-                            h("button",{onClick:()=>decideReturnRequest(r.engineerId,r.leaveId,'rejected'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#DC2626",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"❌ رفض")
+                            h("button",{onClick:()=>decideReturnRequest(r.engineerId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
+                            h("button",{onClick:()=>decideReturnRequest(r.engineerId,'rejected'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#DC2626",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"❌ رفض")
                           ):h("span",{style:{color:"var(--sub)",fontSize:11}},"—"))
                         );
                       }))
