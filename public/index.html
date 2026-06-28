@@ -2029,7 +2029,7 @@ function OcOrgChart(props){
   const dirName=(od.director&&od.director.name)||'ضياء الدين محمود';
   const dirTitle=(od.director&&od.director.title)||'مدير مشروعات ليبيا';
   const company=od.company||'شركة الرائد';
-  const cities=CITY_CFG.map(function(cfgC){
+  const cities=(props.orgCities||CITY_CFG).map(function(cfgC){
     const pal=OC_PALETTE[cfgC.id]||OC_PALETTE.derna;
     const cityOrg=((od.cities||[]).find(function(c){return c.id===cfgC.id;})||{managers:[],team:[],projects:[]});
     const engs=(data[cfgC.prov]||[]).filter(function(e){return e.name!==dirName;});
@@ -2243,6 +2243,15 @@ function App(){
   },[provincesCfg,months]);
   /* مشاريع المحافظة: المرنة (projectsCfg) أو الافتراضى — مع الـ4 = نفس PROJ_DATA بالظبط */
   const getProjects=prov=>(projectsCfg&&projectsCfg[prov])||DEFAULT_PROJECTS[prov]||[];
+  /* مدن الهيكل التنظيمى: مشتقّة من PROVS — المحافظة المعروفة تاخد إعداد CITY_CFG، والجديدة تاخد
+     إعداد مشتقّ (اسم بدون «محافظة» + لون من PCOLS). مع الـ4 = CITY_CFG بالظبط (سلوك مطابق ١٠٠٪).
+     عرض فقط — لا يكتب أى داتا؛ المهندسين والفريق بيتقروا من data زى ما هم. */
+  const orgCities=useMemo(()=>PROVS.map((prov,i)=>{
+    const known=CITY_CFG.find(c=>c.prov===prov);
+    if(known)return known;
+    const bare=((prov||'').replace('محافظة ','').trim())||('محافظة '+(i+1));
+    return {id:'city_'+bare.replace(/\s+/g,'_'),name:bare,color:PCOLS[i%PCOLS.length],prov};
+  }),[PROVS]);
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
   const [histYear,setHistYear]=useState(String(now.getFullYear()));
   const [orgSpecFilter,setOrgSpecFilter]=useState('all');
@@ -6623,7 +6632,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     };
     const initial=(name)=>(name||'?').trim().split(' ').filter(Boolean).slice(0,1).map(w=>w[0]).join('');
     /* Build the cities data we'll use for everything */
-    const cities=(CITY_CFG||[]).map(cfgC=>{
+    const cities=(orgCities||CITY_CFG).map(cfgC=>{
       const meta=CITY_META[cfgC.id]||CITY_META.derna;
       const provName=cfgC.prov;
       const cityOrg=(od.cities||[]).find(c=>c.id===cfgC.id)||{managers:[],team:[],projects:[]};
@@ -8137,7 +8146,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           const ICONS={dash:'📊',eng:'📋',att:'✅',leaves:'✈️',expenses:'💰',stats:'📈',hist:'🕐',compare:'⚖️',report:'📄',org:'🏢',backup:'💾',activity:'📜'};
           const pageIcon=ICONS[page]||'📌';
           /* Project count from orgData.cities aggregated */
-          const projectCount=CITY_CFG.reduce((a,c)=>a+getProjects(c.prov).length,0);
+          const projectCount=orgCities.reduce((a,c)=>a+getProjects(c.prov).length,0);
           /* Live time formatting */
           const pad=n=>String(n).padStart(2,'0');
           const timeStr=`${pad(clockNow.getHours())}:${pad(clockNow.getMinutes())}`;
@@ -11162,7 +11171,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
 
       /* ══ ORGANIZATIONAL CHART ══ */
       page==="org"&&h("div",{className:"org-page"},
-        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,projectsCfg:projectsCfg,onPrintReady:fn=>{orgPrintRef.current=fn;},onMainPrint:()=>printOrgPDF('print')})
+        h(OcOrgChart,{data:data,att:att,orgData:orgData,cfg:cfg,projectsCfg:projectsCfg,orgCities:orgCities,onPrintReady:fn=>{orgPrintRef.current=fn;},onMainPrint:()=>printOrgPDF('print')})
       ),
 
       /* ── ENGINEER PROFILE MODAL ────────────────────────── */
