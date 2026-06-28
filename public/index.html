@@ -1708,7 +1708,7 @@ const h=React.createElement;
 
 /* ── Constants ──────────────────────────────────────────── */
 const MONTHS=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const PROVS=["محافظة درنة","محافظة البيضاء","محافظة بنغازى","محافظة طبرق"];
+const DEFAULT_PROVS=["محافظة درنة","محافظة البيضاء","محافظة بنغازى","محافظة طبرق"];
 const PCOLS=["#60A5FA","#34D399","#FCD34D","#C4B5FD"];
 const PLTS=["#0D1E38","#041A0F","#1C1200","#12092E"];
 
@@ -2219,6 +2219,9 @@ function OcOrgChart(props){
    MAIN APP
 ══════════════════════════════════════════════════════ */
 function App(){
+  /* المحافظات: قايمة مرنة — تبدأ بالافتراضى (نفس الـ4 وبنفس الترتيب) وتتوسّع من الإعدادات بدون لمس الكود.
+     لو provincesCfg فاضى → PROVS = DEFAULT_PROVS بالظبط (سلوك مطابق ١٠٠٪ للقديم). */
+  const [provincesCfg,setProvincesCfg]=useState([]);
   const [dark,setDark]=useState(()=>localStorage.getItem("theme")!=="light");
   useEffect(()=>{
     document.documentElement.classList.toggle("light",!dark);
@@ -2226,6 +2229,15 @@ function App(){
   },[dark]);
   const [page,setPage]=useState("dash");
   const [months,setMonths]=useState({});
+  /* PROVS = القائمة المرنة (provincesCfg أو الافتراضى) + أى محافظة فيها داتا فى أى شهر
+     (عشان البيانات ماتختفيش أبداً حتى لو محافظة اتشالت من القائمة). مع الداتا الحالية =
+     نفس الـ4 بنفس الترتيب بالظبط → سلوك مطابق ١٠٠٪. */
+  const PROVS=useMemo(()=>{
+    const base=Array.isArray(provincesCfg)&&provincesCfg.length?provincesCfg:DEFAULT_PROVS;
+    const seen=new Set(base),out=[...base];
+    Object.values(months||{}).forEach(m=>{if(m&&m.data)Object.keys(m.data).forEach(p=>{if(!seen.has(p)){seen.add(p);out.push(p);}});});
+    return out;
+  },[provincesCfg,months]);
   const [ak,setAk]=useState(mkKey(now.getMonth()+1,now.getFullYear()));
   const [histYear,setHistYear]=useState(String(now.getFullYear()));
   const [orgSpecFilter,setOrgSpecFilter]=useState('all');
@@ -2295,6 +2307,7 @@ function App(){
     {id:'r3',desc:'سكن رقم 3',day:22,lyd:5000,usd:0,prov:''}
   ]);
   const [editingRent,setEditingRent]=useState(null);
+  const [editingProvs,setEditingProvs]=useState(null); /* {list:[...], newName} — مودال إدارة المحافظات */
   const [orgData,setOrgData]=useState(null);
   const [attProv,setAttProv]=useState(PROVS[0]);
   const [saveLogs,setSaveLogs]=useState([]);
@@ -2353,6 +2366,7 @@ function App(){
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
       ];
       fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
+      fetch("/api/provinces").then(r=>r.json()).then(d=>{if(Array.isArray(d.provinces)&&d.provinces.length)setProvincesCfg(d.provinces);}).catch(()=>{});
       if(u.role==='admin'){
         fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
@@ -2576,6 +2590,7 @@ function App(){
         fetch("/api/logo").then(r=>r.json()).catch(()=>({logo:null})),
       ];
       fetch("/api/fixed-rents").then(r=>r.json()).then(d=>{if(d.rents)setFixedRents(d.rents);}).catch(()=>{});
+      fetch("/api/provinces").then(r=>r.json()).then(d=>{if(Array.isArray(d.provinces)&&d.provinces.length)setProvincesCfg(d.provinces);}).catch(()=>{});
       if(d.role==='admin'){
         fetches.push(fetch("/api/org-chart").then(r=>r.json()).catch(()=>({data:null})));
         fetches.push(fetch("/api/users").then(r=>r.json()).catch(()=>({users:[]})));
@@ -5340,6 +5355,16 @@ function App(){
   };
 
   /* ── Save fixed rents config + propagate prov changes to existing paid expense items ── */
+  const saveProvinces=(list)=>{
+    const clean=[];for(const p of list){const v=String(p||'').trim();if(v&&!clean.includes(v))clean.push(v);}
+    if(!clean.length){msg('لازم محافظة واحدة على الأقل','err');return;}
+    /* أمان البيانات: ممنوع تشيل محافظة فيها مهندسين فى أى شهر */
+    const dataProvs=new Set();Object.values(months||{}).forEach(m=>{if(m&&m.data)Object.keys(m.data).forEach(p=>{if((m.data[p]||[]).length)dataProvs.add(p);});});
+    const removed=[...dataProvs].filter(p=>!clean.includes(p));
+    if(removed.length){msg('مش ممكن تشيل محافظة فيها مهندسين: '+removed.map(p=>p.replace('محافظة ','')).join('، '),'err');return;}
+    setProvincesCfg(clean);
+    fetch('/api/provinces',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({provinces:clean})}).then(r=>r.json()).then(d=>{if(d&&d.ok){msg('✅ اتحفظت قايمة المحافظات');setEditingProvs(null);}else msg((d&&d.error)||'فشل الحفظ','err');}).catch(()=>msg('فشل الاتصال بالسيرفر','err'));
+  };
   const saveFixedRents=(newRents)=>{
     setFixedRents(newRents);
     fetch('/api/fixed-rents',{method:'PUT',credentials:'include',
@@ -7683,6 +7708,29 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     ),
 
     /* ── FIXED RENTS SETTINGS MODAL (admin) ───────────── */
+    editingProvs&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingProvs(null);}},
+      h("div",{className:"modal",style:{width:460}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"🏛 إدارة المحافظات"),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEditingProvs(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:8}},
+          h("div",{className:"info amber"},h(Ic,{n:"info",sz:14}),"إضافة محافظة بتظهرها فى كل النظام فورًا (الحضور، الإعاشة، المصروفات، التقارير)، وتقدر تعملها لوجين من «إدارة المستخدمين». المحافظة اللى فيها مهندسين مش هتقدر تشيلها."),
+          ...editingProvs.list.map((p,i)=>h("div",{key:i,style:{display:"flex",gap:8,alignItems:"center"}},
+            h("div",{style:{flex:1,padding:"9px 13px",borderRadius:"var(--r)",background:"var(--bg3)",border:"1px solid var(--bdr2)",fontWeight:700,fontSize:13}},"📍 "+p),
+            h("button",{className:"btn-icon del",title:"شيل المحافظة",onClick:()=>setEditingProvs(e=>({...e,list:e.list.filter((_,j)=>j!==i)}))},h(Ic,{n:"del",sz:12}))
+          )),
+          h("div",{style:{display:"flex",gap:8,marginTop:4}},
+            h("input",{placeholder:"اسم المحافظة الجديدة (مثلاً: محافظة سرت)",value:editingProvs.newName||'',onChange:ev=>setEditingProvs(e=>({...e,newName:ev.target.value})),onKeyDown:ev=>{if(ev.key==='Enter'){ev.preventDefault();const v=(editingProvs.newName||'').trim();if(!v)return;if(editingProvs.list.includes(v)){msg('المحافظة موجودة بالفعل','err');return;}setEditingProvs(e=>({...e,list:[...e.list,v],newName:''}));}},style:{flex:1,padding:"9px 13px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:13,fontFamily:"inherit"}}),
+            h("button",{className:"btn blue",style:{whiteSpace:"nowrap"},onClick:()=>{const v=(editingProvs.newName||'').trim();if(!v)return;if(editingProvs.list.includes(v)){msg('المحافظة موجودة بالفعل','err');return;}setEditingProvs(e=>({...e,list:[...e.list,v],newName:''}));}},h(Ic,{n:"plus",sz:12}),"أضف")
+          )
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setEditingProvs(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:()=>saveProvinces(editingProvs.list)},"💾 حفظ القايمة")
+        )
+      )
+    ),
     editingRent&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditingRent(null);}},
       h("div",{className:"modal",style:{width:560}},
         h("div",{className:"modal-hdr"},
@@ -10856,7 +10904,10 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                 ),
                 "مستخدمو المحافظات"
               ),
-              h("span",{className:"card-badge"},provUsers.length+" مستخدم")
+              h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                h("button",{className:"btn",style:{padding:"5px 12px",fontSize:11},onClick:()=>setEditingProvs({list:[...PROVS],newName:''})},h(Ic,{n:"plus",sz:12}),"🏛 إدارة المحافظات"),
+                h("span",{className:"card-badge"},provUsers.length+" مستخدم")
+              )
             ),
             /* ── Add new province user form ── */
             h("div",{style:{padding:"12px 16px",borderBottom:"1px solid var(--bdr)",display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}},

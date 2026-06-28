@@ -431,6 +431,34 @@ router.put('/fixed-rents', adminOnly, async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Provinces (المحافظات) — flexible app-level list ──────────
+   مخزّنة في app_config مثل fixed_rents. لو مش متخزّنة → الافتراضى = الـ4.
+   تغيير القائمة = إضافة/تعديل فقط؛ التطبيق لا يمسح بيانات محافظة شالها الأدمن من القائمة
+   (البيانات تفضل في months؛ القائمة بتتحكم في العرض/الاختيار فقط). */
+const DEFAULT_PROVINCES = ["محافظة درنة","محافظة البيضاء","محافظة بنغازى","محافظة طبرق"];
+
+router.get('/provinces', async (_req, res) => {
+  const row = await get("SELECT value FROM app_config WHERE key = 'provinces'");
+  let provinces;
+  try { provinces = row ? JSON.parse(row.value) : DEFAULT_PROVINCES; }
+  catch { provinces = DEFAULT_PROVINCES; }
+  if (!Array.isArray(provinces) || provinces.length === 0) provinces = DEFAULT_PROVINCES;
+  res.json({ provinces });
+});
+
+router.put('/provinces', adminOnly, async (req, res) => {
+  const { provinces } = req.body;
+  if (!Array.isArray(provinces)) return res.status(400).json({ error: 'بيانات غير صالحة' });
+  const clean = [];
+  for (const p of provinces) { const v = String(p == null ? '' : p).trim(); if (v && !clean.includes(v)) clean.push(v); }
+  if (!clean.length) return res.status(400).json({ error: 'قائمة المحافظات فارغة' });
+  await run(`
+    INSERT INTO app_config (key, value) VALUES ('provinces', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `, [JSON.stringify(clean)]);
+  res.json({ ok: true });
+});
+
 /* ── User management — admin only ───────────────────── */
 
 router.get('/users', adminOnly, async (_req, res) => {
