@@ -6870,23 +6870,11 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     @page{size:A4 landscape;margin:0 !important}
     @media print{html,body{background:#FFFFFF !important;padding:0 !important;margin:0 !important;width:297mm}.paper{box-shadow:none !important;width:297mm !important;margin:0 !important}.print-bar{display:none !important}.page{width:297mm !important;height:210mm !important;max-height:210mm !important;page-break-after:always !important;page-break-inside:avoid !important;break-after:page !important;overflow:hidden !important;margin:0 !important}.page.city-page{height:auto !important;min-height:210mm !important;max-height:none !important;overflow:visible !important;page-break-inside:auto !important}.page:last-child{page-break-after:auto !important}.city-hero,.team-card-lux,.mgr-spotlight,.donut-card,.mega-stat,.dist-chart,.donut-row,.tree-svg-wrap,.thanks-block,.sig-row,.proj-item-lux{break-inside:avoid !important;page-break-inside:avoid !important}.team-section,.proj-section{break-inside:avoid !important;page-break-inside:avoid !important}.cover{width:297mm !important;height:210mm !important;padding:0 !important;background-color:#0A0E1A !important}.tree-svg-wrap svg{width:100% !important;height:auto !important;max-height:115mm !important}}`;
     const visibleCities=cities.filter(c=>c.engs.length>0||c.projects.length>0);
-    /* Numbered pages: hierarchy(1) + stats(1) + each visible city + signatures(1) = 3 + cityCount */
-    const totalPages=3+visibleCities.length;
+    /* Numbered pages: hierarchy(1) + stats(1) + each visible city = 2 + cityCount (صفحة التواقيع اتشالت) */
+    const totalPages=2+visibleCities.length;
     const cityPagesHtml=visibleCities.map((c,i)=>cityPage(c,i,3+i,totalPages)).join('');
-    /* Preparer name — prefer username, fall back to role label */
-    const preparerName='Bilal A.Ali';
-    const signatureBlock=`<div class="page sig-page" style="display:flex;flex-direction:column">
-      <div class="page-hdr">
-        <div class="page-hdr-l">${logoHdrHtml}<div class="page-hdr-titles"><h1>التواقيع والاعتمادات</h1><div class="sub">Signatures &amp; Acknowledgements</div></div></div>
-        <div class="page-hdr-r"><div><span class="pg">${String(totalPages).padStart(2,'0')}</span><span class="pg-total"> / ${totalPages}</span></div><div class="date">${monthLabel}</div></div>
-      </div>
-      <div class="thanks-block">
-        <div class="thanks-title">A Note from the Director</div>
-        <div class="thanks-text">هذا الهيكل التنظيمى يُعبّر عن جهد متراكم وتنظيم دقيق لإدارة مشاريع ${company} فى ليبيا. كل مهندس فى هذا التقرير يُمثّل جزءاً من رؤية أكبر — تقديم خدمات استشارية هندسية بأعلى مستوى من الجودة والاحترافية. شكراً لكل عضو فى الفريق على إخلاصه وعمله المتواصل.</div>
-      </div>
-      <div class="footer-strip"><span>${company.toUpperCase()} · LIBYA OPERATIONS · ${_Y}</span><span class="brand">© ${company} · ${_Y}</span></div>
-      <div style="text-align:center;font-family:'Cormorant Garamond',serif;font-size:11px;color:#B8860B;letter-spacing:1.5px;margin-top:8px;font-style:italic">© Bilal A.Ali · ${_Y}</div>
-    </div>`;
+    /* صفحة «التواقيع والاعتمادات / A Note from the Director» اتشالت بطلب بلال (ملهاش لازمة).
+       totalPages اتنقّص من 3+ لـ2+ فوق، والترقيم بيفضل صح. */
     const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
     <title>الهيكل التنظيمى — ${company}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
@@ -6947,7 +6935,6 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         <div class="footer-strip"><span>الإحصائيات صادرة من نظام إدارة مشروعات ليبيا · ${monthLabel}</span><span class="brand">© ${company} · ${_Y}</span></div>
       </div>
       ${cityPagesHtml}
-      ${signatureBlock}
     </div></body></html>`;
     _openPdfWin(html,mode,true);
   };
@@ -8443,7 +8430,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               return h("div",{key:n.id,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:bg,border:`1px solid ${bdr}`,borderRadius:10,borderRight:`3px solid ${col}`}},
                 h("span",{style:{fontSize:12,fontWeight:600,color:col,flex:1}},n.msg),
                 isRed&&h("button",{className:"btn",style:{fontSize:10,padding:"3px 10px",borderColor:col+"44",color:col},
-                  onClick:()=>{switchMonth(mkKey(now.getMonth()===0?12:now.getMonth(),now.getMonth()===0?now.getFullYear()-1:now.getFullYear()));setPage('att');}
+                  onClick:()=>{const id=n.id||'';if(id.indexOf('bal')===0||id.indexOf('rent')===0)setPage('expenses');else if(id==='d1'||id==='d2')setPage('eng');else{switchMonth(mkKey(now.getMonth()===0?12:now.getMonth(),now.getMonth()===0?now.getFullYear()-1:now.getFullYear()));setPage('att');}}
                 },"ابدأ →")
               );
             })
