@@ -7616,25 +7616,28 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
             f.pick
               ?h("div",{className:"fld"},h("label",null,"المهندسون فى إجازة مصر * (اختار واحد أو أكثر)"),
-                (()=>{const list=egyptOnLeaveNow.filter(r=>!isProvince||r.prov===userProv);const sel=f.engIds||[];
+                (()=>{const list=egyptOnLeaveNow.filter(r=>!isProvince||r.prov===userProv);const sel=f.engIds||[];const allOn=sel.length===list.length&&list.length>0;const cbStyle={width:17,height:17,minWidth:17,padding:0,margin:0,flexShrink:0,accentColor:"#D4A538",cursor:"pointer"};
                   return list.length===0
-                    ?h("div",{style:{padding:"10px 12px",color:"var(--sub)",fontSize:12,border:"1px dashed var(--bdr2)",borderRadius:10}},"مفيش مهندسين فى إجازة مصر حالياً")
-                    :h("div",{style:{maxHeight:200,overflowY:"auto",border:"1px solid var(--bdr2)",borderRadius:10,padding:4,display:"flex",flexDirection:"column",gap:2}},
-                      h("label",{style:{display:"flex",alignItems:"center",gap:8,padding:"6px 9px",borderRadius:7,cursor:"pointer",borderBottom:"1px solid var(--bdr)",fontWeight:800,fontSize:11,color:"var(--sub)"}},
-                        h("input",{type:"checkbox",checked:sel.length===list.length&&list.length>0,onChange:ev=>setReturnReqForm(p=>({...p,engIds:ev.target.checked?list.map(r=>r.engineerId):[]}))}),
-                        "اختيار الكل ("+list.length+")"
+                    ?h("div",{style:{padding:"14px",color:"var(--sub)",fontSize:12,textAlign:"center",border:"1px dashed var(--bdr2)",borderRadius:12}},"مفيش مهندسين فى إجازة مصر حالياً")
+                    :h("div",{style:{border:"1px solid var(--bdr2)",borderRadius:12,overflow:"hidden"}},
+                      h("label",{style:{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",cursor:"pointer",background:"var(--bg2)",borderBottom:"1px solid var(--bdr)"}},
+                        h("input",{type:"checkbox",checked:allOn,style:cbStyle,onChange:ev=>setReturnReqForm(p=>({...p,engIds:ev.target.checked?list.map(r=>r.engineerId):[]}))}),
+                        h("span",{style:{fontWeight:800,fontSize:12,color:"var(--text)"}},"اختيار الكل"),
+                        h("span",{style:{marginRight:"auto",fontSize:11,fontWeight:800,color:sel.length?"#D4A538":"var(--sub)"}},sel.length+" / "+list.length)
                       ),
-                      list.map(r=>{const ck=sel.indexOf(r.engineerId)>=0;
-                        return h("label",{key:r.engineerId,style:{display:"flex",alignItems:"center",gap:8,padding:"7px 9px",borderRadius:7,cursor:"pointer",background:ck?"rgba(212,165,56,.10)":"transparent"}},
-                          h("input",{type:"checkbox",checked:ck,onChange:ev=>setReturnReqForm(p=>{const s=new Set(p.engIds||[]);ev.target.checked?s.add(r.engineerId):s.delete(r.engineerId);return{...p,engIds:[...s]};})}),
-                          h("span",{style:{fontSize:12,fontWeight:600}},r.engineerName),
-                          h("span",{style:{fontSize:10,color:"var(--sub)"}},"· "+(r.prov||'').replace('محافظة ','')),
-                          r.returnRequest&&h("span",{style:{fontSize:9,marginRight:"auto",fontWeight:700,color:r.returnRequest.status==='approved'?'#059669':r.returnRequest.status==='rejected'?'#DC2626':'#D97706'}},r.returnRequest.status==='pending'?'طلب قائم':r.returnRequest.status==='approved'?'تمت الموافقة':'مرفوض')
-                        );
-                      })
+                      h("div",{style:{maxHeight:220,overflowY:"auto"}},
+                        list.map((r,i)=>{const ck=sel.indexOf(r.engineerId)>=0;const rr=r.returnRequest;
+                          return h("label",{key:r.engineerId,style:{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",cursor:"pointer",background:ck?"rgba(212,165,56,.12)":"transparent",borderBottom:i<list.length-1?"1px solid var(--bdr)":"none"}},
+                            h("input",{type:"checkbox",checked:ck,style:cbStyle,onChange:ev=>setReturnReqForm(p=>{const s=new Set(p.engIds||[]);ev.target.checked?s.add(r.engineerId):s.delete(r.engineerId);return{...p,engIds:[...s]};})}),
+                            h("span",{style:{fontSize:12.5,fontWeight:700,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}},r.engineerName),
+                            h("span",{style:{fontSize:10,color:"var(--sub)",flexShrink:0,whiteSpace:"nowrap"}},"📍 "+(r.prov||'').replace('محافظة ','')),
+                            rr&&h("span",{style:{fontSize:9,fontWeight:800,padding:"2px 8px",borderRadius:100,flexShrink:0,whiteSpace:"nowrap",background:(rr.status==='approved'?'rgba(16,185,129,.15)':rr.status==='rejected'?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)'),color:(rr.status==='approved'?'#059669':rr.status==='rejected'?'#DC2626':'#D97706')}},rr.status==='pending'?'طلب قائم':rr.status==='approved'?'موافَق':'مرفوض')
+                          );
+                        })
+                      )
                     );
                 })(),
-                h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:5}},((f.engIds||[]).length)+" مهندس مختار")
+                h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:6}},((f.engIds||[]).length)+" مهندس مختار")
               )
               :h("div",{className:"fld"},h("label",null,"المهندس"),
                 h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(212,165,56,.10)",border:"1px solid rgba(212,165,56,.25)",fontSize:13,fontWeight:700,color:"#D4A538"}},"📍 "+f.engName+(f.prov?' · '+f.prov:''))
