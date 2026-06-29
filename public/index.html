@@ -2771,6 +2771,20 @@ function App(){
     }
     return null;
   };
+  /* أنشط إجازة مصر للمهندس عبر كل الشهور (legacy: الإجازة ممكن تكون متسجّلة على سجل شهر تانى
+     مش الشهر الحالى، زى ما getEgyptLeaveAutoState بيعمل cross-month). بترجّع entry الإجازة
+     عشان نقرا منها departureDate (تاريخ النزول) + returnDate. */
+  const getActiveEgyptLeaveCM=(engId,todayStr)=>{
+    for(const k of Object.keys(months)){
+      if(k==='leaves')continue;
+      const md=months[k];if(!md?.data)continue;
+      for(const p of Object.keys(md.data)){
+        const e=(md.data[p]||[]).find(x=>x?.id===engId);
+        if(e){const lv=(e.egyptLeaves||[]).find(l=>l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr));if(lv)return lv;}
+      }
+    }
+    return null;
+  };
   /* Count leave days for an engineer in a given month range [startDay..endDay] */
   const countEgyptLeaveDaysInRange=(eng,year,month,startDay,endDay)=>{
     let n=0;
@@ -3215,9 +3229,18 @@ function App(){
         const onLeave=getEgyptLeaveAutoState(e,ty,tm,td)==='EGL';
         const egCell=!!(att[e.id]&&att[e.id][td]&&att[e.id][td].s==='EG');
         if(!onLeave&&!egCell)return; /* مش فى مصر النهارده */
-        const activeLeave=(e.egyptLeaves||[]).find(l=>l.departureDate&&l.departureDate<=todayStr&&(!l.returnDate||l.returnDate>todayStr));
+        const activeLeave=getActiveEgyptLeaveCM(e.id,todayStr);
         let travelDate=activeLeave?activeLeave.departureDate:null;
-        if(!travelDate){const egDays=Object.keys(att[e.id]||{}).map(Number).filter(d=>att[e.id][d]&&att[e.id][d].s==='EG'&&d<=td).sort((a,b)=>a-b);if(egDays.length)travelDate=`${ty}-${pad(tm)}-${pad(egDays[0])}`;}
+        if(!travelDate){
+          /* fallback: أبكر يوم «فى مصر» (EG) عبر كل الشهور — مش الشهر الحالى بس */
+          let earliest=null;
+          Object.keys(months).forEach(mk=>{
+            if(mk==='leaves')return;const ma=months[mk]?.attendance||{};const cell=ma[e.id];if(!cell)return;
+            const parts=mk.split('-'),yy=+parts[0],mm=+parts[1];
+            Object.keys(cell).forEach(dd=>{if(cell[dd]&&cell[dd].s==='EG'){const ds=`${yy}-${pad(mm)}-${pad(+dd)}`;if(ds<=todayStr&&(!earliest||ds<earliest))earliest=ds;}});
+          });
+          if(earliest)travelDate=earliest;
+        }
         out.push({engineerId:e.id,engineerName:e.name||'—',prov,travelDate,returnDate:activeLeave?(activeLeave.returnDate||null):null,via:onLeave?'leave':'att',returnRequest:e.returnRequest||(activeLeave&&activeLeave.returnRequest)||null});
       }));
     }
