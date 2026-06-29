@@ -2288,7 +2288,8 @@ function App(){
   const [forcePwdForm,setForcePwdForm]=useState({old:"",n1:"",n2:""});
   const [forcePwdErr,setForcePwdErr]=useState("");
   const [userSettings,setUserSettings]=useState(null);// {tab:'info'|'password',pwdForm:{...},err,success}
-  const [newUserForm,setNewUserForm]=useState({username:"",password:"",province:PROVS[0]});
+  const [newUserForm,setNewUserForm]=useState({username:"",password:"",province:PROVS[0],role:"province"});
+  const [editUserModal,setEditUserModal]=useState(null); /* {id,username,role,province,active} — تعديل صلاحيات مستخدم */
   const [autoSaving,setAutoSaving]=useState(false);
   const isAdmin=useMemo(()=>user?.role==='admin',[user]);
   const isProvince=useMemo(()=>user?.role==='province',[user]);
@@ -3852,6 +3853,7 @@ function App(){
   };
   const submitReturnRequest=()=>{
     const f=returnReqForm;if(!f)return;
+    if(!f.engId){msg('اختار المهندس','err');return;}
     if(!f.expectedReturn){msg('اختار تاريخ العودة المتوقع','err');return;}
     if(isProvince){
       if(f.prov!==userProv){msg('يمكنك طلب عودة لمهندسى محافظتك فقط','err');return;}
@@ -7594,9 +7596,16 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>{setModal(null);setReturnReqForm(null);}},h(Ic,{n:"del",sz:12}))
           ),
           h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
-            h("div",{className:"fld"},h("label",null,"المهندس"),
-              h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(212,165,56,.10)",border:"1px solid rgba(212,165,56,.25)",fontSize:13,fontWeight:700,color:"#D4A538"}},"📍 "+f.engName+(f.prov?' · '+f.prov:''))
-            ),
+            f.pick
+              ?h("div",{className:"fld"},h("label",null,"المهندس (فى إجازة مصر) *"),
+                h("select",{value:f.engId||'',onChange:ev=>{const id=ev.target.value;const r=egyptOnLeaveNow.find(x=>x.engineerId===id);setReturnReqForm(p=>({...p,engId:id,engName:r?r.engineerName:'',prov:r?r.prov:'',existing:(r&&r.returnRequest)||null,expectedReturn:(r&&r.returnRequest&&r.returnRequest.expectedReturn)||'',note:(r&&r.returnRequest&&r.returnRequest.note)||''}));}},
+                  h("option",{value:""},"اختر مهندس..."),
+                  egyptOnLeaveNow.filter(r=>!isProvince||r.prov===userProv).map(r=>h("option",{key:r.engineerId,value:r.engineerId},r.engineerName+" — "+(r.prov||'').replace('محافظة ','')+(r.returnRequest?(r.returnRequest.status==='pending'?' (طلب قائم)':r.returnRequest.status==='approved'?' (تمت الموافقة)':' (مرفوض)'):'')))
+                )
+              )
+              :h("div",{className:"fld"},h("label",null,"المهندس"),
+                h("div",{style:{padding:"10px 14px",borderRadius:10,background:"rgba(212,165,56,.10)",border:"1px solid rgba(212,165,56,.25)",fontSize:13,fontWeight:700,color:"#D4A538"}},"📍 "+f.engName+(f.prov?' · '+f.prov:''))
+              ),
             ex&&h("div",{className:"info "+(ex.status==='approved'?'green':ex.status==='rejected'?'red':'amber'),style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"حالة الطلب الحالى: "+(ex.status==='pending'?'بانتظار موافقة الإدارة':ex.status==='approved'?'تمت الموافقة ✅':'مرفوض ❌')+(ex.status!=='pending'?' — تقدر تبعت طلب جديد':'')),
             h("div",{className:"fld"},h("label",null,"تاريخ العودة المتوقع *"),
               h("input",{type:"date",min:todayStr,value:f.expectedReturn,onChange:ev=>setReturnReqForm(p=>({...p,expectedReturn:ev.target.value}))})
@@ -7850,6 +7859,51 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         userSettings.tab==='password'&&h("div",{className:"modal-ftr"},
           h("button",{className:"btn",onClick:()=>setUserSettings(null)},"إلغاء"),
           h("button",{className:"btn blue",onClick:submitChangePassword},h(Ic,{n:"save",sz:13}),"حفظ كلمة المرور")
+        )
+      )
+    ),
+
+    /* ── EDIT USER (role / province / active) MODAL ──────── */
+    editUserModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditUserModal(null);}},
+      h("div",{className:"modal",style:{width:420}},
+        h("div",{className:"modal-hdr"},
+          h("h3",null,"تعديل الصلاحيات — ",h("span",{style:{color:"var(--blue)"}},editUserModal.username)),
+          h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEditUserModal(null)},h(Ic,{n:"del",sz:12}))
+        ),
+        h("div",{className:"modal-body",style:{display:"flex",flexDirection:"column",gap:12}},
+          h("div",{className:"fld"},h("label",null,"الدور"),
+            h("select",{value:editUserModal.role,onChange:ev=>setEditUserModal(m=>({...m,role:ev.target.value}))},
+              h("option",{value:"province"},"مدير محافظة"),
+              h("option",{value:"viewer"},"مشاهد (قراءة فقط)"),
+              h("option",{value:"hr"},"HR (موارد بشرية)")
+            )
+          ),
+          editUserModal.role==='province'&&h("div",{className:"fld"},h("label",null,"المحافظة"),
+            h("select",{value:editUserModal.province,onChange:ev=>setEditUserModal(m=>({...m,province:ev.target.value}))},
+              PROVS.map(p=>h("option",{key:p,value:p},p))
+            )
+          ),
+          h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"10px 12px",borderRadius:10,background:editUserModal.active?"rgba(16,185,129,.08)":"rgba(239,68,68,.08)",border:"1px solid "+(editUserModal.active?"rgba(16,185,129,.25)":"rgba(239,68,68,.25)")}},
+            h("div",null,
+              h("div",{style:{fontWeight:700,fontSize:12,color:editUserModal.active?"#059669":"#DC2626"}},editUserModal.active?"✅ الحساب مُفعّل":"⏸️ الحساب موقوف"),
+              h("div",{style:{fontSize:10,color:"var(--sub)",marginTop:2}},"الحساب الموقوف ما يقدرش يسجّل دخول")
+            ),
+            h("button",{className:"btn",style:{fontSize:11,padding:"6px 14px",flexShrink:0,borderColor:editUserModal.active?"rgba(239,68,68,.4)":"rgba(16,185,129,.4)",color:editUserModal.active?"#DC2626":"#059669"},onClick:()=>setEditUserModal(m=>({...m,active:m.active?0:1}))},editUserModal.active?"إيقاف الحساب":"تفعيل الحساب")
+          ),
+          h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"تغيير الدور بيغيّر صلاحيات المستخدم فورًا بعد الحفظ.")
+        ),
+        h("div",{className:"modal-ftr"},
+          h("button",{className:"btn",onClick:()=>setEditUserModal(null)},"إلغاء"),
+          h("button",{className:"btn blue",onClick:async()=>{
+            const m=editUserModal;
+            const body={role:m.role,active:m.active,province:m.role==='province'?m.province:null};
+            const r=await fetch(`/api/users/${m.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+            const d=await r.json();
+            if(!r.ok){msg(d.error||"خطأ","err");return;}
+            setProvUsers(list=>list.map(x=>x.id===m.id?{...x,role:d.user.role,province:d.user.province,active:d.user.active}:x));
+            msg("تم تحديث صلاحيات "+m.username+" ✓");
+            setEditUserModal(null);
+          }},h(Ic,{n:"save",sz:13}),"حفظ التعديلات")
         )
       )
     ),
@@ -10380,6 +10434,8 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
         /* ══ LEAVES ══ */
         page==="leaves"&&(()=>{
           const myLvs=!isProvince?leaves:leaves.filter(l=>l.prov===userProv||l.requestedBy===(user?.username||''));
+          const myOnLeave=egyptOnLeaveNow.filter(r=>!isProvince||r.prov===userProv);
+          const myReturnReqs=myOnLeave.filter(r=>r.returnRequest);
           const tabLvs=leaveTab==='all'?myLvs:myLvs.filter(l=>l.status===leaveTab);
           const cnts={all:myLvs.length,pending:myLvs.filter(l=>l.status==='pending').length,approved:myLvs.filter(l=>l.status==='approved').length,rejected:myLvs.filter(l=>l.status==='rejected').length};
           const SL={pending:'قيد الانتظار',approved:'موافق عليه',rejected:'مرفوض',traveling:'مسافر حالياً',ended:'منتهية'};
@@ -10412,7 +10468,8 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                       onClick:()=>printLeavesPDF('print',leaveTab),
                       title:`طباعة ${tabLvs.length} طلب من تاب "${({all:'الكل',pending:'قيد الانتظار',approved:'موافق',rejected:'مرفوض'})[leaveTab]||''}"`
                     },h(Ic,{n:"pdf",sz:13}),h("span",null,`طباعة (${tabLvs.length})`)),
-                    (isProvince||isAdmin)&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,isAdmin?"إضافة إجازة":"طلب إجازة جديد"))
+                    (isProvince||isAdmin)&&h("button",{className:"btn blue",style:{gap:5},onClick:()=>{setLeaveForm({engId:'',startDate:'',endDate:'',ticketBooked:false,ticketDetails:'',notes:'',autoApprove:isAdmin});setLeaveElig(null);setLeaveView('form');}},h(Ic,{n:"plus",sz:13}),h("span",null,isAdmin?"إضافة إجازة":"طلب إجازة جديد")),
+                    (isProvince||isAdmin)&&myOnLeave.length>0&&h("button",{className:"btn",style:{gap:5,background:"rgba(212,165,56,.14)",borderColor:"rgba(212,165,56,.4)",color:"#D4A538"},onClick:()=>{setReturnReqForm({engId:'',engName:'',prov:isProvince?userProv:'',expectedReturn:'',note:'',existing:null,pick:true});setModal('return-req');},title:"اطلب عودة مهندس من إجازة مصر"},h("span",{style:{fontSize:13}},"📨"),h("span",null,isAdmin?"تحديد عودة":"طلب عودة"))
                   )
                 :h("button",{className:"btn",style:{gap:4},onClick:()=>setLeaveView('list')},h(Ic,{n:"del",sz:12}),"رجوع إلى القائمة")
             ),
@@ -10426,6 +10483,27 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                   h("span",{style:{fontSize:11,color:"var(--sub)"}},l.prov)
                 );
               })
+            ),
+            leaveView==='list'&&leaveTab!=='report'&&myReturnReqs.length>0&&h("div",{className:"card"},
+              h("div",{className:"card-hdr"},h("div",{style:{display:"flex",alignItems:"center",gap:8}},h("div",{className:"card-title"},"🛬 طلبات العودة من إجازة مصر"),h("span",{className:"card-badge",style:{background:"rgba(212,165,56,.15)",color:"#D4A538",border:"1px solid rgba(212,165,56,.3)"}},myReturnReqs.length))),
+              h("div",{className:"tbl-wrap"},h("table",{className:"tbl leave-report-table"},
+                h("thead",null,h("tr",null,h("th",{className:"l"},"الاسم"),h("th",{className:"l"},"المحافظة"),h("th",null,"تاريخ النزول"),h("th",null,"العودة المتوقعة"),h("th",null,"الحالة"),isAdmin&&h("th",null,"إجراء"))),
+                h("tbody",null,myReturnReqs.map(r=>{
+                  const rr=r.returnRequest;
+                  const pill=rr.status==='pending'?h("span",{style:{fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:100,background:"rgba(245,158,11,.15)",color:"#D97706",border:"1px solid rgba(245,158,11,.35)"}},"⏳ قيد الانتظار"):rr.status==='approved'?h("span",{style:{fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:100,background:"rgba(16,185,129,.15)",color:"#059669",border:"1px solid rgba(16,185,129,.35)"}},"✅ موافَق"):h("span",{style:{fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:100,background:"rgba(239,68,68,.15)",color:"#DC2626",border:"1px solid rgba(239,68,68,.35)"}},"❌ مرفوض");
+                  return h("tr",{key:r.engineerId},
+                    h("td",{className:"l",style:{fontWeight:700}},r.engineerName),
+                    h("td",{className:"l"},(r.prov||'').replace('محافظة ','')),
+                    h("td",{style:{textAlign:"center"}},r.travelDate||'—'),
+                    h("td",{style:{textAlign:"center"}},rr.expectedReturn||'—'),
+                    h("td",{style:{textAlign:"center"}},pill),
+                    isAdmin&&h("td",{style:{textAlign:"center"}},rr.status==='pending'?h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
+                      h("button",{onClick:()=>decideReturnRequest(r.engineerId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
+                      h("button",{onClick:()=>decideReturnRequest(r.engineerId,'rejected'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#DC2626",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"❌ رفض")
+                    ):h("span",{style:{color:"var(--sub)",fontSize:11}},"—"))
+                  );
+                }))
+              ))
             ),
             leaveView==='form'&&h("div",{className:"card"},
               h("div",{className:"modal-hdr"},h("h3",null,"✈ طلب إجازة جديد")),
@@ -10967,7 +11045,16 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                   onChange:ev=>setNewUserForm(f=>({...f,password:ev.target.value})),
                   style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})
               ),
-              h("div",{style:{flex:"1 1 140px"}},
+              h("div",{style:{flex:"1 1 130px"}},
+                h("label",{style:{fontSize:10,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:4}},"الدور"),
+                h("select",{value:newUserForm.role,onChange:ev=>setNewUserForm(f=>({...f,role:ev.target.value})),
+                  style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},
+                  h("option",{value:"province"},"مدير محافظة"),
+                  h("option",{value:"viewer"},"مشاهد (قراءة فقط)"),
+                  h("option",{value:"hr"},"HR (موارد بشرية)")
+                )
+              ),
+              newUserForm.role==='province'&&h("div",{style:{flex:"1 1 140px"}},
                 h("label",{style:{fontSize:10,fontWeight:700,color:"var(--sub)",display:"block",marginBottom:4}},"المحافظة"),
                 h("select",{value:newUserForm.province,onChange:ev=>setNewUserForm(f=>({...f,province:ev.target.value})),
                   style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}},
@@ -10982,8 +11069,8 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                     body:JSON.stringify(newUserForm)});
                   const d=await r.json();
                   if(!r.ok){msg(d.error||"خطأ","err");return;}
-                  setProvUsers(p=>[...p,{id:d.id,username:d.username,province:d.province,role:"province"}]);
-                  setNewUserForm({username:"",password:"",province:PROVS[0]});
+                  setProvUsers(p=>[...p,{id:d.id,username:d.username,province:d.province,role:d.role,active:1}]);
+                  setNewUserForm({username:"",password:"",province:PROVS[0],role:"province"});
                   msg("تم إضافة المستخدم ✓");
                 }
               },h(Ic,{n:"plus",sz:12}),"إضافة مستخدم")
@@ -10993,19 +11080,28 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
               :h("div",{style:{padding:"8px 16px 14px"}},
                 provUsers.map(u=>{
                   const isOnline=activeUsers.some(a=>a.username===u.username);
-                  return h("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)"}},
+                  const roleLabel=({province:'مدير محافظة',viewer:'مشاهد',hr:'HR'})[u.role]||u.role;
+                  const roleCol=({province:'#60A5FA',viewer:'#94A3B8',hr:'#A78BFA'})[u.role]||'#60A5FA';
+                  const inactive=u.active===0;
+                  return h("div",{key:u.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--bdr)",opacity:inactive?.55:1}},
                     h("div",{style:{position:"relative",flexShrink:0}},
-                      h("div",{style:{width:36,height:36,borderRadius:"50%",background:"rgba(96,165,250,.12)",border:"1px solid rgba(96,165,250,.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},"👤"),
-                      isOnline&&h("div",{style:{position:"absolute",bottom:1,left:1,width:10,height:10,borderRadius:"50%",background:"#34D399",border:"2px solid var(--bg2)",boxShadow:"0 0 6px #34D399"}})
+                      h("div",{style:{width:36,height:36,borderRadius:"50%",background:roleCol+"1f",border:"1px solid "+roleCol+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},"👤"),
+                      isOnline&&!inactive&&h("div",{style:{position:"absolute",bottom:1,left:1,width:10,height:10,borderRadius:"50%",background:"#34D399",border:"2px solid var(--bg2)",boxShadow:"0 0 6px #34D399"}})
                     ),
                     h("div",{style:{flex:1,minWidth:0}},
-                      h("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:2}},
+                      h("div",{style:{display:"flex",alignItems:"center",gap:6,marginBottom:2,flexWrap:"wrap"}},
                         h("span",{style:{fontWeight:700,fontSize:13}},u.username),
-                        isOnline&&h("span",{style:{fontSize:9,padding:"1px 6px",borderRadius:100,background:"rgba(52,211,153,.15)",color:"#34D399",border:"1px solid rgba(52,211,153,.3)",fontWeight:700}},"نشط")
+                        h("span",{style:{fontSize:9,padding:"1px 7px",borderRadius:100,background:roleCol+"22",color:roleCol,border:"1px solid "+roleCol+"44",fontWeight:700}},roleLabel),
+                        isOnline&&!inactive&&h("span",{style:{fontSize:9,padding:"1px 6px",borderRadius:100,background:"rgba(52,211,153,.15)",color:"#34D399",border:"1px solid rgba(52,211,153,.3)",fontWeight:700}},"نشط"),
+                        inactive&&h("span",{style:{fontSize:9,padding:"1px 7px",borderRadius:100,background:"rgba(239,68,68,.12)",color:"#DC2626",border:"1px solid rgba(239,68,68,.3)",fontWeight:700}},"⏸️ موقوف")
                       ),
-                      h("div",{style:{fontSize:11,color:"var(--sub)"}},u.province)
+                      h("div",{style:{fontSize:11,color:"var(--sub)"}},u.role==='province'?(u.province||'—'):roleLabel)
                     ),
-                    h("button",{className:"btn",style:{fontSize:11,padding:"5px 12px"},
+                    h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تعديل الصلاحيات",
+                      onClick:()=>setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1})},
+                      h(Ic,{n:"edit",sz:12})," صلاحيات"
+                    ),
+                    h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تغيير كلمة المرور",
                       onClick:()=>setPwdModal({id:u.id,username:u.username,val:""})},
                       h("svg",{viewBox:"0 0 20 20",fill:"none",stroke:"currentColor",strokeWidth:"1.8",strokeLinecap:"round",width:12,height:12},
                         h("rect",{x:3,y:9,width:14,height:9,rx:1.5}),h("path",{d:"M7 9V6a3 3 0 016 0v3"})

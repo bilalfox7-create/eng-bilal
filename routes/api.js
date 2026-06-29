@@ -490,7 +490,7 @@ router.put('/projects', adminOnly, async (req, res) => {
 /* ── User management — admin only ───────────────────── */
 
 router.get('/users', adminOnly, async (_req, res) => {
-  const users = await all("SELECT id, username, role, province FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username");
+  const users = await all("SELECT id, username, role, province, active FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username");
   res.json({ users });
 });
 
@@ -505,7 +505,7 @@ router.put('/users/:id/password', adminOnly, async (req, res) => {
 
 router.post('/users', adminOnly, async (req, res) => {
   const { username, password, province, role } = req.body;
-  const userRole = role === 'viewer' ? 'viewer' : 'province';
+  const userRole = ['viewer','hr','province'].includes(role) ? role : 'province';
   if (!username || !username.trim()) return res.status(400).json({ error: 'أدخل اسم المستخدم' });
   if (!password || password.length < 6)  return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
   if (userRole === 'province' && (!province || !province.trim())) return res.status(400).json({ error: 'اختر المحافظة' });
@@ -517,6 +517,34 @@ router.post('/users', adminOnly, async (req, res) => {
     'INSERT INTO users (username, password, role, province, must_change_password) VALUES (?, ?, ?, ?, 1)',
     [username.trim(), hash, userRole, provVal]);
   res.json({ ok: true, id: result.lastInsertRowid, username: username.trim(), role: userRole, province: provVal });
+});
+
+/* Edit a staff user's role / province / active state.
+   Admin accounts are NEVER targeted here (protected from accidental change/lockout). */
+router.put('/users/:id', adminOnly, async (req, res) => {
+  const { role, province, active } = req.body;
+  const target = await get("SELECT id, role FROM users WHERE id = ? AND role IN ('province','viewer','hr')", [req.params.id]);
+  if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' });
+  const sets = [], args = [];
+  if (role !== undefined) {
+    if (!['province','viewer','hr'].includes(role)) return res.status(400).json({ error: 'دور غير صالح' });
+    sets.push('role = ?'); args.push(role);
+    if (role === 'province') {
+      const pv = (province || '').trim();
+      if (!pv) return res.status(400).json({ error: 'اختر المحافظة لدور مدير المحافظة' });
+      sets.push('province = ?'); args.push(pv);
+    } else {
+      sets.push('province = ?'); args.push(null);
+    }
+  } else if (province !== undefined) {
+    sets.push('province = ?'); args.push((province || '').trim() || null);
+  }
+  if (active !== undefined) { sets.push('active = ?'); args.push(active ? 1 : 0); }
+  if (sets.length === 0) return res.status(400).json({ error: 'لا يوجد تغيير' });
+  args.push(req.params.id);
+  await run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args);
+  const updated = await get("SELECT id, username, role, province, active FROM users WHERE id = ?", [req.params.id]);
+  res.json({ ok: true, user: updated });
 });
 
 router.delete('/users/:id', adminOnly, async (req, res) => {

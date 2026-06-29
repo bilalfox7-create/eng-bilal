@@ -59,6 +59,10 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   }
 
+  if (user.active === 0) {
+    return res.status(403).json({ error: 'هذا الحساب موقوف — برجاء مراجعة الإدارة' });
+  }
+
   resetRateLimit(ip);
   req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null };
   res.json({
