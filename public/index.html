@@ -1855,6 +1855,7 @@ const IC={
   org:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="7" y="1" width="6" height="4" rx="1"/><rect x="1" y="13" width="5" height="4" rx="1"/><rect x="7.5" y="13" width="5" height="4" rx="1"/><rect x="14" y="13" width="5" height="4" rx="1"/><line x1="10" y1="5" x2="10" y2="9"/><line x1="10" y1="9" x2="3" y2="9"/><line x1="10" y1="9" x2="10" y2="9"/><line x1="10" y1="9" x2="16.5" y2="9"/><line x1="3" y1="9" x2="3" y2="13"/><line x1="10" y1="9" x2="10" y2="13"/><line x1="16.5" y1="9" x2="16.5" y2="13"/></svg>',
   att:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="14" height="13" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2" x2="7" y2="6"/><line x1="13" y1="2" x2="13" y2="6"/><polyline points="7,12 9,14 13,11" stroke-linejoin="round"/></svg>',
   plane:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l13-7-4 13-4-5z"/><line x1="12" y1="6" x2="7" y2="11"/></svg>',
+  gear:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.2M10 16v2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M1.8 10h2.2M16 10h2.2M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg>',
 };
 const Ic=({n,c,sz})=>h("span",{dangerouslySetInnerHTML:{__html:IC[n]},style:{display:"inline-flex",alignItems:"center",width:sz||16,height:sz||16,color:c||"inherit",flexShrink:0}});
 
@@ -2420,7 +2421,7 @@ function App(){
 
   /* ── Load province users when admin opens report page ── */
   useEffect(()=>{
-    if(page==='report'&&isAdmin){
+    if((page==='report'||page==='settings')&&isAdmin){
       fetch('/api/users').then(r=>r.json()).then(d=>{if(d.users)setProvUsers(d.users);}).catch(()=>{});
     }
   },[page,isAdmin]);
@@ -6956,7 +6957,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     {id:"report",n:"report",lbl:"التقارير"},
     {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"طلبات إجازة مصر",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير والإعدادات",org:"الهيكل التنظيمي",activity:"سجل النشاط"};
+  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"طلبات إجازة مصر",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير",org:"الهيكل التنظيمي",activity:"سجل النشاط",settings:"الإعدادات"};
   const mobileNavs=navs.slice(0,5);
 
   /* ── Force password change screen ────────────────── */
@@ -7927,7 +7928,8 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             report:  {icon:'report',  lbl:'التقارير',          c1:'#6366f1',c2:'#8b5cf6'},
             org:     {icon:'org',     lbl:'الهيكل التنظيمي',   c1:'#8b5cf6',c2:'#7c3aed'},
             backup:  {icon:'backup',  lbl:'النسخ الاحتياطي',   c1:'#64748b',c2:'#475569'},
-            activity:{icon:'att',     lbl:'سجل النشاط',        c1:'#0ea5e9',c2:'#0284c7'}
+            activity:{icon:'att',     lbl:'سجل النشاط',        c1:'#0ea5e9',c2:'#0284c7'},
+            settings:{icon:'gear',    lbl:'الإعدادات',         c1:'#64748b',c2:'#475569'}
           };
           const renderItem=(id,extras)=>{
             const cfg=NAV_CFG[id];
@@ -7971,6 +7973,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             if(isAdmin||isHR){
               out.push(renderItem('activity'));
             }
+            if(isAdmin) out.push(renderItem('settings'));
           }
           return out;
         })()
@@ -7998,7 +8001,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 
         /* active users strip — admin only */
         isAdmin&&activeUsers.length>0&&h("div",{
-          onClick:()=>{setPage("report");setMobOpen(false);},
+          onClick:()=>{setPage("settings");setMobOpen(false);},
           style:{display:"flex",alignItems:"center",gap:8,padding:"8px 11px",margin:"6px 0 2px",borderRadius:11,background:"linear-gradient(135deg,rgba(52,211,153,.12),rgba(16,185,129,.06))",border:"1px solid rgba(52,211,153,.25)",cursor:"pointer",boxShadow:"0 4px 12px rgba(52,211,153,.10)"}},
           h("div",{style:{width:8,height:8,borderRadius:"50%",background:"#34D399",boxShadow:"0 0 8px #34D399",flexShrink:0,animation:"pulse 2s infinite"}}),
           h("div",{style:{fontSize:10,color:"#34D399",fontWeight:800,flex:1}},"🟢 "+activeUsers.length+" مستخدم نشط"),
@@ -8122,7 +8125,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
         )
       ),
 
-      h("div",{className:"content",style:page==="org"?{display:"none"}:undefined},
+      h("div",{className:"content",style:(page==="org"||page==="activity")?{display:"none"}:undefined},
         ak!==expectedAk&&h("div",{className:"warn-banner"},
           h("span",{style:{fontSize:16,lineHeight:1}},"⚠️"),
           h("span",null,`أنت تعمل على ${mn} ${cfg.year} — `+(isLocked?"هذا الشهر مقفول 🔒":"هذا ليس الشهر النشط")),
@@ -10716,17 +10719,17 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
           );
         })(),
 
-        /* ══ REPORT ══ */
-        page==="report"&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
+        /* ══ REPORT + SETTINGS (الإعدادات بقت صفحة مستقلة عن التقارير) ══ */
+        (page==="report"||page==="settings")&&h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
           /* ─── Tabs navigation ─── */
-          h("div",{key:"rep-tabs",style:{display:"flex",gap:6,padding:6,background:"rgba(15,23,42,.5)",border:"1px solid rgba(139,92,246,.18)",borderRadius:14,backdropFilter:"blur(16px)",overflowX:"auto"}},
-            [{id:'library',icon:'📚',lbl:'مكتبة التقارير'},{id:'custom',icon:'🛠️',lbl:'تقرير مخصص'},{id:'comparison',icon:'⚖️',lbl:'تقارير مقارنة'},{id:'settings',icon:'⚙️',lbl:'الإعدادات'}].filter(t=>isAdmin||t.id!=='settings').map(t=>{
+          page==="report"&&h("div",{key:"rep-tabs",style:{display:"flex",gap:6,padding:6,background:"rgba(15,23,42,.5)",border:"1px solid rgba(139,92,246,.18)",borderRadius:14,backdropFilter:"blur(16px)",overflowX:"auto"}},
+            [{id:'library',icon:'📚',lbl:'مكتبة التقارير'},{id:'custom',icon:'🛠️',lbl:'تقرير مخصص'},{id:'comparison',icon:'⚖️',lbl:'تقارير مقارنة'}].map(t=>{
               const active=reportTab===t.id;
               return h("button",{key:t.id,onClick:()=>setReportTab(t.id),style:{flex:"1 1 auto",minWidth:140,padding:"10px 14px",border:"none",borderRadius:10,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer",background:active?"linear-gradient(135deg,#6366f1,#8b5cf6)":"transparent",color:active?"#fff":"var(--sub)",boxShadow:active?"0 6px 18px rgba(99,102,241,.4)":"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},h("span",{style:{fontSize:15}},t.icon),t.lbl);
             })
           ),
           /* ─── TAB 1: LIBRARY ─── */
-          reportTab==='library'&&(()=>{
+          page==="report"&&reportTab==='library'&&(()=>{
             const sortedMonthKeys=Object.keys(months).filter(k=>k!=='leaves').sort().reverse();
             const monthOpts=sortedMonthKeys.map(k=>{const[y,mo]=k.split('-');return {key:k,label:MONTHS[+mo-1]+' '+y};});
             /* Default month per card based on the rule */
@@ -10767,7 +10770,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
             );
           })(),
           /* ─── TAB 2: CUSTOM ─── */
-          reportTab==='custom'&&h("div",{key:"rep-cust",style:{padding:"24px 26px",background:"linear-gradient(135deg,rgba(99,102,241,.10),rgba(139,92,246,.06))",border:"1px solid rgba(139,92,246,.25)",borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
+          page==="report"&&reportTab==='custom'&&h("div",{key:"rep-cust",style:{padding:"24px 26px",background:"linear-gradient(135deg,rgba(99,102,241,.10),rgba(139,92,246,.06))",border:"1px solid rgba(139,92,246,.25)",borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
             h("div",{style:{position:"absolute",top:-40,right:-40,width:160,height:160,background:"radial-gradient(circle,rgba(139,92,246,.25),transparent 70%)",pointerEvents:"none"}}),
             h("div",{style:{position:"relative"}},
               h("div",{style:{fontSize:20,fontWeight:900,color:"var(--text)",marginBottom:6}},"🛠️ تقرير مخصص"),
@@ -10813,7 +10816,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
             )
           ),
           /* ─── TAB 3: COMPARISON ─── */
-          reportTab==='comparison'&&h("div",{key:"rep-cmp",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
+          page==="report"&&reportTab==='comparison'&&h("div",{key:"rep-cmp",style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14}},
             [{kind:'month',title:'شهر vs شهر',icon:'📅',desc:'قارن أى شهرين مع جدول مقارنة شامل',c1:'#6366f1',c2:'#8b5cf6'},{kind:'prov',title:'محافظة vs محافظة',icon:'🏢',desc:'مقارنة الأداء بين المحافظات فى نفس الشهر',c1:'#10b981',c2:'#059669'},{kind:'year',title:'سنة vs سنة',icon:'📈',desc:'تطور الأداء عبر السنوات',c1:'#f59e0b',c2:'#d97706'}].map(c=>h("div",{key:c.kind,style:{padding:"22px",background:`linear-gradient(135deg,${c.c1}15,${c.c2}08)`,border:`1px solid ${c.c1}33`,borderRadius:18,backdropFilter:"blur(20px)",position:"relative",overflow:"hidden"}},
               h("div",{style:{position:"absolute",top:-30,left:-30,width:120,height:120,background:`radial-gradient(circle,${c.c1}30,transparent 70%)`,pointerEvents:"none"}}),
               h("div",{style:{position:"relative"}},
@@ -10869,7 +10872,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
             )
           ),
           /* ─── TAB 4: SETTINGS (admin only) ─── */
-          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
+          page==="settings"&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"report",sz:13,c:"#2563EB"})),"إعدادات الكشف الرسمى")),
             h("div",{style:{padding:"14px 16px",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}},
               /* egp (سعر الصرف) removed — auto-fetched live rate is the source of truth (cfg.egp kept as fallback only) */
@@ -10877,7 +10880,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
               .map(({k,l,t})=>h("div",{key:k},h("label",{style:{fontSize:10,fontWeight:600,color:"var(--sub)",display:"block",marginBottom:4,letterSpacing:".2px",textTransform:"uppercase"}},l),h("input",{type:t,value:cfg[k],onChange:ev=>updCfg(k,ev.target.value),style:{width:"100%",padding:"7px 10px",border:"1.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg)",color:"var(--text)",fontSize:12,fontFamily:"inherit"}})))
             )
           ),
-          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
+          page==="settings"&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#FFFBEB"}},h(Ic,{n:"img",sz:13,c:"#D97706"})),"شعار الشركة على الـ PDF")),
             h("div",{style:{padding:"14px 16px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}},
               h("div",{className:"logo-preview",onClick:()=>logoRef.current?.click()},
@@ -10893,10 +10896,10 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
               )
             )
           ),
-          reportTab==='settings'&&isAdmin&&h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
+          page==="settings"&&isAdmin&&h("div",{className:"info blue"},h(Ic,{n:"info",sz:16}),"اضغط زر PDF من الشريط العلوي لفتح نافذة الطباعة — ثم اختر «حفظ كـ PDF» من إعدادات الطباعة."),
 
           /* ── Active users ── */
-          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
+          page==="settings"&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(52,211,153,.1)"}},
@@ -10933,7 +10936,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
           ),
 
           /* ── User management ── */
-          reportTab==='settings'&&isAdmin&&h("div",{className:"card"},
+          page==="settings"&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.12)"}},
@@ -11023,7 +11026,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
           ),
 
           /* ── About / Developer ── */
-          reportTab==='settings'&&h("div",{className:"card",style:{borderTop:"2.5px solid #6366f1"}},
+          page==="settings"&&h("div",{className:"card",style:{borderTop:"2.5px solid #6366f1"}},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"linear-gradient(135deg,rgba(99,102,241,.16),rgba(139,92,246,.10))"}},
@@ -11045,7 +11048,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
       ),
 
       /* ══ ACTIVITY LOG ══ */
-      page==="activity"&&h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+      page==="activity"&&h("div",{style:{flex:1,overflowY:"auto",minHeight:0,padding:18,order:3,display:"flex",flexDirection:"column",gap:12}},
         h("div",{className:"card"},
           h("div",{className:"card-hdr"},
             h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.12)"}},h(Ic,{n:"att",sz:13,c:"#60A5FA"})),"سجل النشاط"),
