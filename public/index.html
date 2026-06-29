@@ -3230,7 +3230,7 @@ function App(){
     const today=new Date();today.setHours(0,0,0,0);
     // Leaves & returns — visible to all roles (already filtered by province in pendingLeaves/returnAlerts)
     if(pendingLeaves>0){
-      items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة طلبات إجازة مصر',action:()=>setPage('leaves')});
+      items.push({id:'lv-pending',icon:'✈️',lvl:'yellow',title:`${pendingLeaves} طلب إجازة بانتظار الموافقة`,subtitle:'صفحة الإجازات والعودة',action:()=>setPage('leaves')});
     }
     returnAlerts.forEach(l=>{
       const days=Math.ceil((new Date(l.returnDate+'T12:00')-today)/86400000);
@@ -3880,7 +3880,7 @@ function App(){
       msg(`📨 تم إرسال طلب عودة ${f.engName} للإدارة`);
     }else if(isAdmin){
       const u=user?.username||'admin';
-      _writeReturnReqField(f.engId,rr=>rr?{...rr,expectedReturn:f.expectedReturn,note:f.note||rr.note||''}:{status:'approved',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:u,requestedProv:f.prov||null,requestedAt:new Date().toISOString(),decidedBy:u,decidedAt:new Date().toISOString()});
+      _writeReturnReqField(f.engId,rr=>rr?{...rr,expectedReturn:f.expectedReturn,note:f.note||''}:{status:'approved',expectedReturn:f.expectedReturn,note:f.note||'',requestedBy:u,requestedProv:f.prov||null,requestedAt:new Date().toISOString(),decidedBy:u,decidedAt:new Date().toISOString()});
       logActivity('تحديد عودة (إدارة)',`${f.engName} — عودة متوقعة ${f.expectedReturn}${f.note?' · '+f.note:''}`);
       msg(`✅ تم حفظ تاريخ عودة ${f.engName} (${f.expectedReturn})`);
     }else{msg('غير مصرّح بهذا الإجراء','err');return;}
@@ -3891,6 +3891,33 @@ function App(){
     _writeReturnReqField(engId,rr=>rr?{...rr,status:decision,decidedBy:user?.username||'admin',decidedAt:new Date().toISOString()}:rr);
     logActivity('قرار طلب عودة',`${decision==='approved'?'موافقة':'رفض'} طلب عودة (مهندس ${engId})`);
     msg(decision==='approved'?'✅ تمت الموافقة على طلب العودة':'❌ تم رفض طلب العودة');
+  };
+  /* مسح/إلغاء طلب العودة بالكامل (مرونة كاملة) — الأدمن أى طلب، المحافظة طلب محافظتها.
+     بيمسح المستويين: المهندس (e.returnRequest) + الإجازة (egyptLeaves[].returnRequest)
+     عشان الـfallback فى egyptOnLeaveNow مايرجّعش الطلب من مستوى الإجازة. */
+  const clearReturnRequest=(engId,prov)=>{
+    if(!isAdmin&&!(isProvince&&prov===userProv)){msg('غير مصرّح بمسح هذا الطلب','err');return;}
+    setMonths(prev=>{
+      const out={...prev};let activeUpdated=null;
+      Object.keys(out).forEach(k=>{
+        if(k==='leaves')return;const md=out[k];if(!md?.data)return;let touched=false;
+        const newData={};
+        Object.keys(md.data).forEach(p=>{
+          newData[p]=(md.data[p]||[]).map(e=>{
+            if(e.id!==engId)return e;
+            touched=true;
+            const ne={...e,returnRequest:undefined};
+            if(Array.isArray(e.egyptLeaves))ne.egyptLeaves=e.egyptLeaves.map(l=>l&&l.returnRequest?{...l,returnRequest:undefined}:l);
+            return ne;
+          });
+        });
+        if(touched){out[k]={...md,data:newData,savedAt:null};if(k===ak)activeUpdated=out[k];else queueSave(k,out[k]);}
+      });
+      if(activeUpdated)queueSave(ak,activeUpdated);
+      return out;
+    });
+    logActivity('مسح طلب عودة','مهندس '+engId);
+    msg('🗑 تم مسح طلب العودة');
   };
   const toggleReturnSel=(engId,checked)=>{
     if(!isAdmin)return;
@@ -6977,7 +7004,8 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     {id:"report",n:"report",lbl:"التقارير"},
     {id:"org",n:"org",lbl:"الهيكل التنظيمي"},
   ];
-  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"طلبات إجازة مصر",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير",org:"الهيكل التنظيمي",activity:"سجل النشاط",settings:"الإعدادات"};
+  const pageTitle={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"الإجازات والعودة",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",backup:"النسخ الاحتياطي",report:"التقارير",org:"الهيكل التنظيمي",activity:"سجل النشاط",settings:"الإعدادات"};
+  /* ملاحظة: صفحة leaves بقت «الإجازات والعودة» (فيها تبويب طلبات العودة المستقل) */
   const mobileNavs=navs.slice(0,5);
 
   /* ── Force password change screen ────────────────── */
@@ -7653,6 +7681,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           ),
           h("div",{className:"modal-ftr"},
             h("button",{className:"btn",onClick:()=>{setModal(null);setReturnReqForm(null);}},"إلغاء"),
+            !f.pick&&ex&&(isAdmin||(isProvince&&f.prov===userProv))&&h("button",{className:"btn",style:{borderColor:"rgba(239,68,68,.4)",color:"#DC2626",gap:4,marginLeft:"auto"},onClick:()=>{if(confirm('مسح طلب العودة بالكامل؟')){clearReturnRequest(f.engId,f.prov);setModal(null);setReturnReqForm(null);}}},h(Ic,{n:"del",sz:12}),"مسح الطلب"),
             h("button",{className:"btn",style:{background:"linear-gradient(135deg,#D4A538,#b8860b)",color:"#fff",border:"none",fontWeight:800,padding:"8px 18px",borderRadius:10,boxShadow:"0 6px 18px rgba(212,165,56,.4)"},onClick:submitReturnRequest},f.pick?(isProvince?"📨 إرسال للإدارة ("+((f.engIds||[]).length)+")":"✅ حفظ التواريخ ("+((f.engIds||[]).length)+")"):(isProvince?(ex&&ex.status!=='pending'?"📨 إرسال طلب جديد":"📨 إرسال الطلب للإدارة"):"✅ حفظ تاريخ العودة"))
           )
         );
@@ -8010,7 +8039,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             dash:    {icon:'dash',    lbl:'لوحة التحكم',       c1:'#6366f1',c2:'#8b5cf6'},
             eng:     {icon:'eng',     lbl:'كشف الإعاشة',       c1:'#10b981',c2:'#059669'},
             att:     {icon:'att',     lbl:'الحضور والانصراف',  c1:'#3b82f6',c2:'#2563eb'},
-            leaves:  {icon:'plane',   lbl:'طلبات إجازة مصر',     c1:'#a855f7',c2:'#7c3aed'},
+            leaves:  {icon:'plane',   lbl:'الإجازات والعودة',     c1:'#a855f7',c2:'#7c3aed'},
             expenses:{icon:'wallet',  lbl:'العهدة والمصروفات', c1:'#f59e0b',c2:'#d97706'},
             stats:   {icon:'stats',   lbl:'الإحصائيات',        c1:'#14b8a6',c2:'#0d9488'},
             hist:    {icon:'hist',    lbl:'السجل التاريخي',    c1:'#06b6d4',c2:'#0891b2'},
@@ -10492,7 +10521,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
             h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}},
               h("div",{className:"card-title"},
                 h("div",{className:"card-title-icon",style:{background:"rgba(96,165,250,.15)"}},h(Ic,{n:"plane",sz:13,c:"#60A5FA"})),
-                "طلبات إجازة مصر",
+                "الإجازات والعودة",
                 myLvs.length>0&&h("span",{className:"card-badge"},myLvs.length+" طلب")
               ),
               leaveView==='list'
@@ -10667,9 +10696,10 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                         h("td",{style:{textAlign:"center"}},r.travelDate||'—'),
                         h("td",{style:{textAlign:"center"}},h("button",{onClick:()=>{setReturnReqForm({engId:r.engineerId,engName:r.engineerName,prov:r.prov,expectedReturn:(rr&&rr.expectedReturn)||'',note:(rr&&rr.note)||'',existing:rr||null});setModal('return-req');},title:"تحديد/تعديل تاريخ العودة المتوقعة",style:{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:6,cursor:"pointer",fontFamily:"inherit",border:(rr&&rr.expectedReturn)?"1px solid rgba(212,165,56,.4)":"1px dashed rgba(212,165,56,.55)",background:(rr&&rr.expectedReturn)?"rgba(212,165,56,.12)":"transparent",color:"#D4A538"}},(rr&&rr.expectedReturn)?("✏️ "+rr.expectedReturn):"➕ تحديد")),
                         h("td",{style:{textAlign:"center"}},pill),
-                        isAdmin&&h("td",{style:{textAlign:"center"}},rr&&rr.status==='pending'?h("div",{style:{display:"flex",gap:4,justifyContent:"center"}},
-                          h("button",{onClick:()=>decideReturnRequest(r.engineerId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
-                          h("button",{onClick:()=>decideReturnRequest(r.engineerId,'rejected'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#DC2626",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"❌ رفض")
+                        isAdmin&&h("td",{style:{textAlign:"center"}},rr?h("div",{style:{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}},
+                          rr.status==='pending'&&h("button",{onClick:()=>decideReturnRequest(r.engineerId,'approved'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(16,185,129,.4)",background:"rgba(16,185,129,.1)",color:"#059669",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"✅ موافقة"),
+                          rr.status==='pending'&&h("button",{onClick:()=>decideReturnRequest(r.engineerId,'rejected'),style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#DC2626",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"❌ رفض"),
+                          h("button",{onClick:()=>{if(confirm('مسح طلب عودة '+r.engineerName+' بالكامل؟'))clearReturnRequest(r.engineerId,r.prov);},title:"مسح الطلب نهائياً",style:{fontSize:9,padding:"2px 7px",borderRadius:5,border:"1px solid rgba(148,163,184,.4)",background:"rgba(148,163,184,.12)",color:"var(--sub)",cursor:"pointer",fontFamily:"inherit",fontWeight:800}},"🗑 مسح")
                         ):h("span",{style:{color:"var(--sub)",fontSize:11}},"—"))
                       );
                     }))
