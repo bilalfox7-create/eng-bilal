@@ -1728,6 +1728,9 @@ const PAGE_SECTIONS={
     {id:"dash:distribution",label:"توزيع الإعاشات بالمحافظات"}
   ]
 };
+/* أقسام إدارية — مخفية افتراضياً عن غير الأدمن (بلال يقدر يظهرها لأى مستخدم من مودال الصلاحيات). */
+const ADMIN_SECTIONS=["dash:balance","dash:report","dash:provTasks"];
+const ROLE_DEFAULT_HIDDEN={province:ADMIN_SECTIONS,viewer:ADMIN_SECTIONS,hr:[]};
 const PLTS=["#0D1E38","#041A0F","#1C1200","#12092E"];
 
 /* ── Date helpers (timezone-safe) ──────────────────────────────────
@@ -2323,8 +2326,10 @@ function App(){
   /* الأقسام المخفية عن المستخدم الحالى — الأدمن يشوف الكل (Set فاضى) */
   const myHidden=useMemo(()=>{
     if(!user)return new Set();
-    if((user.realRole||user.role)==='admin')return new Set();
-    return new Set(Array.isArray(user.hiddenSections)?user.hiddenSections:[]);
+    const rr=user.realRole||user.role;
+    if(rr==='admin')return new Set(); /* الأدمن يشوف كل الأقسام */
+    const custom=Array.isArray(user.hiddenSections)?user.hiddenSections:null;
+    return new Set(custom||ROLE_DEFAULT_HIDDEN[rr]||[]);
   },[user]);
   const secVis=id=>!myHidden.has(id); /* هل القسم ده ظاهر للمستخدم؟ */
   const userProv=useMemo(()=>user?.province||null,[user]);
@@ -8029,7 +8034,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             ),
             h("div",{style:{display:"flex",gap:8,marginTop:6,alignItems:"center",flexWrap:"wrap"}},
               h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:[...ALL_PAGES]}))},"كل الصفحات"),
-              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:(ROLE_DEFAULT_PAGES[m.role]||[]).slice()}))},"افتراضى الدور"),
+              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:(ROLE_DEFAULT_PAGES[m.role]||[]).slice(),hiddenSections:(ROLE_DEFAULT_HIDDEN[m.role]||[]).slice()}))},"افتراضى الدور"),
               h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,hiddenSections:[]}))},"إظهار كل الأقسام"),
               h("span",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)"}},(editUserModal.visiblePages||[]).length+" صفحة"+((editUserModal.hiddenSections||[]).length?" · "+(editUserModal.hiddenSections||[]).length+" قسم مخفى":""))
             )
@@ -8551,7 +8556,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           )));
           })(),
           /* ── Aggregate balance hero card (admin only) ── */
-          secVis('dash:balance')&&isAdmin&&!isProvince&&h("div",{style:{padding:"24px 28px",background:"linear-gradient(135deg,#1A365D 0%,#2C5282 50%,#1e3a8a 100%)",borderRadius:22,boxShadow:"0 12px 40px rgba(26,54,93,.45),inset 0 1px 0 rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.12)",position:"relative",overflow:"hidden",color:"#fff"}},
+          secVis('dash:balance')&&h("div",{style:{padding:"24px 28px",background:"linear-gradient(135deg,#1A365D 0%,#2C5282 50%,#1e3a8a 100%)",borderRadius:22,boxShadow:"0 12px 40px rgba(26,54,93,.45),inset 0 1px 0 rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.12)",position:"relative",overflow:"hidden",color:"#fff"}},
             h("div",{style:{position:"absolute",top:-40,left:-40,width:200,height:200,background:"radial-gradient(circle,rgba(99,102,241,.4),transparent 70%)",pointerEvents:"none"}}),
             h("div",{style:{position:"absolute",bottom:-50,right:-50,width:240,height:240,background:"radial-gradient(circle,rgba(34,211,238,.25),transparent 70%)",pointerEvents:"none"}}),
             h("div",{style:{position:"relative"}},
@@ -8591,7 +8596,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               )
             )
           ),
-          secVis('dash:report')&&isAdmin&&h("div",{className:"card",style:{borderTop:"2.5px solid #A78BFA",background:"linear-gradient(135deg,rgba(167,139,250,.08),rgba(96,165,250,.04))"}},
+          secVis('dash:report')&&h("div",{className:"card",style:{borderTop:"2.5px solid #A78BFA",background:"linear-gradient(135deg,rgba(167,139,250,.08),rgba(96,165,250,.04))"}},
             h("div",{style:{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}},
               h("div",null,
                 h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:4,display:"flex",alignItems:"center",gap:8}},"📊 التقرير الشهري الشامل"),
@@ -8655,7 +8660,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           ),
 
           /* ── Province task tracking ── */
-          secVis('dash:provTasks')&&isAdmin&&h("div",{className:"card"},
+          secVis('dash:provTasks')&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.1)"}},h(Ic,{n:"org",sz:13,c:"#A78BFA"})),"متابعة مهام المحافظات")
             ),
@@ -11224,7 +11229,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                       h("div",{style:{fontSize:11,color:"var(--sub)"}},u.role==='province'?(u.province||'—'):roleLabel)
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تعديل الصلاحيات",
-                      onClick:()=>{let _vp=null,_hs=null;try{_vp=u.visible_pages?JSON.parse(u.visible_pages):null;}catch(e){}try{_hs=u.hidden_sections?JSON.parse(u.hidden_sections):null;}catch(e){}setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1,visiblePages:((_vp&&_vp.length)?_vp:(ROLE_DEFAULT_PAGES[u.role]||[])).slice(),hiddenSections:(Array.isArray(_hs)?_hs:[]).slice()});}},
+                      onClick:()=>{let _vp=null,_hs=null;try{_vp=u.visible_pages?JSON.parse(u.visible_pages):null;}catch(e){}try{_hs=u.hidden_sections?JSON.parse(u.hidden_sections):null;}catch(e){}setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1,visiblePages:((_vp&&_vp.length)?_vp:(ROLE_DEFAULT_PAGES[u.role]||[])).slice(),hiddenSections:(Array.isArray(_hs)?_hs:(ROLE_DEFAULT_HIDDEN[u.role]||[])).slice()});}},
                       h(Ic,{n:"edit",sz:12})," صلاحيات"
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تغيير كلمة المرور",

@@ -547,8 +547,10 @@ router.put('/users/:id', adminOnly, async (req, res) => {
     sets.push('visible_pages = ?'); args.push(vpVal);
   }
   if (hiddenSections !== undefined) {
-    let hsVal = null; // null/[] = كل الأقسام ظاهرة
-    if (Array.isArray(hiddenSections) && hiddenSections.length) hsVal = JSON.stringify(hiddenSections.filter(s => typeof s === 'string'));
+    // مصفوفة (حتى الفاضية) = تخصيص صريح؛ null فقط لو مش مصفوفة = رجوع لافتراضى الدور.
+    // [] صريحة = «إظهار كل الأقسام» (تتخطّى الإخفاء الافتراضى للدور).
+    let hsVal = null;
+    if (Array.isArray(hiddenSections)) hsVal = JSON.stringify(hiddenSections.filter(s => typeof s === 'string'));
     sets.push('hidden_sections = ?'); args.push(hsVal);
   }
   if (sets.length === 0) return res.status(400).json({ error: 'لا يوجد تغيير' });
