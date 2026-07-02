@@ -101,6 +101,7 @@ async function initDb() {
   await addCol("ALTER TABLE users ADD COLUMN province TEXT");
   await addCol("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0");
   await addCol("ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1");
+  await addCol("ALTER TABLE users ADD COLUMN visible_pages TEXT"); // JSON array of page ids — null = افتراضى الدور
 
   // Old rows without a role → treat as admin.
   await run("UPDATE users SET role = 'admin' WHERE role IS NULL AND province IS NULL");

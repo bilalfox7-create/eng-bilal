@@ -490,7 +490,7 @@ router.put('/projects', adminOnly, async (req, res) => {
 /* ── User management — admin only ───────────────────── */
 
 router.get('/users', adminOnly, async (_req, res) => {
-  const users = await all("SELECT id, username, role, province, active FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username");
+  const users = await all("SELECT id, username, role, province, active, visible_pages FROM users WHERE role IN ('province','viewer','hr') ORDER BY role, username");
   res.json({ users });
 });
 
@@ -522,7 +522,7 @@ router.post('/users', adminOnly, async (req, res) => {
 /* Edit a staff user's role / province / active state.
    Admin accounts are NEVER targeted here (protected from accidental change/lockout). */
 router.put('/users/:id', adminOnly, async (req, res) => {
-  const { role, province, active } = req.body;
+  const { role, province, active, visiblePages } = req.body;
   const target = await get("SELECT id, role FROM users WHERE id = ? AND role IN ('province','viewer','hr')", [req.params.id]);
   if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' });
   const sets = [], args = [];
@@ -540,10 +540,16 @@ router.put('/users/:id', adminOnly, async (req, res) => {
     sets.push('province = ?'); args.push((province || '').trim() || null);
   }
   if (active !== undefined) { sets.push('active = ?'); args.push(active ? 1 : 0); }
+  if (visiblePages !== undefined) {
+    const VALID = ['dash','eng','att','leaves','expenses','stats','hist','compare','report','org','backup','activity','settings'];
+    let vpVal = null; // null = رجوع لافتراضى الدور
+    if (Array.isArray(visiblePages)) vpVal = JSON.stringify(visiblePages.filter(p => VALID.includes(p)));
+    sets.push('visible_pages = ?'); args.push(vpVal);
+  }
   if (sets.length === 0) return res.status(400).json({ error: 'لا يوجد تغيير' });
   args.push(req.params.id);
   await run(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args);
-  const updated = await get("SELECT id, username, role, province, active FROM users WHERE id = ?", [req.params.id]);
+  const updated = await get("SELECT id, username, role, province, active, visible_pages FROM users WHERE id = ?", [req.params.id]);
   res.json({ ok: true, user: updated });
 });
 

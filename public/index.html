@@ -1710,6 +1710,11 @@ const h=React.createElement;
 const MONTHS=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const DEFAULT_PROVS=["محافظة درنة","محافظة البيضاء","محافظة بنغازى","محافظة طبرق"];
 const PCOLS=["#60A5FA","#34D399","#FCD34D","#C4B5FD"];
+/* رؤية الصفحات لكل مستخدم — الأدمن دايماً بيشوف الكل (محميّ). الباقى: visiblePages المخصّصة أو افتراضى الدور. */
+const ALL_PAGES=["dash","eng","att","leaves","expenses","stats","hist","compare","report","org","backup","activity","settings"];
+const PAGE_LABELS={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"الإجازات والعودة",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",report:"التقارير",org:"الهيكل التنظيمي",backup:"النسخ الاحتياطي",activity:"سجل النشاط",settings:"الإعدادات"};
+/* الافتراضى لازم يطابق السلوك الحالى بالظبط عشان مفيش مستخدم حالى تتغيّر رؤيته */
+const ROLE_DEFAULT_PAGES={province:["eng","att","leaves"],viewer:["dash","eng","att","leaves","expenses","stats","hist","compare","report","org"],hr:ALL_PAGES};
 const PLTS=["#0D1E38","#041A0F","#1C1200","#12092E"];
 
 /* ── Date helpers (timezone-safe) ──────────────────────────────────
@@ -2294,6 +2299,14 @@ function App(){
   const isAdmin=useMemo(()=>user?.role==='admin',[user]);
   const isProvince=useMemo(()=>user?.role==='province',[user]);
   const isHR=useMemo(()=>user?.role==='hr',[user]);
+  /* الصفحات اللى المستخدم الحالى يشوفها: الأدمن الحقيقى=الكل (محميّ)، غيره=المخصّصة أو افتراضى دوره */
+  const myVisible=useMemo(()=>{
+    if(!user)return new Set();
+    const rr=user.realRole||user.role;
+    if(rr==='admin')return new Set(ALL_PAGES);
+    const custom=Array.isArray(user.visiblePages)&&user.visiblePages.length?user.visiblePages:null;
+    return new Set(custom||ROLE_DEFAULT_PAGES[rr]||[]);
+  },[user]);
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:""});
@@ -2374,6 +2387,7 @@ function App(){
   useEffect(()=>{
     fetch("/auth/me").then(r=>r.json()).then(u=>{
       if(!u.username){setLoaded(true);return;}
+      u.realRole=u.role; /* الدور الحقيقى قبل التطبيع — لحساب رؤية الصفحات */
       if(u.role==='hr')u.role='admin'; /* HR has full admin permissions (Bilal's decision) */
       setUser(u);
       if(u.province)setAttProv(u.province);
@@ -2598,6 +2612,7 @@ function App(){
       const r=await fetch("/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(loginForm)});
       const d=await r.json();
       if(!r.ok){setLoginError(d.error||"خطأ في تسجيل الدخول");return;}
+      d.realRole=d.role; /* الدور الحقيقى قبل التطبيع — لحساب رؤية الصفحات */
       if(d.role==='hr')d.role='admin'; /* HR has full admin permissions (Bilal's decision) */
       setUser(d);
       if(d.mustChangePwd)setMustChangePwd(true);
@@ -7069,18 +7084,12 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
     )
   );
 
-  /* ── Province page guard ──────────────────────────── */
-  if(user?.role==='province'&&!["eng","att","leaves"].includes(page)){
-    setTimeout(()=>setPage("att"),0);
-  }
-  /* ── Viewer page guard ─────────────────────────────── */
-  if(user?.role==='viewer'&&["backup"].includes(page)){
-    setTimeout(()=>setPage("dash"),0);
-  }
-  /* ── HR page guard ──────────────────────────────────── */
-  /* HR can see: dash, eng, att, leaves, expenses, stats, report, org, activity (9 pages) */
-  if(user?.role==='hr'&&!["dash","eng","att","leaves","expenses","stats","report","org","activity"].includes(page)){
-    setTimeout(()=>setPage("dash"),0);
+  /* ── حارس رؤية الصفحات (config-driven لكل مستخدم) ──
+     لو المستخدم على صفحة nav مش مسموحة له (رؤيته المخصّصة/الافتراضية)، يتحوّل لأول صفحة مسموحة.
+     الأدمن الحقيقى myVisible=كل الصفحات فمابيتحوّلش أبداً. */
+  if(user&&ALL_PAGES.includes(page)&&!myVisible.has(page)){
+    const firstVisible=ALL_PAGES.find(p=>myVisible.has(p))||'eng';
+    setTimeout(()=>setPage(firstVisible),0);
   }
 
   /* ── Login screen ─────────────────────────────────── */
@@ -7953,7 +7962,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
 
     /* ── EDIT USER (role / province / active) MODAL ──────── */
     editUserModal&&h("div",{className:"overlay",onClick:ev=>{if(ev.target===ev.currentTarget)setEditUserModal(null);}},
-      h("div",{className:"modal",style:{width:420}},
+      h("div",{className:"modal",style:{width:480}},
         h("div",{className:"modal-hdr"},
           h("h3",null,"تعديل الصلاحيات — ",h("span",{style:{color:"var(--blue)"}},editUserModal.username)),
           h("button",{className:"btn",style:{padding:"5px 10px"},onClick:()=>setEditUserModal(null)},h(Ic,{n:"del",sz:12}))
@@ -7978,17 +7987,32 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             ),
             h("button",{className:"btn",style:{fontSize:11,padding:"6px 14px",flexShrink:0,borderColor:editUserModal.active?"rgba(239,68,68,.4)":"rgba(16,185,129,.4)",color:editUserModal.active?"#DC2626":"#059669"},onClick:()=>setEditUserModal(m=>({...m,active:m.active?0:1}))},editUserModal.active?"إيقاف الحساب":"تفعيل الحساب")
           ),
-          h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"تغيير الدور بيغيّر صلاحيات المستخدم فورًا بعد الحفظ.")
+          h("div",{className:"fld"},h("label",null,"👁 الصفحات اللى يشوفها المستخدم"),
+            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:2}},
+              ALL_PAGES.map(pg=>{const on=(editUserModal.visiblePages||[]).indexOf(pg)>=0;
+                return h("label",{key:pg,style:{display:"flex",alignItems:"center",gap:7,padding:"6px 9px",borderRadius:8,cursor:"pointer",fontSize:11.5,fontWeight:600,background:on?"rgba(96,165,250,.10)":"var(--bg)",border:"1px solid "+(on?"rgba(96,165,250,.3)":"var(--bdr2)")}},
+                  h("input",{type:"checkbox",checked:on,style:{width:15,height:15,padding:0,margin:0,flexShrink:0,accentColor:"#60A5FA",cursor:"pointer"},onChange:ev=>setEditUserModal(m=>{const s=new Set(m.visiblePages||[]);ev.target.checked?s.add(pg):s.delete(pg);return{...m,visiblePages:ALL_PAGES.filter(x=>s.has(x))};})}),
+                  h("span",null,PAGE_LABELS[pg])
+                );
+              })
+            ),
+            h("div",{style:{display:"flex",gap:8,marginTop:6,alignItems:"center"}},
+              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:[...ALL_PAGES]}))},"تحديد الكل"),
+              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:(ROLE_DEFAULT_PAGES[m.role]||[]).slice()}))},"افتراضى الدور"),
+              h("span",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)"}},(editUserModal.visiblePages||[]).length+" صفحة مختارة")
+            )
+          ),
+          h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"الرؤية بتتطبّق أول ما المستخدم يعمل تحديث للصفحة. الأدمن دايماً بيشوف الكل، وحماية الداتا على السيرفر مابتتغيّرش.")
         ),
         h("div",{className:"modal-ftr"},
           h("button",{className:"btn",onClick:()=>setEditUserModal(null)},"إلغاء"),
           h("button",{className:"btn blue",onClick:async()=>{
             const m=editUserModal;
-            const body={role:m.role,active:m.active,province:m.role==='province'?m.province:null};
+            const body={role:m.role,active:m.active,province:m.role==='province'?m.province:null,visiblePages:m.visiblePages||[]};
             const r=await fetch(`/api/users/${m.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
             const d=await r.json();
             if(!r.ok){msg(d.error||"خطأ","err");return;}
-            setProvUsers(list=>list.map(x=>x.id===m.id?{...x,role:d.user.role,province:d.user.province,active:d.user.active}:x));
+            setProvUsers(list=>list.map(x=>x.id===m.id?{...x,role:d.user.role,province:d.user.province,active:d.user.active,visible_pages:d.user.visible_pages}:x));
             msg("تم تحديث صلاحيات "+m.username+" ✓");
             setEditUserModal(null);
           }},h(Ic,{n:"save",sz:13}),"حفظ التعديلات")
@@ -8093,29 +8117,27 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             );
           };
           const out=[];
-          /* الرئيسية / المحافظة section */
-          if(isAdmin||!isProvince) out.push(renderItem('dash'));
-          out.push(renderItem('eng'));
-          out.push(renderItem('att'));
-          out.push(renderItem('leaves',pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)));
-          if(!isProvince) out.push(renderItem('expenses')); /* province users never see العهدة والمصروفات */
-
-          /* التحليلات + المشروعات */
-          if(isAdmin||!isProvince){
+          const vis=id=>myVisible.has(id);
+          /* الرئيسية / المحافظة section — رؤية config-driven لكل مستخدم */
+          if(vis('dash')) out.push(renderItem('dash'));
+          if(vis('eng')) out.push(renderItem('eng'));
+          if(vis('att')) out.push(renderItem('att'));
+          if(vis('leaves')) out.push(renderItem('leaves',pendingLeaves>0&&h("div",{className:"nav-badge"},pendingLeaves)));
+          if(vis('expenses')) out.push(renderItem('expenses'));
+          /* التحليلات — الهيدر يظهر بس لو فيه عنصر ظاهر */
+          const anIds=['stats','hist','compare','report'].filter(vis);
+          if(anIds.length){
             out.push(h("div",{key:"sec-an",className:"sb-section"},"التحليلات"));
-            /* HR sees: stats + report only (no hist, no compare). Others see all 4. */
-            const analyticsIds=isHR?['stats','report']:['stats','hist','compare','report'];
-            analyticsIds.forEach(id=>out.push(renderItem(id)));
+            anIds.forEach(id=>out.push(renderItem(id)));
+          }
+          /* المشروعات + الأدوات */
+          const prIds=['org','backup','activity','settings'].filter(vis);
+          if(prIds.length){
             out.push(h("div",{key:"sec-pr",className:"sb-section"},"المشروعات"));
-            out.push(renderItem('org'));
-            /* Activity log: admin OR HR. Backup: admin only. */
-            if(isAdmin){
-              out.push(renderItem('backup',unsaved>0&&h("div",{className:"nav-badge"},unsaved)));
-            }
-            if(isAdmin||isHR){
-              out.push(renderItem('activity'));
-            }
-            if(isAdmin) out.push(renderItem('settings'));
+            if(vis('org')) out.push(renderItem('org'));
+            if(vis('backup')) out.push(renderItem('backup',unsaved>0&&h("div",{className:"nav-badge"},unsaved)));
+            if(vis('activity')) out.push(renderItem('activity'));
+            if(vis('settings')) out.push(renderItem('settings'));
           }
           return out;
         })()
@@ -11170,7 +11192,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                       h("div",{style:{fontSize:11,color:"var(--sub)"}},u.role==='province'?(u.province||'—'):roleLabel)
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تعديل الصلاحيات",
-                      onClick:()=>setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1})},
+                      onClick:()=>{let _vp=null;try{_vp=u.visible_pages?JSON.parse(u.visible_pages):null;}catch(e){}setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1,visiblePages:((_vp&&_vp.length)?_vp:(ROLE_DEFAULT_PAGES[u.role]||[])).slice()});}},
                       h(Ic,{n:"edit",sz:12})," صلاحيات"
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تغيير كلمة المرور",

@@ -30,12 +30,16 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   if (req.session.user) {
+    // اقرأ visible_pages الطازة من الداتابيز عشان تغييرات الأدمن تتطبّق فور الـ refresh
+    let vp = req.session.user.visiblePages || null;
+    try { const row = await get('SELECT visible_pages FROM users WHERE id = ?', [req.session.user.id]); if (row) vp = row.visible_pages ? JSON.parse(row.visible_pages) : null; } catch (e) {}
     res.json({
       username: req.session.user.username,
       role:     req.session.user.role     || 'admin',
       province: req.session.user.province || null,
+      visiblePages: vp,
     });
   } else {
     res.json({});
@@ -64,11 +68,13 @@ router.post('/login', async (req, res) => {
   }
 
   resetRateLimit(ip);
-  req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null };
+  let vp = null; try { vp = user.visible_pages ? JSON.parse(user.visible_pages) : null; } catch (e) { vp = null; }
+  req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null, visiblePages: vp };
   res.json({
     username: user.username,
     role:     user.role || 'admin',
     province: user.province || null,
+    visiblePages: vp,
     mustChangePwd: !!user.must_change_password,
   });
 });
