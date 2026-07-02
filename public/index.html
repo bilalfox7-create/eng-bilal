@@ -1715,6 +1715,19 @@ const ALL_PAGES=["dash","eng","att","leaves","expenses","stats","hist","compare"
 const PAGE_LABELS={dash:"لوحة التحكم",eng:"كشف الإعاشة",att:"الحضور والانصراف",leaves:"الإجازات والعودة",expenses:"العهدة والمصروفات",stats:"الإحصائيات",hist:"السجل التاريخي",compare:"المقارنة",report:"التقارير",org:"الهيكل التنظيمي",backup:"النسخ الاحتياطي",activity:"سجل النشاط",settings:"الإعدادات"};
 /* الافتراضى لازم يطابق السلوك الحالى بالظبط عشان مفيش مستخدم حالى تتغيّر رؤيته */
 const ROLE_DEFAULT_PAGES={province:["eng","att","leaves"],viewer:["dash","eng","att","leaves","expenses","stats","hist","compare","report","org"],hr:ALL_PAGES};
+/* أقسام قابلة للإخفاء جوه الصفحات — ظاهرة افتراضياً، الأدمن دايماً يشوف الكل. (نبدأ بالداشبورد) */
+const PAGE_SECTIONS={
+  dash:[
+    {id:"dash:kpis",label:"بطاقات إحصائيات اليوم"},
+    {id:"dash:balance",label:"الرصيد المجمع"},
+    {id:"dash:report",label:"التقرير الشهري الشامل"},
+    {id:"dash:tasks",label:"المهام المطلوبة الآن"},
+    {id:"dash:monthStatus",label:"حالة المهام الشهرية"},
+    {id:"dash:provTasks",label:"متابعة مهام المحافظات"},
+    {id:"dash:summary",label:"بطاقات ملخّص الإعاشة"},
+    {id:"dash:distribution",label:"توزيع الإعاشات بالمحافظات"}
+  ]
+};
 const PLTS=["#0D1E38","#041A0F","#1C1200","#12092E"];
 
 /* ── Date helpers (timezone-safe) ──────────────────────────────────
@@ -2307,6 +2320,13 @@ function App(){
     const custom=Array.isArray(user.visiblePages)&&user.visiblePages.length?user.visiblePages:null;
     return new Set(custom||ROLE_DEFAULT_PAGES[rr]||[]);
   },[user]);
+  /* الأقسام المخفية عن المستخدم الحالى — الأدمن يشوف الكل (Set فاضى) */
+  const myHidden=useMemo(()=>{
+    if(!user)return new Set();
+    if((user.realRole||user.role)==='admin')return new Set();
+    return new Set(Array.isArray(user.hiddenSections)?user.hiddenSections:[]);
+  },[user]);
+  const secVis=id=>!myHidden.has(id); /* هل القسم ده ظاهر للمستخدم؟ */
   const userProv=useMemo(()=>user?.province||null,[user]);
   const [expForm,setExpForm]=useState({id:null,desc:"",type:"مصروف",category:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:"",custodyId:""});
   const [custForm,setCustForm]=useState({id:null,desc:"",source:"",sourceOther:"",responsibleId:"",prov:"",usd:"",lyd:"",egp:"",date:"",note:""});
@@ -7987,19 +8007,31 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             ),
             h("button",{className:"btn",style:{fontSize:11,padding:"6px 14px",flexShrink:0,borderColor:editUserModal.active?"rgba(239,68,68,.4)":"rgba(16,185,129,.4)",color:editUserModal.active?"#DC2626":"#059669"},onClick:()=>setEditUserModal(m=>({...m,active:m.active?0:1}))},editUserModal.active?"إيقاف الحساب":"تفعيل الحساب")
           ),
-          h("div",{className:"fld"},h("label",null,"👁 الصفحات اللى يشوفها المستخدم"),
-            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:2}},
-              ALL_PAGES.map(pg=>{const on=(editUserModal.visiblePages||[]).indexOf(pg)>=0;
-                return h("label",{key:pg,style:{display:"flex",alignItems:"center",gap:7,padding:"6px 9px",borderRadius:8,cursor:"pointer",fontSize:11.5,fontWeight:600,background:on?"rgba(96,165,250,.10)":"var(--bg)",border:"1px solid "+(on?"rgba(96,165,250,.3)":"var(--bdr2)")}},
-                  h("input",{type:"checkbox",checked:on,style:{width:15,height:15,padding:0,margin:0,flexShrink:0,accentColor:"#60A5FA",cursor:"pointer"},onChange:ev=>setEditUserModal(m=>{const s=new Set(m.visiblePages||[]);ev.target.checked?s.add(pg):s.delete(pg);return{...m,visiblePages:ALL_PAGES.filter(x=>s.has(x))};})}),
-                  h("span",null,PAGE_LABELS[pg])
+          h("div",{className:"fld"},h("label",null,"👁 الصفحات والأقسام اللى يشوفها"),
+            h("div",{style:{display:"flex",flexDirection:"column",gap:3,marginTop:2,maxHeight:300,overflowY:"auto",border:"1px solid var(--bdr2)",borderRadius:10,padding:6}},
+              ALL_PAGES.map(pg=>{const on=(editUserModal.visiblePages||[]).indexOf(pg)>=0;const secs=PAGE_SECTIONS[pg]||[];
+                return h("div",{key:pg},
+                  h("label",{style:{display:"flex",alignItems:"center",gap:8,padding:"6px 9px",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,background:on?"rgba(96,165,250,.10)":"transparent",border:"1px solid "+(on?"rgba(96,165,250,.28)":"transparent")}},
+                    h("input",{type:"checkbox",checked:on,style:{width:15,height:15,padding:0,margin:0,flexShrink:0,accentColor:"#60A5FA",cursor:"pointer"},onChange:ev=>setEditUserModal(m=>{const s=new Set(m.visiblePages||[]);ev.target.checked?s.add(pg):s.delete(pg);return{...m,visiblePages:ALL_PAGES.filter(x=>s.has(x))};})}),
+                    h("span",null,PAGE_LABELS[pg]),
+                    secs.length>0&&h("span",{style:{marginRight:"auto",fontSize:9,color:"var(--sub)"}},secs.length+" قسم")
+                  ),
+                  on&&secs.length>0&&h("div",{style:{paddingRight:22,marginTop:2,display:"flex",flexDirection:"column",gap:2}},
+                    secs.map(sec=>{const shown=(editUserModal.hiddenSections||[]).indexOf(sec.id)<0;
+                      return h("label",{key:sec.id,style:{display:"flex",alignItems:"center",gap:7,padding:"4px 8px",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,color:shown?"var(--text)":"var(--sub)"}},
+                        h("input",{type:"checkbox",checked:shown,style:{width:14,height:14,padding:0,margin:0,flexShrink:0,accentColor:"#A78BFA",cursor:"pointer"},onChange:ev=>setEditUserModal(m=>{const s=new Set(m.hiddenSections||[]);ev.target.checked?s.delete(sec.id):s.add(sec.id);return{...m,hiddenSections:[...s]};})}),
+                        h("span",null,"↳ "+sec.label)
+                      );
+                    })
+                  )
                 );
               })
             ),
-            h("div",{style:{display:"flex",gap:8,marginTop:6,alignItems:"center"}},
-              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:[...ALL_PAGES]}))},"تحديد الكل"),
+            h("div",{style:{display:"flex",gap:8,marginTop:6,alignItems:"center",flexWrap:"wrap"}},
+              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:[...ALL_PAGES]}))},"كل الصفحات"),
               h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,visiblePages:(ROLE_DEFAULT_PAGES[m.role]||[]).slice()}))},"افتراضى الدور"),
-              h("span",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)"}},(editUserModal.visiblePages||[]).length+" صفحة مختارة")
+              h("button",{className:"btn",style:{fontSize:10,padding:"4px 10px"},onClick:()=>setEditUserModal(m=>({...m,hiddenSections:[]}))},"إظهار كل الأقسام"),
+              h("span",{style:{marginRight:"auto",fontSize:10,color:"var(--sub)"}},(editUserModal.visiblePages||[]).length+" صفحة"+((editUserModal.hiddenSections||[]).length?" · "+(editUserModal.hiddenSections||[]).length+" قسم مخفى":""))
             )
           ),
           h("div",{className:"info amber",style:{fontSize:11}},h(Ic,{n:"info",sz:14}),"الرؤية بتتطبّق أول ما المستخدم يعمل تحديث للصفحة. الأدمن دايماً بيشوف الكل، وحماية الداتا على السيرفر مابتتغيّرش.")
@@ -8008,11 +8040,11 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           h("button",{className:"btn",onClick:()=>setEditUserModal(null)},"إلغاء"),
           h("button",{className:"btn blue",onClick:async()=>{
             const m=editUserModal;
-            const body={role:m.role,active:m.active,province:m.role==='province'?m.province:null,visiblePages:m.visiblePages||[]};
+            const body={role:m.role,active:m.active,province:m.role==='province'?m.province:null,visiblePages:m.visiblePages||[],hiddenSections:m.hiddenSections||[]};
             const r=await fetch(`/api/users/${m.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
             const d=await r.json();
             if(!r.ok){msg(d.error||"خطأ","err");return;}
-            setProvUsers(list=>list.map(x=>x.id===m.id?{...x,role:d.user.role,province:d.user.province,active:d.user.active,visible_pages:d.user.visible_pages}:x));
+            setProvUsers(list=>list.map(x=>x.id===m.id?{...x,role:d.user.role,province:d.user.province,active:d.user.active,visible_pages:d.user.visible_pages,hidden_sections:d.user.hidden_sections}:x));
             msg("تم تحديث صلاحيات "+m.username+" ✓");
             setEditUserModal(null);
           }},h(Ic,{n:"save",sz:13}),"حفظ التعديلات")
@@ -8488,7 +8520,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             )
           ),
           /* ── Stat cards ── */
-          (()=>{
+          secVis('dash:kpis')&&(()=>{
             /* Compute total late minutes for the active month across all engineers */
             let totalLateM=0;
             const akAtt=months[ak]?.attendance||{};
@@ -8519,7 +8551,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           )));
           })(),
           /* ── Aggregate balance hero card (admin only) ── */
-          isAdmin&&!isProvince&&h("div",{style:{padding:"24px 28px",background:"linear-gradient(135deg,#1A365D 0%,#2C5282 50%,#1e3a8a 100%)",borderRadius:22,boxShadow:"0 12px 40px rgba(26,54,93,.45),inset 0 1px 0 rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.12)",position:"relative",overflow:"hidden",color:"#fff"}},
+          secVis('dash:balance')&&isAdmin&&!isProvince&&h("div",{style:{padding:"24px 28px",background:"linear-gradient(135deg,#1A365D 0%,#2C5282 50%,#1e3a8a 100%)",borderRadius:22,boxShadow:"0 12px 40px rgba(26,54,93,.45),inset 0 1px 0 rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.12)",position:"relative",overflow:"hidden",color:"#fff"}},
             h("div",{style:{position:"absolute",top:-40,left:-40,width:200,height:200,background:"radial-gradient(circle,rgba(99,102,241,.4),transparent 70%)",pointerEvents:"none"}}),
             h("div",{style:{position:"absolute",bottom:-50,right:-50,width:240,height:240,background:"radial-gradient(circle,rgba(34,211,238,.25),transparent 70%)",pointerEvents:"none"}}),
             h("div",{style:{position:"relative"}},
@@ -8559,7 +8591,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               )
             )
           ),
-          isAdmin&&h("div",{className:"card",style:{borderTop:"2.5px solid #A78BFA",background:"linear-gradient(135deg,rgba(167,139,250,.08),rgba(96,165,250,.04))"}},
+          secVis('dash:report')&&isAdmin&&h("div",{className:"card",style:{borderTop:"2.5px solid #A78BFA",background:"linear-gradient(135deg,rgba(167,139,250,.08),rgba(96,165,250,.04))"}},
             h("div",{style:{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}},
               h("div",null,
                 h("div",{style:{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:4,display:"flex",alignItems:"center",gap:8}},"📊 التقرير الشهري الشامل"),
@@ -8568,7 +8600,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               h("button",{className:"btn",style:{gap:6,padding:"8px 16px",fontSize:12,fontWeight:700,background:"linear-gradient(135deg,#A78BFA,#60A5FA)",border:"none",color:"#fff"},onClick:generateMonthlyReport},h(Ic,{n:"pdf",sz:14}),"إنشاء التقرير")
             )
           ),
-          h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
+          secVis('dash:tasks')&&h("div",{className:"card",style:{borderTop:"2.5px solid #2563EB"}},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"att",sz:13,c:"#2563EB"})),"المهام المطلوبة الآن"),
               h("span",{className:"card-badge"},now.toLocaleDateString("ar-EG",{day:"numeric",month:"long",year:"numeric"}))
@@ -8604,7 +8636,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           ),
 
           /* ── Month status bar ── */
-          h("div",{className:"card"},
+          secVis('dash:monthStatus')&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(52,211,153,.1)"}},h(Ic,{n:"stats",sz:13,c:"#34D399"})),"حالة المهام الشهرية")
             ),
@@ -8623,7 +8655,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
           ),
 
           /* ── Province task tracking ── */
-          isAdmin&&h("div",{className:"card"},
+          secVis('dash:provTasks')&&isAdmin&&h("div",{className:"card"},
             h("div",{className:"card-hdr"},
               h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"rgba(167,139,250,.1)"}},h(Ic,{n:"org",sz:13,c:"#A78BFA"})),"متابعة مهام المحافظات")
             ),
@@ -8649,7 +8681,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
             )
           ),
 
-          h("div",{className:"sg"},
+          secVis('dash:summary')&&h("div",{className:"sg"},
             [{l:"إجمالى المهندسين",v:G.n,sub:"مهندس نشط",c:"#2563EB",ic:"eng",bg:"#EFF6FF",pct:100},
              {l:"النصف الأول",v:G.a1.toFixed(0)+"$",sub:fE(G.a1*(LIVE_EGP)),c:"#16A34A",ic:"stats",bg:"#F0FDF4",pct:G.a1/G.tot*100||0},
              {l:"النصف الثاني",v:G.a2.toFixed(0)+"$",sub:fE(G.a2*(LIVE_EGP)),c:"#D97706",ic:"stats",bg:"#FFFBEB",pct:G.a2/G.tot*100||0},
@@ -8663,7 +8695,7 @@ ${_hasOOP?`<div style="margin:0 0 14px;padding:14px 18px;background:linear-gradi
               h("div",{className:"sc-bar"},h("div",{className:"sc-fill",style:{width:s.pct.toFixed(1)+"%",background:s.c}}))
             ))
           ),
-          h("div",{className:"dash-2col"},
+          secVis('dash:distribution')&&h("div",{className:"dash-2col"},
             h("div",{className:"card"},
               h("div",{className:"card-hdr"},
                 h("div",{className:"card-title"},h("div",{className:"card-title-icon",style:{background:"#EFF6FF"}},h(Ic,{n:"dash",sz:13,c:"#2563EB"})),"توزيع الإعاشات بالمحافظات"),
@@ -11192,7 +11224,7 @@ ${lateDays>0?`<br><span style="color:#B45309;font-weight:800">⚠ ${lateDays} ي
                       h("div",{style:{fontSize:11,color:"var(--sub)"}},u.role==='province'?(u.province||'—'):roleLabel)
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تعديل الصلاحيات",
-                      onClick:()=>{let _vp=null;try{_vp=u.visible_pages?JSON.parse(u.visible_pages):null;}catch(e){}setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1,visiblePages:((_vp&&_vp.length)?_vp:(ROLE_DEFAULT_PAGES[u.role]||[])).slice()});}},
+                      onClick:()=>{let _vp=null,_hs=null;try{_vp=u.visible_pages?JSON.parse(u.visible_pages):null;}catch(e){}try{_hs=u.hidden_sections?JSON.parse(u.hidden_sections):null;}catch(e){}setEditUserModal({id:u.id,username:u.username,role:u.role,province:u.province||PROVS[0],active:u.active===0?0:1,visiblePages:((_vp&&_vp.length)?_vp:(ROLE_DEFAULT_PAGES[u.role]||[])).slice(),hiddenSections:(Array.isArray(_hs)?_hs:[]).slice()});}},
                       h(Ic,{n:"edit",sz:12})," صلاحيات"
                     ),
                     h("button",{className:"btn",style:{fontSize:11,padding:"5px 10px"},title:"تغيير كلمة المرور",

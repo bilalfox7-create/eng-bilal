@@ -34,12 +34,14 @@ router.get('/me', async (req, res) => {
   if (req.session.user) {
     // اقرأ visible_pages الطازة من الداتابيز عشان تغييرات الأدمن تتطبّق فور الـ refresh
     let vp = req.session.user.visiblePages || null;
-    try { const row = await get('SELECT visible_pages FROM users WHERE id = ?', [req.session.user.id]); if (row) vp = row.visible_pages ? JSON.parse(row.visible_pages) : null; } catch (e) {}
+    let hs = req.session.user.hiddenSections || null;
+    try { const row = await get('SELECT visible_pages, hidden_sections FROM users WHERE id = ?', [req.session.user.id]); if (row) { vp = row.visible_pages ? JSON.parse(row.visible_pages) : null; hs = row.hidden_sections ? JSON.parse(row.hidden_sections) : null; } } catch (e) {}
     res.json({
       username: req.session.user.username,
       role:     req.session.user.role     || 'admin',
       province: req.session.user.province || null,
       visiblePages: vp,
+      hiddenSections: hs,
     });
   } else {
     res.json({});
@@ -69,12 +71,14 @@ router.post('/login', async (req, res) => {
 
   resetRateLimit(ip);
   let vp = null; try { vp = user.visible_pages ? JSON.parse(user.visible_pages) : null; } catch (e) { vp = null; }
-  req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null, visiblePages: vp };
+  let hs = null; try { hs = user.hidden_sections ? JSON.parse(user.hidden_sections) : null; } catch (e) { hs = null; }
+  req.session.user = { id: user.id, username: user.username, role: user.role || 'admin', province: user.province || null, visiblePages: vp, hiddenSections: hs };
   res.json({
     username: user.username,
     role:     user.role || 'admin',
     province: user.province || null,
     visiblePages: vp,
+    hiddenSections: hs,
     mustChangePwd: !!user.must_change_password,
   });
 });
